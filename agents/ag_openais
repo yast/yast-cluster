@@ -1,0 +1,731 @@
+#!/usr/bin/python
+# -*- coding: utf8 -*-
+
+#
+# Authors:	Xinwei Hu <xwhu@suse.de>
+#		Lukas Ocilka <locilka@suse.cz>
+#
+# File:		ag_multipath
+#
+# License:
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU General Public License for more details.
+#   
+#   This program is free software; you can redistribute it and/or
+#   modify it under the terms of the GNU General Public License
+#   as published by the Free Software Foundation; either version
+#   2 of the License, or (at your option) any later version.
+#   
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+#   02111-1307 USA
+#
+
+import gettext, os, re
+from gettext import textdomain
+textdomain("openais")
+
+from ycp import *
+
+
+totem_option_table = {
+	"version":{"doc":"The only valid version is 2", 
+		   "type":"int",
+		   "default_value":2,
+		   "suggested_value":2},
+	"nodeid":{"doc":"The fixed 32 bit value to indentify node to cluster membership. Optional for IPv4, and required for IPv6. 0 is reserved for other usage", 
+		  "type":"int",
+		  "default_value":70912},
+	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive", 
+			       "default_value":"yes"},
+	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message", 
+		   "default_value":"off"},
+	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen", 
+		    "type":"select[none,active,passive]", "default_value":"none"},
+	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
+	"threads":{"doc":"How many threads should be used to encypt and sending message. Only have meanings when secauth is turned on", 
+		   "type":"int", "default_value":0},
+	"vsftype":{"doc":"The virtual synchrony filter type used to indentify a primary component. Change with care.", 
+		   "default_value":"ykd",
+		   "suggested_value":"none"},
+	"token":{"doc":"Timeout for a token lost. in ms", 
+		 "type":"int", "default_value":1000,
+		 "suggested_value":10000},
+	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.", 
+			    "type":"int", "default_value":238},
+	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.", 
+		"type":"int", "default_value":180},
+	"token_retransmits_before_loss_const":{"doc":"How many token retransmits should be attempted before forming a new configuration.", 
+					       "type":"int", "default_value":4,
+					       "suggested_value":20},
+	"join":{"doc":"How long to wait for join messages in membership protocol. in ms", 
+		"type":"int", "default_value":50,
+		"suggested_value":60},
+	"send_join":{"doc":"This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.", 
+		     "type":"int", "default_value":0},
+	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.", 
+		     "type":"int", "default_value":800,
+		     "suggested_value":4800},
+	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.", 
+		 "type":"int", "default_value":200},
+	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.", 
+		     "type":"int", "default_value":1000},
+	"fail_to_recv_const":{"doc":"How many rotations of the token without receiving any of the messages when messages should be received may occur before a new configuration is formed", 
+			      "type":"int", "default_value":50},
+	"seqno_unchanged_const":{"doc":"How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.", 
+				 "type":"int", "default_value":30},
+	"heartbeat_failure_allowed":{"doc":"Configures the optional HeartBeating mechanism for faster failure detection. 0 for disable.", "type":"int", "default_value":0},
+	"max_network_delay":{"doc":"The approximate delay that your network takes to transport one packet from one machine to another.", 
+			     "type":"int", "default_value":50},
+	"window_size":{"doc":"The maximum number of messages that may be sent on one token rotation.", 
+		       "type":"int", "default_value":50},
+	"max_messages":{"doc":"The maximum number of messages that may be sent by one processor on receipt of the token.", 
+			"type":"int", "default_value":17,
+			"suggested_value":20},
+	"rrp_problem_count_timeout":{"doc":"The time in milliseconds to wait before decrementing the problem count by 1 for a particular ring to ensure a link is not marked faulty for transient network failures.", 
+				     "type":"int", "default_value":2000},
+	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.", 
+					"type":"int", "default_value":10},
+	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
+	"keyfile":{"doc":"Location of key file. If not set, it defaults to the environoment OPENAIS_TOTEM_AUTHKEY_FILE, then /etc/ais/authkey", "default_value":"/etc/ais/authkey"},
+	"key":{"doc":"The key itself in the configuration file. Should be 128 characters. Dont use the default value", "default_value":"CatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMee"}
+}
+
+
+aisexec_option_table = {
+	"user":{"doc":"User to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}, 
+	"group":{"doc":"Group to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}}
+
+service_option_table = {
+	"name":{"doc":"The name of the service", "default_value":"pacemaker"},
+	"ver":{"doc":"Version", "default_value":"0"},
+	"use_mgmtd":{"doc":"Default to start mgmtd with pacemaker", "default_value":"yes"},
+	"expected_nodes":{"doc":"Nodes we expected to see in the cluster", "default_value":2},
+	"expected_votes":{"doc":"Votes we expected to see in the cluster", "default_value":2},
+	"quorum_votes":{"doc":"Votes needed to have the quorum", "default_value":1},
+	"use_logd":{"doc":"Use logd for pacemaker", "default_value":"no"},
+}
+
+interface_option_table = {
+	"ringnumber":{"doc":"The ringnumber assigned to this interface setting", "default_value":0, "type":"int"},
+	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
+	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
+	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
+	}
+
+event_option_table = {
+	"delivery_queue_size":{"doc":"The full size of the outgoing  delivery queue to  the application", "default_value":1000},
+	"delivery_queue_resume":{"doc":"When new events can be accepted by the event service when the delivery queue count of pending messages has reached this value",
+				 "default_value":500},
+}
+
+amf_option_table = {
+	"mode":{"doc":"Enable or disable AMF ", "default_value":"disable", "suggested_value":"disable"},
+}
+logging_option_table = {
+	"debug":{"doc":"Whether or not turning on the debug information in the log", "default_value":"off",
+		 "suggested_value":"off"},
+	"fileline":{"doc":"Logging file line in the source code as well", "default_value":"off",
+		    "suggested_value":"off"},
+	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
+		     "suggested_value":"yes"},
+	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
+	"to_file":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
+	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/tmp/saved_pacemaker_log"},
+	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
+	"timestamp":{"doc":"Log timestamp as well", "default_value":"on", "suggested_value":"on"},
+}
+logger_option_table = {
+	"ident":{"doc":"Ident for the logger, i.e. AMF", "default_value":"AMF"},
+	"debug":{"doc":"Enable debug for this logger.", "default_value":"on"},
+	"tags":{"doc":"Tags used for this logger.", "default_value":"enter|leave|trace1"},
+	}
+
+totem_options = {"interface":[]}
+ais_options = {}
+pacemaker_service_options = {}
+service_options = {}
+logging_options = {"logger":[]}
+amf_options = {}
+event_options = {}
+
+def strip_comments_and_pending_space(line):
+	return line.split('#')[0].rstrip()
+
+def get_next_line(ff):
+	l = ff.next()
+	return strip_comments_and_pending_space(l)
+
+def is_ais_true(s):
+	return (s == "true" or s == "on" or s == "yes" or s == "y" or s == "1")
+
+def generate_default_ais_options():
+	ais_options["user"] = "root"
+	ais_options["group"] = "root"
+
+def fulfill_default_amf_options():
+	if amf_options.get("mode", None) == None:
+		amf_options["mode"] = "disable"
+
+def fulfill_default_pacemaker_options ():
+	pacemaker_service_options["name"] = "pacemaker"
+	pacemaker_service_options["ver"] = "0"
+	
+def fulfill_default_logging_options ():
+	for opt in logging_option_table.keys():
+		if opt == "logger": continue
+		sv = logging_option_table[opt].get("suggested_value", None)
+		v = logging_options.get(opt, None)
+		if v == None and sv != None:
+			logging_options[opt] = sv
+
+def fulfill_suggested_totem_options():
+	totem_options["version"] = 2
+	for opt in totem_option_table.keys():
+		if opt == "interface": continue
+		sv = totem_option_table[opt].get("suggested_value", None)
+		v = totem_options.get(opt, None)
+		if v == None and sv != None:
+			totem_options[opt] = sv
+			
+def print_ais_options(f):
+	f.write("aisexec {\n")
+	for key in ais_options.keys():
+		f.write("\t#%s\n\n" % (aisexec_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, ais_options[key]))
+	f.write("}\n")	
+	
+def print_amf_options(f):
+	f.write("amf {\n")
+	for key in amf_options.keys ():
+		f.write("\t#%s\n\n" % (amf_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, amf_options[key]))
+	f.write("}\n")
+
+def print_event_options(f):
+	if event_options == {}: return
+	f.write("event {\n")
+	for key in event_options.keys ():
+		f.write("\t#%s\n\n" % (event_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, event_options[key]))
+	f.write("}\n")
+		
+def print_service_options(f):
+	for key in service_options.keys():
+		f.write("service {\n")
+		for k1 in service_options[key].keys():
+			f.write("\t%s:\t%s\n\n" % (k1, service_options[key][k1]))
+		f.write("}\n")
+		
+def print_pacemaker_service_options(f):
+	f.write("service {\n")
+	for key in pacemaker_service_options.keys():
+		if pacemaker_service_options[key] == "":
+			continue
+		if service_option_table.get(key, None) != None:
+			f.write("\t#%s\n\n" % (service_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, pacemaker_service_options[key]))
+	f.write("}\n")	
+			
+def print_logging_options(f):
+	f.write("logging {\n")
+	for key in logging_options.keys():
+		if key == "logger":
+			for log in logging_options["logger"]:
+				f.write("\tlogger {\n")
+				for l in log.keys():
+					f.write("\t\t#%s\n\n" % (logger_option_table[l]["doc"]))
+					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
+				f.write("\t}\n")
+			continue
+		f.write("\t#%s\n\n" % (logging_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
+	f.write("}\n")
+
+def print_totem_options(f):
+	f.write("totem {\n")
+	for key in totem_options.keys():
+		if key == "interface":
+			for inf in totem_options["interface"]:
+				f.write("\tinterface {\n")
+				for k in inf.keys():
+					if inf[k] == "":
+						continue;
+					f.write("\t\t#%s\n\n" % (interface_option_table[k]["doc"]))
+					f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
+				f.write("\t}\n")
+			continue
+		if totem_options[key] == "":
+			continue	
+		f.write("\t#%s\n\n" % (totem_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, totem_options[key]))
+	# We print out all possible configurations as well
+	# dont for now. looking for better solution
+	"""
+	for opt in totem_option_table.keys():
+		v = totem_options.get(opt, None)
+		if v == None:
+			f.write("\t#%s\n\n" % (totem_option_table[opt]["doc"]))
+			f.write("\t#%s:\t%s\n\n" % (opt, totem_option_table[opt]["default_value"]))
+	"""
+	f.write("}\n")
+
+def file_parser(file):
+	global ais_options
+	global totem_options
+	global pacemaker_service_options
+	global service_options
+	global logging_options
+	global amf_options
+	global event_options
+	
+	for l in file:
+		i = strip_comments_and_pending_space(l)
+		if i == "":
+			continue
+
+		if i[-1] == "{":
+			i = i.lstrip().split(" ")[0]
+			if i == "aisexec":
+				ais_options = opt_parser(file, aisexec_option_table)
+			elif i == "service":
+				o = opt_parser(file, service_option_table)
+				if o.get("name", "") == "pacemaker":
+					pacemaker_service_options = o
+				elif o.get("name", "") != "":
+					service_options[o["name"]] = o
+				else:
+					pass
+			elif i == "totem":
+				totem_options = opt_parser(file, totem_option_table)
+			elif i == "logging":
+				logging_options = opt_parser(file, logging_option_table)
+			elif i == "amf":
+				amf_options = opt_parser(file, amf_option_table)
+			elif i == "event":
+				event_options = opt_parser(file, event_option_table)
+			else:
+				pass
+	
+def opt_parser(file, options):
+	result = {}
+	i = ""
+	while (i == ""):
+		i = get_next_line(file)
+
+	while (i[-1] != "}"):
+		if (i[-1] == "{"):
+			if i.lstrip().split(" ")[0] == "interface":
+				infs = result.get("interface", [])
+				infs.append(opt_parser(file, interface_option_table))
+				result["interface"] = infs		
+			elif i.lstrip().split(" ")[0] == "logger":
+				logs = result.get("logger", [])
+				logs.append(opt_parser(file, logger_option_table))
+				result["logger"] = logs
+			else:
+				y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
+				while (i[-1] != "}"):
+					i = get_next_line(file)
+				
+			i = get_next_line(file)
+			while ( i == ""):
+				i = get_next_line(file)
+			continue
+		
+		opt = i.split(":")
+		try:
+			doc = options[opt[0].strip()]["doc"]
+		except KeyError:
+			y2warning("Unknown options %s"%opt[0].strip())
+			if options == service_option_table:
+				result[opt[0].strip()] = opt[1].strip()
+			else:
+				y2warning("Unknown options %s found, ignore it" % (opt[0].strip()))
+		else:
+			if options[opt[0].strip()].get("type", "string") == "int":
+				try:
+					result[opt[0].strip()] = int(opt[1].strip())
+				except ValueError:
+					y2warning("Invalid option %s found, default to %s" % (opt[0].strip(), options[opt[0].strip()]["default_value"]))
+					result[opt[0].strip()] = options[opt[0].strip()]["default_value"]
+			else:
+				result[opt[0].strip()] = opt[1].strip()
+		i = ""
+		while (i == ""):
+			i = get_next_line(file)
+	return result.copy()
+
+def validate_conf():
+	if totem_options.get("version", 0) != 2:
+		return 1, "Version has to be set to 2"
+	inf1 = get_interface(0)
+	inf2 = get_interface(1)
+	if inf1 == None and inf2 != None:
+		return 1, "Ringnumber 1 is specified while ringnumber 0 is not"
+	if len(totem_options.get("interface", [])) == 0:
+		return 1, "No interface specified"
+	if len(totem_options.get("interface", []))>2:
+		return 1, "More then 2 interfaces specified"
+	for inf in totem_options["interface"]:
+		if inf.get("mcastaddr", "") == "":
+			return 1, "No multicast address specified"
+		if inf.get("mcastport", 0) == 0:
+			return 1, "No multicast port specified"
+		if inf.get("ringnumber", -1) != 0 and inf.get("ringnumber", -1) != 1:
+			return 1, "Ring Number must be 0 or 1, but got %d" %(inf.get("ringnumber", -1))
+		try:
+			inf.get("mcastaddr", "").index(':')
+			if totem_options.get("nodeid", 0) == 0:
+				return 1, "Node ID must be specified for IPv6"
+		except ValueError:
+			pass
+	return 0, "OK"
+
+def get_interface(i):
+	for inf in totem_options.get("interface", []):
+		if inf["ringnumber"] == i:
+			return inf
+	else:
+		return None
+
+def del_interface(k):
+	for i in range(len(totem_options["interface"])):
+		if totem_options["interface"][i]["ringnumber"] == k:
+			del totem_options["interface"][i]
+			break
+		
+def load_ais_conf(filename):
+	try:
+		f = open(filename, "r")
+		file_parser(f)
+		f.close()
+	except:
+		try:
+			os.rename(filename, "/etc/ais/openais.conf.corrupted");
+		except:
+			pass
+		f = open(filename, "w")
+		f.write(" ")
+		f.close()
+		load_ais_conf(filename)
+
+
+class OpenAISConf_Parser:
+	def __init__(self):
+		load_ais_conf("/etc/ais/openais.conf")
+    
+	def doList(self, path):
+		#remove the leading dot, 
+		path_arr = path
+	
+		if path_arr[0] == '':
+			return '[ "pacemaker", "totem" ]'
+		elif path_arr[0] == 'pacemaker':
+			if len(path_arr) == 1:
+				return '[ "use_mgmtd" ]'
+			else:
+				return '[]'
+		elif path_arr[0] == 'totem':
+			if len(path_arr) == 1:
+				return '[ "secauth", "autoid", "threads", "nodeid", "rrpmode", "interface" ]'
+			else:
+				if path_arr[1] == 'interface':
+					if len(path_arr) == 2:
+						r = '[ '
+						if get_interface(0) != None:
+							r = r + '"interface0"'
+							if get_interface(1) != None:
+								r = r +  ', "interface1"'
+						r = r + ']'
+						return r
+					else:
+						if len(path_arr) == 3:
+							if path_arr[2] == "interface0" and get_interface(0) != None:
+								return '["bindnetaddr", "mcastaddr", "mcastport"]'
+							elif path_arr[2] == "interface1" and get_interface(1) != None:
+								return ' ["bindnetaddr", "mcastaddr", "mcastport"]'
+							else:
+								return '[]'
+						else:
+							return '[]'
+				else:
+					return '[]'
+		else:
+			return 'nil\n'
+	
+	def doRead(self, path):
+		if path[0] == "":
+			return "nil\n"
+		elif path[0] == "pacemaker":
+			if len(path) == 1:
+				return "nil\n"
+			elif len(path) == 2 and path[1] == "use_mgmtd":
+				y2warning(pacemaker_service_options.get("use_mgmtd", "yes"))
+				return '"%s"'%pacemaker_service_options.get("use_mgmtd", "no")
+			else:
+				return "nil"
+		elif path[0] == "totem":
+			if len(path) == 1:
+				return "nil"
+			elif len(path) == 2:
+				if path[1] == "secauth":
+					return '"%s"' % totem_options.get("secauth", "")
+				elif path[1] == "autoid":
+					return '"%s"' % totem_options.get("clear_node_high_bit", "")
+				elif path[1] == "nodeid":
+					return '"%d"' % totem_options.get("nodeid", 0)
+				elif path[1] == "threads":
+					return '"%d"' % totem_options.get("threads", 0)
+				elif path[1] == "rrpmode":
+					return '"%s"' % totem_options.get("rrp_mode", "none")
+				else:
+					return "nil"
+			elif len(path) == 4:
+				if path[1] == "interface":
+					if path[2] == "interface0":
+						i = get_interface(0)
+						if i == None:
+							return "nil"
+						else:
+							if path[3] == "bindnetaddr":
+								return '"%s"' % i.get("bindnetaddr", "")
+							elif path[3] == "mcastaddr":
+								return '"%s"' % i.get("mcastaddr", "")
+							elif path[3] == "mcastport":
+								return '"%d"' % i.get("mcastport", 5405)
+							else:
+								return "nil"
+					elif path[2] == "interface1":
+						i = get_interface(1)
+						if i == None:
+							return "nil"
+						else:
+							if path[3] == "bindnetaddr":
+								return '"%s"' % i.get("bindnetaddr", "")
+							elif path[3] == "mcastaddr":
+								return '"%s"' % i.get("mcastaddr", "")
+							elif path[3] == "mcastport":
+								return '"%d"' % i.get("mcastport", 5405)
+							else:
+								return "nil"
+					else:
+						return "nil"
+				else:
+					return "nil"
+			else:
+				return "nil"
+		else:
+			return "nil"
+		
+	def saveFile(self):
+		generate_default_ais_options()
+
+		fulfill_default_amf_options()
+		fulfill_default_pacemaker_options()
+		fulfill_default_logging_options()
+		fulfill_suggested_totem_options()
+
+		f = open("/etc/ais/openais.conf.YaST2", "w")
+		print_ais_options(f)
+		print_pacemaker_service_options(f)
+		print_service_options(f)
+		print_totem_options(f)
+		print_logging_options(f)
+		print_amf_options(f)
+		print_event_options(f)
+		f.close()
+
+		try:
+			os.rename("/etc/ais/openais.conf", "/etc/ais/openais.conf.YasT2.bak")
+			os.rename("/etc/ais/openais.conf.YaST2", "/etc/ais/openais.conf")
+		except OSError:
+			pass
+		pass
+	
+	def doWrite(self, path, args):
+		if path[0] == "":
+			self.saveFile()
+		elif path[0] == "pacemaker":
+			if len(path) == 2:
+				if path[1] == "use_mgmtd":
+					pacemaker_service_options["use_mgmtd"] = str(args)
+					return "true"
+				else:
+					return "false"
+			else:
+				return "false"
+		elif path[0] == "totem":
+			if len(path) == 2:
+				if path[1] == "autoid":
+					totem_options["clear_node_high_bit"] = args
+					return "true"
+				elif path[1] == "nodeid":
+					if args == "":
+						if totem_options.get("nodeid", None) != None:
+							del totem_options["nodeid"]
+						return "true"
+					try:
+						totem_options["nodeid"] = int(args)
+						return "true"
+					except ValueError:
+						return "false"
+				elif path[1] == "secauth":
+					totem_options["secauth"] = args
+					return "true"
+				elif path[1] == "threads":
+					if args == "":
+						if totem_options.get("threads", None) != None:
+							del totem_options["threads"]
+						return "true"
+					try:
+						totem_options["threads"] = int(args)
+						return "true"
+					except ValueError:
+						return "false"
+				elif path[1] == "rrpmode":
+					totem_options["rrp_mode"] = args
+					return "true"
+				else:
+					return "false"
+			elif len(path) == 3:
+				if path[1] == "interface":
+					if args == "":
+						if path[2] == "interface0":
+							y2debug("deleting interface 0")
+							del_interface(0)
+							return "true"
+						elif path[2] == "interface1":
+							y2debug("deleting interface 1")
+							del_interface(1)
+							return "true"
+						else:
+							return "false"
+					else:
+						return "false"
+				else:
+					return "false"
+			elif len(path) == 4:
+				if path[1] == "interface":
+					i = None
+					if path[2] == "interface0":
+						i = get_interface(0)
+						if i == None:
+							totem_options["interface"].append({"ringnumber":0})
+							i = get_interface(0)
+					elif path[2] == "interface1":
+						i = get_interface(1)
+						if i == None:
+							totem_options["interface"].append({"ringnumber":1})
+							i = get_interface(1)
+					else:
+						i = None
+						
+					if i != None:
+						if path[3] == "bindnetaddr":
+							i["bindnetaddr"] = args
+							return "true"
+						elif path[3] == "mcastaddr":
+							i["mcastaddr"] = args
+							return "true"
+						elif path[3] == "mcastport":
+							try:
+								i["mcastport"] = int(args)
+								return "true"
+							except ValueError:
+								return "false"
+						else:
+							return "false"
+					else:
+						return "false"
+				else:
+					return "false"
+			else:
+				return "false"
+		else:
+			return "false"
+		return "false"
+class SCR_Agent:
+	def __init__(self):
+		self.command = ""
+		self.path = ""
+		self.args = ""
+	
+	def SCR_Command (self):
+		# clean up old data before actually started
+		self.command = ""
+		self.args = ""
+		self.path = ""
+			
+		y2debug ("waiting for a command");
+		scr_command = sys.stdin.readline().strip()
+		
+		y2debug ("newline: %s" % scr_command);
+		
+		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
+		r = p.match(scr_command)
+		if (r):
+			try:
+				self.command = r.group(1)
+			except IndexError:
+				y2error("No command in %s " % scr_command)
+				return
+			
+			try:
+				path = r.group(3)
+				if path[0] == '.':
+					path = path[1:]
+				self.path = path.split('.')
+
+			except IndexError:
+				y2debug("No path in %s " % scr_command)
+				return
+			try:
+				self.args = r.group(5).strip()
+				if self.args[0] == '"':
+					self.args = self.args[1:]
+				if self.args[-1] == '"':
+					self.args = self.args[:-1]
+			except (IndexError, AttributeError):
+				y2debug("No args in %s " % scr_command)
+				return 
+		else:
+			y2error ("No command in '%s'" % scr_command)
+			return
+
+    # <-- SCR_Command
+# <-- class SCR_Agent
+
+def main_entry():
+	scr_agent = SCR_Agent ()
+	openais_agent = OpenAISConf_Parser()
+    
+	while True:
+		scr_agent.SCR_Command ()
+
+		y2debug ("Command '%s'" % scr_agent.command);
+		
+		if (scr_agent.command == 'Dir' ):
+			print openais_agent.doList(scr_agent.path)
+
+		elif (scr_agent.command == 'Read'):
+			print openais_agent.doRead(scr_agent.path)
+
+		elif (scr_agent.command == 'Write'):
+			print openais_agent.doWrite(scr_agent.path, scr_agent.args)
+
+		elif (scr_agent.command == 'result'):
+			break
+
+		else:
+			y2error ("Unknown command: %s" % scr_agent.command)
+			print "nil\n"
+		sys.stdout.flush()
+# <-- main    
+    
+if __name__ == "__main__":
+	main_entry()

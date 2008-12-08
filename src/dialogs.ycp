@@ -1,0 +1,546 @@
+/* ------------------------------------------------------------------------------
+ * Copyright (c) 2006 Novell, Inc. All Rights Reserved.
+ *
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of version 2 of the GNU General Public License as published by the
+ * Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, contact Novell, Inc.
+ *
+ * To contact Novell about this file by physical or electronic mail, you may find
+ * current contact information at www.novell.com.
+ * ------------------------------------------------------------------------------
+ */
+
+/**
+ * File:	include/cluster/dialogs.ycp
+ * Package:	Configuration of cluster
+ * Summary:	Dialogs definitions
+ * Authors:	Cong Meng <cmeng@novell.com>
+ *
+ * $Id: dialogs.ycp 27914 2006-02-13 14:32:08Z locilka $
+ */
+
+{
+
+textdomain "cluster";
+
+import "Label";
+import "Wizard";
+import "Cluster";
+import "IP";
+import "Popup";
+import "Service";
+import "Report";
+
+include "cluster/helps.ycp";
+include "cluster/common.ycp";
+
+boolean ValidateCommunication ()
+{
+	boolean ret = true;
+	foreach(symbol tid, [`bindnetaddr1, `mcastaddr1, ], {
+			if (IP::Check((string)UI::QueryWidget(`id(tid), `Value)) == false) {
+				Popup::Message("Must input Network Address");
+				UI::SetFocus(tid);
+				ret = false;
+			}
+			});
+	foreach(symbol tid, [`mcastport1], {
+			if (!regexpmatch((string)UI::QueryWidget(`id(tid), `Value), "^[0-9]+$")) {
+				Popup::Message("Must input integer");
+				UI::SetFocus(`id(tid));
+				ret = false;
+			}
+			});
+	if (UI::QueryWidget(`id(`autoid), `Value) == false) {
+		string noid = (string)UI::QueryWidget(`id(`nodeid), `Value);
+		boolean s = regexpmatch(noid, "^[0-9]+$");
+		if (!s) {
+			Popup::Message("Must input integer");
+			UI::SetFocus(`id(`nodeid));
+			ret = false;
+		}
+		integer i = tointeger(noid);
+		if (i == 0) {
+			Popup::Message("NodeID 0 is reserved");
+			UI::SetFocus(`id(`nodeid));
+			ret = false;
+		}
+	}
+	if (UI::QueryWidget(`id(`enable2), `Value) == true) {
+		foreach(symbol tid, [`bindnetaddr2, `mcastaddr2, ], {
+				if (IP::Check((string)UI::QueryWidget(`id(tid), `Value)) == false) {
+				Popup::Message("Must input Network Address");
+				UI::SetFocus(tid);
+				ret = false;
+				}
+				});
+		foreach(symbol tid, [`mcastport2], {
+				if (!regexpmatch((string)UI::QueryWidget(`id(tid), `Value), "^[0-9]+$")) {
+				Popup::Message("Must input integer");
+				UI::SetFocus(`id(tid));
+				ret = false;
+				}
+				});
+	}
+	return ret;
+}
+
+void SaveCommunicationToConf ()
+{
+	SCR::Write(.openais.totem.interface.interface0.bindnetaddr, (string)UI::QueryWidget(`id(`bindnetaddr1), `Value));
+	SCR::Write(.openais.totem.interface.interface0.mcastaddr, (string)UI::QueryWidget(`id(`mcastaddr1), `Value));
+	SCR::Write(.openais.totem.interface.interface0.mcastport, (string)UI::QueryWidget(`id(`mcastport1), `Value));
+
+	if (UI::QueryWidget(`id(`enable2), `Value) == false) {
+		SCR::Write(.openais.totem.interface.interface1, "");
+	} else {
+		SCR::Write(.openais.totem.interface.interface1.bindnetaddr, (string)UI::QueryWidget(`id(`bindnetaddr2), `Value));
+		SCR::Write(.openais.totem.interface.interface1.mcastaddr, (string)UI::QueryWidget(`id(`mcastaddr2), `Value));
+		SCR::Write(.openais.totem.interface.interface1.mcastport, (string)UI::QueryWidget(`id(`mcastport2), `Value));
+
+	}
+
+	if (UI::QueryWidget(`id(`autoid), `Value) == true) {
+		SCR::Write(.openais.totem.autoid, "yes");
+		SCR::Write(.openais.totem.nodeid, "0");
+	} else {
+		SCR::Write(.openais.totem.nodeid, (string)UI::QueryWidget(`id(`nodeid), `Value));
+		SCR::Write(.openais.totem.autoid, "no");
+	}
+
+	SCR::Write(.openais.totem.rrpmode, (string)UI::QueryWidget(`id(`rrpmode), `Value));
+}
+
+void SaveCommunication () {
+	Cluster::bindnetaddr1 = (string)UI::QueryWidget(`id(`bindnetaddr1), `Value);
+	Cluster::bindnetaddr2 = (string)UI::QueryWidget(`id(`bindnetaddr2), `Value);
+	Cluster::mcastaddr1   = (string)UI::QueryWidget(`id(`mcastaddr1), `Value);
+	Cluster::mcastaddr2   = (string)UI::QueryWidget(`id(`mcastaddr2), `Value);
+	Cluster::mcastport1   = (string)UI::QueryWidget(`id(`mcastport1), `Value);
+	Cluster::mcastport2   = (string)UI::QueryWidget(`id(`mcastport2), `Value);
+	Cluster::enable2      = (boolean)UI::QueryWidget(`id(`enable2), `Value);
+	Cluster::autoid       = (boolean)UI::QueryWidget(`id(`autoid), `Value);
+	Cluster::nodeid       = (string)UI::QueryWidget(`id(`nodeid), `Value);
+	Cluster::rrpmode      = (string)UI::QueryWidget(`id(`rrpmode), `Value);
+}
+
+any CommunicationDialog () {
+	any ret = nil;
+	map result = $[];
+
+	result = (map)SCR::Execute(.target.bash_output, "/sbin/ip addr show scope global | grep inet | awk '{print $2}' | awk -F'/' '{print $1}'");
+
+	list <string> existing_ips = [];
+	if (size(result["stdout"]:"") != 0) {
+		list <string> strs = splitstring(result["stdout"]:"", "\n");
+		foreach (string s, strs, {
+				boolean ip4 = false;
+				ip4 = IP::Check4(s);
+				if (ip4) {
+				s = regexpsub(s, "([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+", "\\1\.0");
+				}
+				existing_ips = add(existing_ips, s);
+				});
+	}
+
+	term iface = `Frame ( _("Channel"),
+		`VBox(
+			`ComboBox(`id(`bindnetaddr1), `opt(`editable, `hstretch, `notify), "Bind Network Address:", toset(existing_ips)),
+			`HBox(
+				`InputField(`id(`mcastaddr1), `opt(`hstretch, `notify), "Multicast Address:"),
+				`InputField(`id(`mcastport1), `opt(`hstretch), "Multicast Port:")
+			)
+		)
+	);
+
+	term riface = `CheckBoxFrame (`id(`enable2),  `opt(`notify), _("Redundant Channel"), false,
+		`VBox(
+			`ComboBox(`id(`bindnetaddr2), `opt(`editable, `hstretch, `notify), "Bind Network Address:", existing_ips),
+			`HBox(
+				`InputField(`id(`mcastaddr2), `opt(`hstretch), "Multicast Address:"),
+				`InputField(`id(`mcastport2), `opt(`hstretch), "Multicast Port:")
+			)
+		)
+	);
+
+	term nid = `Frame (`id(`nid), _("Node ID"),
+		`VBox(
+			`Left(`CheckBox(`id(`autoid), `opt(`notify), "Auto Generate Node ID", true)),
+			`InputField(`id(`nodeid), `opt(`hstretch), "Node ID:")
+		)
+	);
+
+	term rrpm =  `ComboBox(`id(`rrpmode), `opt(`hstretch), "rrp mode:", ["none", "active", "passive"]);
+
+	term contents = `VBox (iface, `VSpacing(1), riface, `VSpacing(1), nid, `VSpacing(1), rrpm, `VStretch());
+
+	my_SetContents("communication", contents);
+
+	UI::ChangeWidget(`id(`bindnetaddr1), `Value, Cluster::bindnetaddr1);
+	UI::ChangeWidget(`id(`mcastaddr1), `Value, Cluster::mcastaddr1);
+	UI::ChangeWidget(`id(`mcastport1), `Value, Cluster::mcastport1);
+	UI::ChangeWidget(`id(`enable2), `Value, Cluster::enable2);
+	UI::ChangeWidget(`id(`bindnetaddr2), `Value, Cluster::bindnetaddr2);
+	UI::ChangeWidget(`id(`mcastaddr2), `Value, Cluster::mcastaddr2);
+	UI::ChangeWidget(`id(`mcastport2), `Value, Cluster::mcastport2);
+
+	UI::ChangeWidget(`id(`autoid), `Value, Cluster::autoid);
+	UI::ChangeWidget(`id(`nodeid), `Value, Cluster::nodeid);
+
+	UI::ChangeWidget(`id(`rrpmode), `Value, Cluster::rrpmode);
+
+	if (UI::QueryWidget(`id(`autoid), `Value) == true) {
+		UI::ChangeWidget(`id(`nodeid), `Enabled, false);
+	}
+
+	while (true) {
+
+		ret = UI::UserInput();
+
+		if (ret == `bindnetaddr1 || ret == `bindnetaddr2 || ret == `mcastaddr1 || ret == `mcastaddr2) {
+			boolean ip6 = false;
+			string netaddr = (string)UI::QueryWidget(`id(ret), `Value);
+			ip6 = IP::Check6(netaddr);
+			if (ip6) {
+				UI::ChangeWidget(`id(`autoid), `Value, false);
+				UI::ChangeWidget(`id(`nodeid), `Enabled, true);
+				UI::ChangeWidget(`id(`autoid), `Enabled, false);
+			} else {
+				UI::ChangeWidget(`id(`autoid), `Enabled, true);
+			}
+			continue;
+		}
+
+		if (ret == `autoid) {
+			UI::ChangeWidget(`id(`nodeid), `Enabled, (true != UI::QueryWidget(`id(`autoid), `Value)));
+			continue;
+		}
+		if (ret == `enable2) {
+			if ( true == UI::QueryWidget(`id(`enable2), `Value)) {
+				UI::ChangeWidget(`id(`rrpmode), `Value , "passive");
+			} else {
+				UI::ChangeWidget(`id(`rrpmode), `Value , "none");
+			}
+		}
+
+		if (ret == `next || ret == `back) {
+			boolean val = ValidateCommunication();
+			if (val == true) {
+				SaveCommunication();
+				break;
+			} else {
+				ret = nil;
+				continue;
+			}
+		}
+
+		if (ret == `abort || ret == `cancel) {
+			if (ReallyAbort())
+				return ret;
+			else
+				continue;
+		}
+
+		if (ret == `wizardTree)
+			ret = (string)UI::QueryWidget (`id (`wizardTree), `CurrentItem);
+
+		if (contains(DIALOG, (string)ret)) {
+			ret = symbolof(toterm(ret));
+			boolean val = ValidateCommunication();
+			if (val == true) {
+				SaveCommunication();
+				break;
+			} else {
+				ret = nil;
+				Wizard::SelectTreeItem("communication");
+				continue;
+			}
+		}
+
+	    y2error("unexpected retcode: %1", ret);
+	}
+
+	return ret;
+}
+
+boolean ValidateSecurity () {
+	boolean ret = true;
+	if (UI::QueryWidget(`id(`secauth), `Value) == true) {
+		string thr = (string)UI::QueryWidget(`id(`threads), `Value);
+		boolean s = regexpmatch(thr, "^[0-9]+$");
+		if (!s) {
+			Popup::Message("Number of threads must be integer");
+			UI::SetFocus(`id(`threads));
+			ret = false;
+		}
+		integer i = tointeger(thr);
+		if (i == 0) {
+			Popup::Message("Number of threads must larger then 0");
+			UI::SetFocus(`id(`threads));
+			ret = false;
+		}
+	}
+	return ret;
+}
+
+void SaveSecurityToConf() {
+	if (UI::QueryWidget(`id(`secauth), `Value) == true) {
+		SCR::Write(.openais.totem.secauth, "on");
+		SCR::Write(.openais.totem.threads, (string)UI::QueryWidget(`id(`threads), `Value));
+	} else {
+		SCR::Write(.openais.totem.secauth, "off");
+		SCR::Write(.openais.totem.threads, "");
+	}
+}
+
+void SaveSecurity () {
+	Cluster::secauth = (boolean)UI::QueryWidget(`id(`secauth), `Value);
+	Cluster::threads = (string)UI::QueryWidget(`id(`threads), `Value);
+}
+
+any SecurityDialog()
+{
+	any ret = nil;
+
+	term contents = `VBox(
+		`VSpacing(1),
+		`CheckBoxFrame(`id(`secauth), `opt(`hstretch, `notify),  _("Enable Security Auth"), true,
+			`VBox(
+				`InputField(`id(`threads), `opt(`hstretch), "Threads:"),
+				`VSpacing(1),
+				`Label(_("For newly created cluster, push the button below to generate /etc/ais/authkey.")),
+				`Label(_("To join an existing cluster, please copy /etc/ais/authkey from other nodes manually.")),
+				`PushButton(`id(`genf), `opt(`notify), "Generate Auth Key File")
+			)
+		),
+		`VStretch()
+	);
+
+	my_SetContents("security", contents);
+
+	UI::ChangeWidget(`id(`secauth), `Value, Cluster::secauth);
+
+	UI::ChangeWidget(`id(`threads), `Value, Cluster::threads);
+
+	while (true) {
+		ret = UI::UserInput();
+
+		if (ret == `genf) {
+			map result = $[];
+			result = (map)SCR::Execute(.target.bash_output, "/usr/sbin/ais-keygen");
+			if (result["exit"]:-1 != 0) {
+				Popup::Message("Failed to create /etc/ais/authkey");
+			} else {
+				Popup::Message(result["stdout"]:"Create /etc/ais/authkey successed");
+			}
+			continue;
+		}
+
+		if (ret == `secauth) {
+			if (UI::QueryWidget(`id(`secauth), `Value) == true) {
+				string thr = (string) UI::QueryWidget(`id(`threads), `Value);
+				if (thr == "" || thr == "0") {
+					map result = $[];
+					any t = 0;
+					result = (map)SCR::Execute(.target.bash_output, "grep processor /proc/cpuinfo | wc -l");
+					t = tointeger(result["stdout"]:"");
+					if (t == nil) {
+						t = 0;
+					}
+					UI::ChangeWidget(`id(`threads), `Value, sformat("%1",t));
+				}
+				continue;
+			}
+		}
+
+		if (ret == `next || ret == `back) {
+			boolean val = ValidateSecurity();
+			if (val == true) {
+				SaveSecurity();
+				break;
+			} else {
+				ret = nil;
+				continue;
+			}
+		}
+
+		if (ret == `abort || ret == `cancel) {
+			if (ReallyAbort())
+				return ret;
+			else
+				continue;
+		}
+
+		if (ret == `wizardTree)
+			ret = (string)UI::QueryWidget (`id (`wizardTree), `CurrentItem);
+
+		if (contains(DIALOG, (string)ret)) {
+			ret = symbolof(toterm(ret));
+			boolean val = ValidateSecurity();
+			if (val == true) {
+				SaveSecurity();
+				break;
+			} else {
+				ret = nil;
+				Wizard::SelectTreeItem("security");
+				continue;
+			}
+		}
+
+	    y2error("unexpected retcode: %1", ret);
+
+	}
+    return ret;
+}
+
+boolean ValidateService() {
+	return true;
+}
+
+void SaveServiceToConf() {
+	if (UI::QueryWidget(`id(`mgmtd), `Value) == true) {
+		SCR::Write(.openais.pacemaker.use_mgmtd, "yes");
+	} else {
+		SCR::Write(.openais.pacemaker.use_mgmtd, "no");
+	}
+}
+
+void SaveService () {
+	Cluster::use_mgmtd = (boolean)UI::QueryWidget(`id(`mgmtd), `Value);
+}
+
+void UpdateServiceStatus() {
+	integer ret = 0;
+	ret = Service::Status("openais");
+	if (ret == 0) {
+		UI::ChangeWidget(`id(`status), `Value, _("Running"));
+	} else {
+		UI::ChangeWidget(`id(`status), `Value, _("Not running"));
+	}
+	UI::ChangeWidget (`id ("start_now"), `Enabled, ret != 0);
+	UI::ChangeWidget (`id ("stop_now"), `Enabled, ret == 0);
+
+	map result = $[];
+	result = (map)SCR::Execute(.target.bash_output, "/sbin/chkconfig openais 2>/dev/null | awk '{print $2}'");
+	if (find(result["stdout"]:"","off") != nil) {
+		UI::ChangeWidget(`id("off"), `Value, true);
+		UI::ChangeWidget(`id("on"), `Value, false);
+	} else {
+		UI::ChangeWidget(`id("on"), `Value, true);
+		UI::ChangeWidget(`id("off"), `Value, false);
+	}
+}
+
+any ServiceDialog () {
+	any ret = nil;
+
+	term contents = `VBox(
+		`VSpacing(1),
+
+		`Frame(_("Booting"),
+			`RadioButtonGroup(`id("bootopenais"),
+                `HBox(`HSpacing(1), `VBox (
+	                `Left(`RadioButton(`id ("on"),  `opt(`notify), _("On -- Start openais at booting"))),
+					`Left(`HBox(`HSpacing(6), `CheckBox(`id(`mgmtd), "Start mgmtd as well. The GUI client requires this.", true))),
+		            `Left(`RadioButton(`id ("off"), `opt(`notify), _("Off -- Start openais manually only"))),
+			        `VSpacing(1)
+				))
+			)
+		),
+		`VSpacing(1),
+		`Frame (_("Switch On and Off"),
+			`Left(`VBox(
+				`Left(`HBox(
+					`Label(_("Current Status: ")),
+					`Label(`id(`status), _("Running")),
+					`ReplacePoint(`id ("status_rp"), `Empty())
+				)),
+				`Left(`HBox(`HSpacing(1), `HBox(
+	                `PushButton(`id("start_now" ), _("Start openais Now")),
+		            `PushButton(`id("stop_now" ),  _("Stop openais Now"))
+				)))
+			))
+		),
+
+		`VStretch()
+	);
+
+
+	my_SetContents("service", contents);
+
+	UI::ChangeWidget(`id(`mgmtd), `Value, Cluster::use_mgmtd);
+
+	while (true) {
+		UpdateServiceStatus();
+		ret = UI::UserInput();
+
+		if (ret == "on" || ret == "off") {
+			SCR::Execute(.target.bash, sformat("chkconfig openais %1", ret));
+			continue;
+		}
+
+		if (ret == "start_now") {
+			if (!Service::Start("openais")) {
+				Report::Error(Service::Error());
+			}
+			continue;
+		}
+
+		if (ret == "stop_now") {
+			if (!Service::Stop("openais")) {
+				Report::Error(Service::Error());
+			}
+			continue;
+		}
+
+		if (ret == `next || ret == `back) {
+			boolean val = ValidateService();
+			if (val == true) {
+				SaveService();
+				break;
+			} else {
+				ret = nil;
+				continue;
+			}
+		}
+
+		if (ret == `abort || ret == `cancel) {
+			if (ReallyAbort())
+				return ret;
+			else
+				continue;
+		}
+
+		if (ret == `wizardTree)
+			ret = (string)UI::QueryWidget (`id (`wizardTree), `CurrentItem);
+
+		if (contains(DIALOG, (string)ret)) {
+			ret = symbolof(toterm(ret));
+                        boolean val = ValidateService();
+			if (val == true) {
+				SaveService();
+				break;
+			} else {
+				ret = nil;
+				Wizard::SelectTreeItem("service");
+				continue;
+			}
+		}
+
+	    y2error("unexpected retcode: %1", ret);
+
+	}
+    return ret;
+}
+
+/* EOF */
+}
+

@@ -1,0 +1,75 @@
+/* ------------------------------------------------------------------------------
+ * Copyright (c) 2006 Novell, Inc. All Rights Reserved.
+ *
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of version 2 of the GNU General Public License as published by the
+ * Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, contact Novell, Inc.
+ *
+ * To contact Novell about this file by physical or electronic mail, you may find
+ * current contact information at www.novell.com.
+ * ------------------------------------------------------------------------------
+ */
+
+/**
+ * File:	include/cluster/helps.ycp
+ * Package:	Configuration of cluster
+ * Summary:	Help texts of all the dialogs
+ * Authors:	Cong Meng <cmeng@novell.com>
+ *
+ * $Id: helps.ycp 27914 2006-02-13 14:32:08Z locilka $
+ */
+
+{
+
+textdomain "cluster";
+
+/**
+ * All helps are here
+ */
+map HELPS = $[
+
+	"communication" : _("<p><b><big>bindnetaddr</big></b><br>This  specifies  the  address which the openais executive should bind.  This address should always end in  zero.   If  the  totem traffic  should  be routed over 192.168.5.92, set bindnetaddr to 192.168.5.0.<br>This may also be an IPV6 address, in which case IPV6  networking will  be used.  In this case, the full address must be specified and there is no automatic selection  of  the  network  interface within a specific subnet as with IPv4. If IPv6 networking is used, the nodeid field must be specified.<br></p>
+<p><b><big>mcastaddr</big></b>This is the multicast address used by  openais  executive.   The default  should work for most networks, but the network administrator should be queried  about  a  multicast  address  to  use.  Avoid 224.x.x.x because this is a \"config\" multicast address.<br>This  may  also be an IPV6 multicast address, in which case IPV6 networking will be used.  If IPv6 networking is used, the nodeid field must be specified.</p>
+<p><b><big>mcastport</big></b>This  specifies  the UDP port number.  It is possible to use the same multicast address on a network with  the  openais  services configured for different UDP ports.<br></p>
+<p><b><big>nodeid</big></b>This  configuration  option  is  optional  when  using  IPv4 and required when using IPv6.  This is a 32 bit value specifying the node identifier delivered to the cluster membership service.  If this is not specified with IPv4, the node id will be  determined from  the  32  bit  IP address the system to which the system is bound with ring identifier of 0.  The node identifier  value  of zero is reserved and should not be used.<br></p>
+<p><b><big>rrp_mode</big></b>This specifies the mode of redundant ring, which  may  be  none, active,  or  passive.   Active replication offers slightly lower latency from transmit to delivery in faulty network environments but  with less performance.  Passive replication may nearly dou- ble the speed of the totem  protocol  if  the  protocol  doesn't become  cpu bound.  The final option is none, in which case only one network interface will be used to operate the  totem  proto- col.  If  only one interface directive is specified, none is automati- cally chosen.  If multiple interface directives  are  specified, only active or passive may be chosen.<br></p>
+"),
+	"security" : _("
+<p><b><big>threads</big></b>This directive controls how many threads are used to encrypt and send multicast messages.  If secauth is off, the  protocol  will never  use  threaded  sending.  If secauth is on, this directive allows systems to be  configured  to  use  multiple  threads  to encrypt and send multicast messages.  A  thread  directive of 0 indicates that no threaded send should be used.  This mode offers best performance for non-SMP systems.  The default is 0. <br></p>
+<p><b><big>secauth</big></b> This  specifies  that HMAC/SHA1 authentication should be used to authenticate all messages.  It further specifies that  all  data should  be  encrypted  with the sober128 encryption algorithm to protect data from eavesdropping.  Enabling this option adds a 36 byte header to every message sent by totem which reduces total throughput.  Encryption and authen- tication consume 75% of CPU cycles in aisexec as  measured  with gprof when enabled.  For  100mbit  networks  with  1500  MTU  frame  transmissions: A throughput of 9mb/sec is possible with 100% cpu utilization when this  option  is enabled on 3ghz cpus.  A throughput of 10mb/sec is possible wth 20% cpu utilization when this optin is  disabled on 3ghz cpus.  For  gig-e networks with large frame transmissions: A throughput of 20mb/sec is possible when this  option  is  enabled  on  3ghz cpus.   A throughput of 60mb/sec is possible when this option is disabled on 3ghz cpus.  The default is on. <br></p> 
+"),
+	"service" : _(""),
+    /* Read dialog help 1/2 */
+    "read" : _("<p><b><big>Initializing cluster Configuration</big></b><br>
+Please wait...<br></p>
+") +
+
+    /* Read dialog help 2/2 */
+    _("<p><b><big>Aborting Initialization:</big></b><br>
+Safely abort the configuration utility by pressing <b>Abort</b> now.</p>
+"),
+
+    /* Write dialog help 1/2 */
+    "write" : _("<p><b><big>Saving cluster Configuration</big></b><br>
+Please wait...<br></p>
+") +
+
+    /* Write dialog help 2/2 */
+_("<p><b><big>Aborting Saving:</big></b><br>
+Abort the save procedure by pressing <b>Abort</b>.
+An additional dialog informs whether it is safe to do so.
+</p>
+"),
+
+];
+
+/* EOF */
+}
