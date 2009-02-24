@@ -47,53 +47,54 @@ include "cluster/common.ycp";
 
 boolean ValidateCommunication ()
 {
-	boolean ret = true;
-	foreach(symbol tid, [`bindnetaddr1, `mcastaddr1, ], {
-			if (IP::Check((string)UI::QueryWidget(`id(tid), `Value)) == false) {
-				Popup::Message("Must input Network Address");
-				UI::SetFocus(tid);
-				ret = false;
-			}
-			});
-	foreach(symbol tid, [`mcastport1], {
-			if (!regexpmatch((string)UI::QueryWidget(`id(tid), `Value), "^[0-9]+$")) {
-				Popup::Message("Must input integer");
-				UI::SetFocus(`id(tid));
-				ret = false;
-			}
-			});
+	if (IP::Check((string)UI::QueryWidget(`id(`bindnetaddr1), `Value)) == false) {
+		Popup::Message("The Bind Network Address has to be fulfilled");
+		UI::SetFocus(`bindnetaddr1);
+		return false;
+	}
+	if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr1), `Value)) == false) {
+		Popup::Message("The Multicast Address has to be fulfilled");
+		UI::SetFocus(`mcastaddr1);
+		return false;
+	}
+	if (!regexpmatch((string)UI::QueryWidget(`id(`mcastport1), `Value), "^[0-9]+$")) {
+		Popup::Message("The Multicast port must be a positive integer");
+		UI::SetFocus(`id(`mcastport1));
+		return false;
+	}
 	if (UI::QueryWidget(`id(`autoid), `Value) == false) {
 		string noid = (string)UI::QueryWidget(`id(`nodeid), `Value);
 		boolean s = regexpmatch(noid, "^[0-9]+$");
 		if (!s) {
-			Popup::Message("Must input integer");
+			Popup::Message("Node ID has to be a positive integer");
 			UI::SetFocus(`id(`nodeid));
-			ret = false;
+			return false;
 		}
 		integer i = tointeger(noid);
 		if (i == 0) {
 			Popup::Message("NodeID 0 is reserved");
 			UI::SetFocus(`id(`nodeid));
-			ret = false;
+			return false;
 		}
 	}
 	if (UI::QueryWidget(`id(`enable2), `Value) == true) {
-		foreach(symbol tid, [`bindnetaddr2, `mcastaddr2, ], {
-				if (IP::Check((string)UI::QueryWidget(`id(tid), `Value)) == false) {
-				Popup::Message("Must input Network Address");
-				UI::SetFocus(tid);
-				ret = false;
-				}
-				});
-		foreach(symbol tid, [`mcastport2], {
-				if (!regexpmatch((string)UI::QueryWidget(`id(tid), `Value), "^[0-9]+$")) {
-				Popup::Message("Must input integer");
-				UI::SetFocus(`id(tid));
-				ret = false;
-				}
-				});
+		if (IP::Check((string)UI::QueryWidget(`id(`bindnetaddr2), `Value)) == false) {
+			Popup::Message("The Bind Network Address has to be fulfilled");
+			UI::SetFocus(`bindnetaddr2);
+			return false;
+		}
+		if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr2), `Value)) == false) {
+			Popup::Message("The Multicast Address has to be fulfilled");
+			UI::SetFocus(`mcastaddr2);
+			return false;
+		}
+		if (!regexpmatch((string)UI::QueryWidget(`id(`mcastport2), `Value), "^[0-9]+$")) {
+			Popup::Message("The Multicast port must be a positive integer");
+			UI::SetFocus(`id(`mcastport2));
+			return false;
+		}
 	}
-	return ret;
+	return true;
 }
 
 void SaveCommunicationToConf ()
