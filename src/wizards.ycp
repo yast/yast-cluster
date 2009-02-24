@@ -67,7 +67,7 @@ any TabSequence() {
     Wizard::SetNextButton(`next, Label::FinishButton());
 
     if (UI::WidgetExists(`id(`wizardTree))) {
-        Wizard::SetBackButton(`help, Label::HelpButton());
+        Wizard::SetBackButton(`help_button, Label::HelpButton());
         Wizard::SetAbortButton(`abort, Label::CancelButton());
     } else {
         UI::WizardCommand(`SetNextButtonLabel( Label::FinishButton() ) );
