@@ -198,9 +198,7 @@ desktop_DATA = \
 	cluster.desktop
 
 module_DATA = \
-	Cluster.ycp		\
-	Cluster2.pm		\
-	Cluster3.py
+	Cluster.ycp	
 
 ycpchook = cluster
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
