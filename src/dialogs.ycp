@@ -38,6 +38,9 @@ import "IP";
 import "Popup";
 import "Service";
 import "Report";
+import "CWMFirewallInterfaces";
+import "SuSEFirewall";
+import "SuSEFirewallServices";
 
 include "cluster/helps.ycp";
 include "cluster/common.ycp";
@@ -442,6 +445,14 @@ void UpdateServiceStatus() {
 any ServiceDialog () {
 	any ret = nil;
 
+	/*
+	map<string, any> firewall_widget = CWMFirewallInterfaces::CreateOpenFirewallWidget ($[
+			"services" : [ "port:5141" ],
+			"display_details" : true,
+			]);
+	term firewall_layout = firewall_widget["custom_widget"]:`VBox();
+	*/
+
 	term contents = `VBox(
 		`VSpacing(1),
 
@@ -469,7 +480,7 @@ any ServiceDialog () {
 				)))
 			))
 		),
-
+//		`Frame (_("Firewall Settings"), firewall_layout),
 		`VStretch()
 	);
 

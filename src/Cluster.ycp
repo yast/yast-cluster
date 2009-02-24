@@ -40,6 +40,7 @@ import "Report";
 import "Summary";
 import "Message";
 import "PackageSystem";
+import "SuSEFirewall";
 
 /**
  * Prototypes
@@ -255,14 +256,14 @@ global boolean Read() {
 	    /* Progress stage 2/3 */
 	    _("Read the previous settings"),
 	    /* Progress stage 3/3 */
-	    _("Detect the devices")
+	    _("Read SuSEFirewall Settings")
 	], [
 	    /* Progress step 1/3 */
 	    _("Reading the database..."),
 	    /* Progress step 2/3 */
 	    _("Reading the previous settings..."),
 	    /* Progress step 3/3 */
-	    _("Detecting the devices..."),
+	    _("Reading SuSEFirewall settings..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -309,6 +310,13 @@ global boolean Read() {
     sleep(sl);
 
     // detect devices
+	SuSEFirewall::Read();
+	if (mcastport1 != "" && SuSEFirewall::HaveService(mcastport1, "UDP", "EXT")) {
+		SuSEFirewall::RemoveService(mcastport1, "UDP", "EXT");
+	}
+	if (enable2 && mcastport2 != "" && SuSEFirewall::HaveService(mcastport2, "UDP", "EXT")) {
+		SuSEFirewall::RemoveService(mcastport2, "UDP", "EXT");
+	}
     if(Abort()) return false;
     Progress::NextStage();
     /* Error message */
@@ -346,12 +354,12 @@ global boolean Write() {
 	    /* Progress stage 1/2 */
 	    _("Write the settings"),
 	    /* Progress stage 2/2 */
-	    _("Run SuSEconfig")
+	    _("Save changes to SuSEFirewall")
 	], [
 	    /* Progress step 1/2 */
 	    _("Writing the settings..."),
 	    /* Progress step 2/2 */
-	    _("Running SuSEconfig..."),
+	    _("Saving changes to SuSEFirewall..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -366,13 +374,26 @@ global boolean Write() {
     if(false) Report::Error (_("Cannot write settings."));
     sleep(sl);
 
+	/* Work with SuSEFirewall */
+	if (use_mgmtd == true) {
+		SuSEFirewall::AddService("5560", "TCP", "EXT");
+	} else {
+		SuSEFirewall::RemoveService("5560", "TCP", "EXT");
+	}
+	SuSEFirewall::AddService(mcastport1, "UDP", "EXT");
+	if (enable2 == true) {
+		SuSEFirewall::AddService(mcastport2, "UDP", "EXT");
+	}
+
     // run SuSEconfig
+	SuSEFirewall::Write();
     if(Abort()) return false;
     Progress::NextStage ();
     /* Error message */
     if(false) Report::Error (Message::SuSEConfigFailed());
     sleep(sl);
 
+	SuSEFirewall::ActivateConfiguration();
     if(Abort()) return false;
     /* Progress finished */
     Progress::NextStage();

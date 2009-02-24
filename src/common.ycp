@@ -7,6 +7,9 @@
 	import "Cluster";
 	import "Popup";
 	import "CWM";
+	import "CWMFirewallInterfaces";
+	import "SuSEFirewall";
+	import "SuSEFirewallServices";
 
 	list<string> DIALOG = [
 		"communication",
