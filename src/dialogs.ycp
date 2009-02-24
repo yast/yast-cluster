@@ -433,7 +433,7 @@ void UpdateServiceStatus() {
 
 	map result = $[];
 	result = (map)SCR::Execute(.target.bash_output, "/sbin/chkconfig openais 2>/dev/null | awk '{print $2}'");
-	if (find(result["stdout"]:"","off") != nil) {
+	if (find(result["stdout"]:"","off") != -1) {
 		UI::ChangeWidget(`id("off"), `Value, true);
 		UI::ChangeWidget(`id("on"), `Value, false);
 	} else {
