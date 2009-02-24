@@ -426,7 +426,7 @@ void UpdateServiceStatus() {
 	if (ret == 0) {
 		UI::ChangeWidget(`id(`status), `Value, _("Running"));
 	} else {
-		UI::ChangeWidget(`id(`status), `Value, _("Not running"));
+		UI::ChangeWidget(`id(`status), `Value, _("Not run"));
 	}
 	UI::ChangeWidget (`id ("start_now"), `Enabled, ret != 0);
 	UI::ChangeWidget (`id ("stop_now"), `Enabled, ret == 0);
