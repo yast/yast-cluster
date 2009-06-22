@@ -6,7 +6,7 @@
 Name:		yast2-cluster
 Version:	2.15.0
 Release:	0
-License:	GPL
+License:	GPL v2 only
 Group:		System/YaST
 BuildRoot:	%{_tmppath}/%{name}-%{version}-build
 Source0:	yast2-cluster-2.15.0.tar.bz2
