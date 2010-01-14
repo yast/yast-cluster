@@ -17,8 +17,7 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=cluster
 
 Icon=yast-heartbeat
-Exec=/sbin/yast2 cluster 
+Exec=xdg-su -c "/sbin/yast2 cluster"
 
 Name=Cluster
 GenericName=Configure Cluster
-X-KDE-SubstituteUID=true
