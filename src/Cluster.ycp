@@ -153,6 +153,10 @@ global string csync2key = "";
 global boolean global_startopenais = false;
 global boolean global_startcsync2 = false;
 
+global string transport = "";
+global list<string> memberaddr1 = [];
+global list<string> memberaddr2 = [];
+
 global boolean LoadClusterConfig()
 {
 	if ((string)(SCR::Read(.openais.pacemaker.use_mgmtd)) == "yes") {
@@ -169,20 +173,33 @@ global boolean LoadClusterConfig()
 
 	threads = (string)SCR::Read(.openais.totem.threads);
 
+	transport = (string)SCR::Read(.openais.totem.transport);
+	if (transport == nil) transport = "udp";
+
 	list <string> interfaces = (list<string>) SCR::Dir(.openais.totem.interface);
 	foreach (string interface, interfaces, {
-			if (interface == "interface0") {
+		if (interface == "interface0") {
+			if (transport == "udpu") {
+				memberaddr1 = splitstring((string)SCR::Read(.openais.totem.interface.interface0.member), " ");
+			} else {
+				mcastaddr1 = (string)SCR::Read(.openais.totem.interface.interface0.mcastaddr);
+			}
 			bindnetaddr1 = (string)SCR::Read(.openais.totem.interface.interface0.bindnetaddr);
-			mcastaddr1   = (string)SCR::Read(.openais.totem.interface.interface0.mcastaddr);
 			mcastport1   = (string)SCR::Read(.openais.totem.interface.interface0.mcastport);
+		}
+
+		if (interface == "interface1") {
+			if (transport == "udpu") {
+				memberaddr2 = splitstring((string)SCR::Read(.openais.totem.interface.interface1.member), " ");
+			} else {
+				mcastaddr2 = (string)SCR::Read(.openais.totem.interface.interface1.mcastaddr);
 			}
-			if (interface == "interface1") {
-			enable2 = true;
 			bindnetaddr2 = (string)SCR::Read(.openais.totem.interface.interface1.bindnetaddr);
-			mcastaddr2   = (string)SCR::Read(.openais.totem.interface.interface1.mcastaddr);
 			mcastport2   = (string)SCR::Read(.openais.totem.interface.interface1.mcastport);
-			}
-			});
+
+			enable2 = true;
+		}
+	});
 
 	string ai = (string)SCR::Read(.openais.totem.autoid);
 	if (ai == "yes") {
@@ -218,15 +235,29 @@ global void SaveClusterConfig()
 		SCR::Write(.openais.totem.threads, "");
 	}
 
+	SCR::Write(.openais.totem.transport, transport);
+
+	if (transport == "udpu") {
+		SCR::Write(.openais.totem.interface.interface0.member, mergestring(memberaddr1, " "));
+		SCR::Write(.openais.totem.interface.interface0.mcastaddr, "");
+	} else {
+		SCR::Write(.openais.totem.interface.interface0.mcastaddr, mcastaddr1);
+		SCR::Write(.openais.totem.interface.interface0.member, "");
+	}
 	SCR::Write(.openais.totem.interface.interface0.bindnetaddr, bindnetaddr1);
-	SCR::Write(.openais.totem.interface.interface0.mcastaddr, mcastaddr1);
 	SCR::Write(.openais.totem.interface.interface0.mcastport, mcastport1);
 
 	if (enable2 == false) {
 		SCR::Write(.openais.totem.interface.interface1, "");
 	} else {
+		if (transport == "udpu") {
+	        SCR::Write(.openais.totem.interface.interface1.member, mergestring(memberaddr2, " "));
+			SCR::Write(.openais.totem.interface.interface1.mcastaddr, "");
+		} else {
+			SCR::Write(.openais.totem.interface.interface1.mcastaddr, mcastaddr2);
+	        SCR::Write(.openais.totem.interface.interface1.member, "");
+		}
 		SCR::Write(.openais.totem.interface.interface1.bindnetaddr, bindnetaddr2);
-		SCR::Write(.openais.totem.interface.interface1.mcastaddr, mcastaddr2);
 		SCR::Write(.openais.totem.interface.interface1.mcastport, mcastport2);
 	}
 

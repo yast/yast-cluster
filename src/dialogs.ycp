@@ -80,21 +80,42 @@ any text_input_dialog(string title, string value)
 
 boolean ValidateCommunication ()
 {
+	integer i = 0;
 	if (IP::Check((string)UI::QueryWidget(`id(`bindnetaddr1), `Value)) == false) {
 		Popup::Message("The Bind Network Address has to be fulfilled");
 		UI::SetFocus(`bindnetaddr1);
 		return false;
 	}
-	if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr1), `Value)) == false) {
-		Popup::Message("The Multicast Address has to be fulfilled");
-		UI::SetFocus(`mcastaddr1);
-		return false;
+
+	if (UI::QueryWidget(`id(`transport), `Value) == "udpu") {
+		i = 0;
+		foreach(string value, Cluster::memberaddr1, {
+			if (IP::Check(value) == false) {
+				UI::ChangeWidget(`memberaddr1, `CurrentItem, i);
+				i = 0;
+				break;
+			}
+			i = i + 1;
+		});
+		if (i == 0) {
+			UI::SetFocus(`memberaddr1);
+			Popup::Message("The Member Address has to be fulfilled");
+			return false;
+		}
+	} else {
+		if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr1), `Value)) == false) {
+			Popup::Message("The Multicast Address has to be fulfilled");
+			UI::SetFocus(`mcastaddr1);
+			return false;
+		}
 	}
+
 	if (!regexpmatch((string)UI::QueryWidget(`id(`mcastport1), `Value), "^[0-9]+$")) {
 		Popup::Message("The Multicast port must be a positive integer");
 		UI::SetFocus(`id(`mcastport1));
 		return false;
 	}
+
 	if (UI::QueryWidget(`id(`autoid), `Value) == false) {
 		string noid = (string)UI::QueryWidget(`id(`nodeid), `Value);
 		boolean s = regexpmatch(noid, "^[0-9]+$");
@@ -110,23 +131,44 @@ boolean ValidateCommunication ()
 			return false;
 		}
 	}
+
 	if (UI::QueryWidget(`id(`enable2), `Value) == true) {
 		if (IP::Check((string)UI::QueryWidget(`id(`bindnetaddr2), `Value)) == false) {
 			Popup::Message("The Bind Network Address has to be fulfilled");
 			UI::SetFocus(`bindnetaddr2);
 			return false;
 		}
-		if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr2), `Value)) == false) {
-			Popup::Message("The Multicast Address has to be fulfilled");
-			UI::SetFocus(`mcastaddr2);
-			return false;
+
+		if (UI::QueryWidget(`id(`transport), `Value) == "udpu") {
+			i = 0;
+			foreach(string value, Cluster::memberaddr2, {
+				if (IP::Check(value) == false) {
+					UI::ChangeWidget(`memberaddr2, `CurrentItem, i);
+					i = 0;
+					break;
+				}
+				i = i + 1;
+			});
+			if (i == 0) {
+				UI::SetFocus(`memberaddr2);
+				Popup::Message("The Member Address has to be fulfilled");
+				return false;
+			}
+		} else {
+			if (IP::Check((string)UI::QueryWidget(`id(`mcastaddr2), `Value)) == false) {
+				Popup::Message("The Multicast Address has to be fulfilled");
+				UI::SetFocus(`mcastaddr2);
+				return false;
+			}
 		}
+
 		if (!regexpmatch((string)UI::QueryWidget(`id(`mcastport2), `Value), "^[0-9]+$")) {
 			Popup::Message("The Multicast port must be a positive integer");
 			UI::SetFocus(`id(`mcastport2));
 			return false;
 		}
 	}
+
 	return true;
 }
 
@@ -167,6 +209,7 @@ void SaveCommunication () {
 	Cluster::autoid       = (boolean)UI::QueryWidget(`id(`autoid), `Value);
 	Cluster::nodeid       = (string)UI::QueryWidget(`id(`nodeid), `Value);
 	Cluster::rrpmode      = (string)UI::QueryWidget(`id(`rrpmode), `Value);
+	Cluster::transport    = (string)UI::QueryWidget(`id(`transport), `Value);
 }
 
 
@@ -180,8 +223,28 @@ string calc_network_addr(string ip, string mask) {
 }
 
 
-any CommunicationDialog () {
-	any ret = nil;
+void transport_switch() {
+	boolean udp = (string)UI::QueryWidget(`id(`transport), `Value) == "udp";
+	boolean enable2 = (boolean)UI::QueryWidget(`id(`enable2), `Value);
+
+	boolean enable1 = udp;
+	enable2 = udp && enable2;
+
+	UI::ChangeWidget(`id(`mcastaddr1), `Enabled, enable1);
+	UI::ChangeWidget(`id(`memberaddr1), `Enabled, !enable1);
+	UI::ChangeWidget(`id(`memberaddr1_add), `Enabled, !enable1);
+	UI::ChangeWidget(`id(`memberaddr1_del), `Enabled, !enable1);
+	UI::ChangeWidget(`id(`memberaddr1_edit), `Enabled, !enable1);
+
+	UI::ChangeWidget(`id(`mcastaddr2), `Enabled, enable2);
+	UI::ChangeWidget(`id(`memberaddr2), `Enabled, !enable2);
+	UI::ChangeWidget(`id(`memberaddr2_add), `Enabled, !enable2);
+	UI::ChangeWidget(`id(`memberaddr2_del), `Enabled, !enable2);
+	UI::ChangeWidget(`id(`memberaddr2_edit), `Enabled, !enable2);
+}
+
+
+any CommunicationLayout() {
 	map result = $[];
 
 	result = (map)SCR::Execute(.target.bash_output, "/sbin/ip addr show scope global | grep inet | awk '{print $2}' | awk -F'/' '{print $1, $2}'");
@@ -201,36 +264,52 @@ any CommunicationDialog () {
 		});
 	}
 
-	term iface = `Frame ( _("Channel"),
+	term transport = `ComboBox(`id(`transport), `opt(`hstretch, `notify), _("Transport:"), ["udp", "udpu"]);
+
+	term iface = `Frame( _("Channel"),
 		`VBox(
-			`ComboBox(`id(`bindnetaddr1), `opt(`editable, `hstretch, `notify), "Bind Network Address:", toset(existing_ips)),
+			`ComboBox(`id(`bindnetaddr1), `opt(`editable, `hstretch, `notify), _("Bind Network Address:"), toset(existing_ips)),
+			`InputField(`id(`mcastaddr1), `opt(`hstretch, `notify), _("Multicast Address:")),
+			`InputField(`id(`mcastport1), `opt(`hstretch), _("Multicast Port:")),
+			`Left(`Label(_("Member Address:"))),
+			`SelectionBox(`id(`memberaddr1), ""),
 			`HBox(
-				`InputField(`id(`mcastaddr1), `opt(`hstretch, `notify), "Multicast Address:"),
-				`InputField(`id(`mcastport1), `opt(`hstretch), "Multicast Port:")
+				`PushButton(`id(`memberaddr1_add), "Add"),
+				`PushButton(`id(`memberaddr1_del), "Del"),
+				`PushButton(`id(`memberaddr1_edit), "Edit")
 			)
 		)
 	);
 
-	term riface = `CheckBoxFrame (`id(`enable2),  `opt(`notify), _("Redundant Channel"), false,
+	term riface = `CheckBoxFrame(`id(`enable2),  `opt(`notify), _("Redundant Channel"), false,
 		`VBox(
 			`ComboBox(`id(`bindnetaddr2), `opt(`editable, `hstretch, `notify), "Bind Network Address:", existing_ips),
+			`InputField(`id(`mcastaddr2), `opt(`hstretch), "Multicast Address:"),
+			`InputField(`id(`mcastport2), `opt(`hstretch), "Multicast Port:"),
+			`Left(`Label(_("Member Address:"))),
+			`SelectionBox(`id(`memberaddr2), ""),
 			`HBox(
-				`InputField(`id(`mcastaddr2), `opt(`hstretch), "Multicast Address:"),
-				`InputField(`id(`mcastport2), `opt(`hstretch), "Multicast Port:")
+				`PushButton(`id(`memberaddr2_add), "Add"),
+				`PushButton(`id(`memberaddr2_del), "Del"),
+				`PushButton(`id(`memberaddr2_edit), "Edit")
 			)
 		)
 	);
 
-	term nid = `Frame (`id(`nid), _("Node ID"),
-		`VBox(
-			`Left(`CheckBox(`id(`autoid), `opt(`notify), "Auto Generate Node ID", true)),
-			`InputField(`id(`nodeid), `opt(`hstretch), "Node ID:")
-		)
+	term nid = `VBox(
+		`InputField(`id(`nodeid), `opt(`hstretch), "Node ID:"),
+		`Left(`CheckBox(`id(`autoid), `opt(`notify), "Auto Generate Node ID", true))
 	);
 
 	term rrpm =  `ComboBox(`id(`rrpmode), `opt(`hstretch), "rrp mode:", ["none", "active", "passive"]);
 
-	term contents = `VBox (iface, `VSpacing(1), riface, `VSpacing(1), nid, `VSpacing(1), rrpm, `VStretch());
+	term contents = `VBox(
+		transport,
+		`HBox(
+			`VBox(iface, nid),
+			`VBox(riface, rrpm, `VSpacing(1))
+		)
+	);
 
 	my_SetContents("communication", contents);
 
@@ -244,6 +323,7 @@ any CommunicationDialog () {
 
 	UI::ChangeWidget(`id(`autoid), `Value, Cluster::autoid);
 	UI::ChangeWidget(`id(`nodeid), `Value, Cluster::nodeid);
+	UI::ChangeWidget(`id(`transport), `Value, Cluster::transport);
 
 	UI::ChangeWidget(`id(`rrpmode), `Value, Cluster::rrpmode);
 
@@ -251,7 +331,54 @@ any CommunicationDialog () {
 		UI::ChangeWidget(`id(`nodeid), `Enabled, false);
 	}
 
+	transport_switch();
+}
+
+
+void fill_memberaddr_entries()
+{
+	integer i = 0;
+	integer ret = 0;
+	integer current = 0;
+	list<term> items = [];
+
+	// remove duplicated elements
+	Cluster::memberaddr1 = Cluster::memberaddr1 + [];
+	Cluster::memberaddr2 = Cluster::memberaddr2 + [];
+
+	i = 0;
+	items = [];
+	foreach(string value, Cluster::memberaddr1, {
+		items = add(items, `item(`id(i), value));
+		i = i + 1;
+	});
+	current = (integer)UI::QueryWidget(`memberaddr1, `CurrentItem);
+	if (current == nil) current = 0;
+	if (current >= i) current = i - 1;
+	UI::ChangeWidget(`memberaddr1, `Items, items);
+	UI::ChangeWidget(`memberaddr1, `CurrentItem, current);
+
+	i = 0;
+	items = [];
+	foreach(string value, Cluster::memberaddr2, {
+		items = add(items, `item(`id(i), value));
+		i = i + 1;
+	});
+	current = (integer)UI::QueryWidget(`memberaddr2, `CurrentItem);
+	if (current == nil) current = 0;
+	if (current >= i) current = i - 1;
+	UI::ChangeWidget(`memberaddr2, `Items, items);
+	UI::ChangeWidget(`memberaddr2, `CurrentItem, current);
+}
+
+any CommunicationDialog() {
+	any ret = nil;
+
+	CommunicationLayout();
+
 	while (true) {
+		fill_memberaddr_entries();
+		transport_switch();
 
 		ret = UI::UserInput();
 
@@ -273,12 +400,57 @@ any CommunicationDialog () {
 			UI::ChangeWidget(`id(`nodeid), `Enabled, (true != UI::QueryWidget(`id(`autoid), `Value)));
 			continue;
 		}
+
 		if (ret == `enable2) {
-			if ( true == UI::QueryWidget(`id(`enable2), `Value)) {
+			if (true == UI::QueryWidget(`id(`enable2), `Value)) {
 				UI::ChangeWidget(`id(`rrpmode), `Value , "passive");
 			} else {
 				UI::ChangeWidget(`id(`rrpmode), `Value , "none");
 			}
+		}
+
+		if (ret == `memberaddr1_add) {
+			ret = text_input_dialog(_("Enter a member address"), "");
+			if (ret == `cancel) continue;
+			Cluster::memberaddr1 = add(Cluster::memberaddr1, (string)ret);
+		}
+
+		if (ret == `memberaddr1_edit) {
+			integer current = 0;
+			string str = "";
+
+			current = (integer)UI::QueryWidget(`memberaddr1, `CurrentItem);
+			ret = text_input_dialog(_("Edit the member address"), Cluster::memberaddr1[current]:"");
+			if (ret == `cancel) continue;
+			Cluster::memberaddr1[current] = (string)ret;
+		}
+
+		if (ret == `memberaddr1_del) {
+			integer current = 0;
+			current = (integer)UI::QueryWidget(`memberaddr1, `CurrentItem);
+			Cluster::memberaddr1= remove(Cluster::memberaddr1, current);
+		}
+
+		if (ret == `memberaddr2_add) {
+			ret = text_input_dialog(_("Enter a member address"), "");
+			if (ret == `cancel) continue;
+			Cluster::memberaddr2 = add(Cluster::memberaddr2, (string)ret);
+		}
+
+		if (ret == `memberaddr2_edit) {
+			integer current = 0;
+			string str = "";
+
+			current = (integer)UI::QueryWidget(`memberaddr2, `CurrentItem);
+			ret = text_input_dialog(_("Edit the member address"), Cluster::memberaddr2[current]:"");
+			if (ret == `cancel) continue;
+			Cluster::memberaddr2[current] = (string)ret;
+		}
+
+		if (ret == `memberaddr2_del) {
+			integer current = 0;
+			current = (integer)UI::QueryWidget(`memberaddr2, `CurrentItem);
+			Cluster::memberaddr2= remove(Cluster::memberaddr2, current);
 		}
 
 		if (ret == `next || ret == `back) {

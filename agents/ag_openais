@@ -90,7 +90,8 @@ totem_option_table = {
 				     "type":"int", "default_value":2000},
 	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.", 
 					"type":"int", "default_value":10},
-	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47}
+	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
+	"transport":{"doc":"", "type":"select[udp,udpu]","default_value":"udp"},
 }
 
 
@@ -116,6 +117,10 @@ event_option_table = {
 	"delivery_queue_size":{"doc":"The full size of the outgoing  delivery queue to  the application", "default_value":1000},
 	"delivery_queue_resume":{"doc":"When new events can be accepted by the event service when the delivery queue count of pending messages has reached this value",
 				 "default_value":500},
+}
+
+member_option_table = {
+	"memberaddr":{"doc":"", "default_value":0},
 }
 
 amf_option_table = {
@@ -243,15 +248,22 @@ def print_logging_options(f):
 
 def print_totem_options(f):
 	f.write("totem {\n")
+	transport_protocol = totem_options.get("transport", "udp")
 	for key in totem_options.keys():
 		if key == "interface":
 			for inf in totem_options["interface"]:
 				f.write("\tinterface {\n")
 				for k in inf.keys():
-					if inf[k] == "":
+					if k == "member":
+						for m in inf[k]:
+							if m["memberaddr"] != "":
+								f.write("\t\tmember {\n")
+								f.write("\t\t\tmemberaddr:\t%s\n\t\t}\n" % m["memberaddr"])
+					elif inf[k] == "":
 						continue;
-					f.write("\t\t#%s\n\n" % (interface_option_table[k]["doc"]))
-					f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
+					else:
+						f.write("\t\t#%s\n\n" % (interface_option_table[k]["doc"]))
+						f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
 				f.write("\t}\n")
 			continue
 		if totem_options[key] == "":
@@ -322,6 +334,10 @@ def opt_parser(file, options):
 				logs = result.get("logger", [])
 				logs.append(opt_parser(file, logger_option_table))
 				result["logger"] = logs
+			elif i.lstrip().split(" ")[0] == "member":
+				members = result.get("member", [])
+				members.append(opt_parser(file, member_option_table))
+				result["member"] = members
 			else:
 				y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
 				while (i[-1] != "}"):
@@ -434,7 +450,7 @@ class OpenAISConf_Parser:
 				return '[]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
-				return '[ "secauth", "autoid", "threads", "nodeid", "rrpmode", "interface" ]'
+				return '[ "secauth", "autoid", "threads", "nodeid", "rrpmode", "transport", "interface" ]'
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
@@ -448,9 +464,9 @@ class OpenAISConf_Parser:
 					else:
 						if len(path_arr) == 3:
 							if path_arr[2] == "interface0" and get_interface(0) != None:
-								return '["bindnetaddr", "mcastaddr", "mcastport"]'
+								return '["bindnetaddr", "mcastaddr", "mcastport", "member"]'
 							elif path_arr[2] == "interface1" and get_interface(1) != None:
-								return ' ["bindnetaddr", "mcastaddr", "mcastport"]'
+								return ' ["bindnetaddr", "mcastaddr", "mcastport", "member"]'
 							else:
 								return '[]'
 						else:
@@ -485,6 +501,8 @@ class OpenAISConf_Parser:
 					return '"%d"' % totem_options.get("threads", 0)
 				elif path[1] == "rrpmode":
 					return '"%s"' % totem_options.get("rrp_mode", "none")
+				elif path[1] == "transport":
+					return '"%s"' % totem_options.get("transport", "udp")
 				else:
 					return "nil"
 			elif len(path) == 4:
@@ -500,6 +518,11 @@ class OpenAISConf_Parser:
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
+							elif path[3] == "member":
+								member_str = ""
+								for member in i.get("member", []):
+									member_str = member_str + member.get("memberaddr", "") + " "
+								return '"%s"' % member_str.strip()
 							else:
 								return "nil"
 					elif path[2] == "interface1":
@@ -513,6 +536,11 @@ class OpenAISConf_Parser:
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
+							elif path[3] == "member":
+								member_str = ""
+								for member in i.get("member", []):
+									member_str = member_str + member.get("memberaddr", "") + " "
+								return '"%s"' % member_str.strip()
 							else:
 								return "nil"
 					else:
@@ -595,6 +623,9 @@ class OpenAISConf_Parser:
 				elif path[1] == "rrpmode":
 					totem_options["rrp_mode"] = args
 					return "true"
+				elif path[1] == "transport":
+					totem_options["transport"] = args
+					return "true"
 				else:
 					return "false"
 			elif len(path) == 3:
@@ -643,6 +674,12 @@ class OpenAISConf_Parser:
 								return "true"
 							except ValueError:
 								return "false"
+						elif path[3] == "member":
+							member_addr_set = []
+							for member_address in args.strip().split(" "):
+								member_addr_set.append({"memberaddr":member_address})
+							i["member"] = member_addr_set
+							return "true"
 						else:
 							return "false"
 					else:
