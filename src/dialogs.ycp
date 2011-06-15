@@ -640,11 +640,19 @@ integer csync2_status()
 	return 3;
 }
 
+integer try_restart_xinetd()
+{
+	integer r = Service::RunInitScript("xinetd", "try-restart");
+	y2debug("try_restart_xinetd return %1", r);
+	return r;
+}
+
 void csync2_turn_off()
 {
 	SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2 off");
 	if (SuSEFirewall::HaveService(csync2_port, "TCP", "EXT"))
 		SuSEFirewall::RemoveService(csync2_port, "TCP", "EXT");
+	try_restart_xinetd();
 }
 
 void csync2_turn_on()
@@ -652,6 +660,7 @@ void csync2_turn_on()
 	SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2 on");
 	if (!SuSEFirewall::HaveService(csync2_port, "TCP", "EXT"))
 		SuSEFirewall::AddService(csync2_port, "TCP", "EXT");
+	try_restart_xinetd();
 }
 
 void fill_csync_entries()
