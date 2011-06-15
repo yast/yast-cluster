@@ -45,7 +45,13 @@ import "SuSEFirewallServices";
 include "cluster/helps.ycp";
 include "cluster/common.ycp";
 
-list<string> csync2_suggest_files = ["/etc/corosync/corosync.conf", "/etc/corosync/authkey", "/etc/sysconfig/pacemaker", "/etc/drbd.d", "/etc/lvm/lvm.conf", "/etc/multipath.conf", "/etc/ha.d/ldirectord.cf", "/etc/ctdb/nodes", "/etc/samba/smb.conf", "/etc/sysconfig/pacemaker", "/etc/sysconfig/openais"];
+list<string> csync2_suggest_files = ["/etc/corosync/corosync.conf",
+	"/etc/corosync/authkey", "/etc/sysconfig/pacemaker",
+	"/etc/drbd.d", "/etc/lvm/lvm.conf", "/etc/multipath.conf",
+	"/etc/ha.d/ldirectord.cf", "/etc/ctdb/nodes", "/etc/samba/smb.conf",
+	"/etc/sysconfig/pacemaker", "/etc/sysconfig/openais",
+	"/etc/csync2/csync2.cfg", "/etc/csync2/key_hagroup",
+];
 
 string csync2_port = "30865";
 
@@ -793,7 +799,7 @@ any Csync2Dialog()
 			// generate key file
 			ret = SCR::Execute(.target.bash, sformat("csync2 -k %1", key_file));
 			if (ret == 0)
-				Popup::Message(sformat(_("Key file %1 is generated.\nPlease copy this file to all members of the cluster."), key_file));
+				Popup::Message(sformat(_("Key file %1 is generated.\nClicking \"Add Suggested Files\" button adds it to sync list."), key_file));
 			else
 				Popup::Message("Key generation failed.");
 		}
