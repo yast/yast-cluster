@@ -258,6 +258,9 @@ global void save_csync2_conf()
 	SCR::Write(.csync2_ha.value.ha_group.host, csync2_host);
 	SCR::Write(.csync2_ha.value.ha_group.include, csync2_include);
 	SCR::Write(.csync2_ha.value.ha_group.key, [csync2_key_file]);
+
+	SCR::Write(.sysconfig.pacemaker.LRMD_MAX_CHILDREN, 4);
+	SCR::Write(.sysconfig.openais.COROSYNC_DEFAULT_CONFIG_IFACE, "openaisserviceenableexperimental:corosync_parser");
 }
 
 /**

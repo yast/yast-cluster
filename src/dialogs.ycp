@@ -45,7 +45,8 @@ import "SuSEFirewallServices";
 include "cluster/helps.ycp";
 include "cluster/common.ycp";
 
-list<string> csync2_suggest_files = ["/etc/corosync/corosync.conf", "/etc/corosync/authkey", "/etc/sysconfig/pacemaekr", "/etc/drbd.d", "/etc/lvm/lvm.conf", "/etc/multipath.conf", "/etc/ha.d/ldirectord.cf", "/etc/ctdb/nodes", "/etc/samba/smb.conf"];
+list<string> csync2_suggest_files = ["/etc/corosync/corosync.conf", "/etc/corosync/authkey", "/etc/sysconfig/pacemaker", "/etc/drbd.d", "/etc/lvm/lvm.conf", "/etc/multipath.conf", "/etc/ha.d/ldirectord.cf", "/etc/ctdb/nodes", "/etc/samba/smb.conf", "/etc/sysconfig/pacemaker", "/etc/sysconfig/openais"];
+
 string csync2_port = "30865";
 
 // return `cacel or a string
@@ -527,6 +528,7 @@ any ServiceDialog () {
 		}
 
 		if (ret == "start_now") {
+			Cluster::save_csync2_conf();
 			Cluster::SaveClusterConfig();
 			if (!Service::Start("openais")) {
 				Report::Error(Service::Error());
