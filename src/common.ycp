@@ -14,7 +14,8 @@
 	list<string> DIALOG = [
 		"communication",
 		"security",
-		"service"
+		"service",
+		"csync2"
 	];
 
 	map PARENT = $[
@@ -23,7 +24,8 @@
 	map NAME = $[
 		"communication":  _("Communication Channels"),
 		"security":   _("Security"),
-		"service": _("Service")
+		"service": _("Service"),
+		"csync2": _("Configure Csync2")
 	];
 
 	void myHelp(string help)

@@ -41,7 +41,8 @@ include "cluster/common.ycp";
 map Aliases = $[
 	"communication":  ``(CommunicationDialog()),
 	"security":   ``(SecurityDialog()),
-	"service": ``(ServiceDialog())
+	"service": ``(ServiceDialog()),
+	"csync2": ``(Csync2Dialog())
 		];
 
 
@@ -86,7 +87,8 @@ any FirstRunSequence() {
 		"ws_start" : "communication",
 		"communication": $[ `next:"security", `back:"communication", `abort:`abort ],
 		"security": $[ `next:"service", `back:"communication", `abort:`abort ],
-		"service": $[ `next:`next, `back:"security", `abort:`abort ],
+		"service": $[ `next:"csync2", `back:"security", `abort:`abort ],
+		"csync2" : $[ `next:`next, `back:"service", `abort:`abort ],
 			];
 
 	any ret = Sequencer::Run(Aliases, sequence);
