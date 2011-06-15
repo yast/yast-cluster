@@ -169,23 +169,36 @@ void SaveCommunication () {
 	Cluster::rrpmode      = (string)UI::QueryWidget(`id(`rrpmode), `Value);
 }
 
+
+string calc_network_addr(string ip, string mask) {
+	string str = IP::IPv4ToBits(ip);
+	str = substring(str, 0, tointeger(mask));
+	while (size(str) < 32) {
+		str = str + "0";
+	}
+	return IP::BitsToIPv4(str);
+}
+
+
 any CommunicationDialog () {
 	any ret = nil;
 	map result = $[];
 
-	result = (map)SCR::Execute(.target.bash_output, "/sbin/ip addr show scope global | grep inet | awk '{print $2}' | awk -F'/' '{print $1}'");
+	result = (map)SCR::Execute(.target.bash_output, "/sbin/ip addr show scope global | grep inet | awk '{print $2}' | awk -F'/' '{print $1, $2}'");
 
 	list <string> existing_ips = [];
 	if (size(result["stdout"]:"") != 0) {
-		list <string> strs = splitstring(result["stdout"]:"", "\n");
-		foreach (string s, strs, {
-				boolean ip4 = false;
-				ip4 = IP::Check4(s);
-				if (ip4) {
-				s = regexpsub(s, "([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+", "\\1\.0");
-				}
-				existing_ips = add(existing_ips, s);
-				});
+		list <string> ip_masks = splitstring(result["stdout"]:"", "\n");
+		foreach (string s, ip_masks, {
+			list <string> ip_mask_list = splitstring(s, " ");
+			string ip = ip_mask_list[0]:"";
+			string mask = ip_mask_list[1]:"";
+			boolean ip4 = false;
+			ip4 = IP::Check4(ip);
+			if (ip4) {
+				existing_ips = add(existing_ips, calc_network_addr(ip, mask));
+			}
+		});
 	}
 
 	term iface = `Frame ( _("Channel"),
