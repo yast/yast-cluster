@@ -45,6 +45,32 @@ import "SuSEFirewallServices";
 include "cluster/helps.ycp";
 include "cluster/common.ycp";
 
+list<string> csync2_suggest_files = [];
+string csync2_port = "30865";
+
+// return `cacel or a string
+any text_input_dialog(string title, string value)
+{
+    any ret = nil;
+
+    UI::OpenDialog(
+        `MarginBox(1, 1, `VBox(
+            `MinWidth(100, `TextEntry(`id(`text), title, value)),
+            `VSpacing(1),
+            `Right(`HBox(
+                `PushButton(`id(`ok), _("OK")),
+                `PushButton(`id(`cancel), _("Cancel"))
+            ))
+        ))
+    );
+
+    ret = UI::UserInput();
+    if (ret == `ok) ret = UI::QueryWidget(`text, `Value);
+    UI::CloseDialog();
+    return ret;
+}
+
+
 boolean ValidateCommunication ()
 {
 	if (IP::Check((string)UI::QueryWidget(`id(`bindnetaddr1), `Value)) == false) {
@@ -554,6 +580,230 @@ any ServiceDialog () {
     return ret;
 }
 
+
+term csync2_layout()
+{
+	return
+	`VBox(`opt(`hvstretch),
+		`HBox(
+			`Frame(_("Sync Host"),
+			`VBox(
+				`SelectionBox(`id(`host_box), ""),
+				`HBox(
+					`PushButton(`id(`host_add), "Add"),
+					`PushButton(`id(`host_del), "Del"),
+					`PushButton(`id(`host_edit), "Edit")
+				)
+			)),
+			`HSpacing(),
+			`Frame(_("Sync File"),
+			`VBox(
+				`SelectionBox(`id(`include_box), ""),
+				`HBox(
+					`PushButton(`id(`include_add), "Add"),
+					`PushButton(`id(`include_del), "Del"),
+					`PushButton(`id(`include_edit), "Edit"),
+					`PushButton(`id(`include_suggest), "Add Suggested Files")
+				)
+			))
+		),
+		`HBox(
+			`PushButton(`id(`generate_key), `opt(`hstretch), _("Generate Pre-Shared-Keys")),
+			`PushButton(`id(`csync2_switch), `opt(`hstretch), "")
+		)
+	);
+}
+
+
+// return 1 if csync2 is not installed well
+// return 2 if csync2 is OFF
+// return 3 if csync2 is ON
+integer csync2_status()
+{
+	map ret = nil;
+
+	ret = (map)SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2");
+	y2milestone("chkconfig csync2 = %1", ret);
+	if (issubstring(ret["stderr"]:"", "command not found") == true) return 1;
+	if (issubstring(ret["stderr"]:"", "unknown service") == true) return 1;
+	if (issubstring(ret["stdout"]:"", "off") == true) return 2;
+
+	return 3;
+}
+
+void csync2_turn_off()
+{
+	SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2 off");
+	if (SuSEFirewall::HaveService(csync2_port, "TCP", "EXT"))
+		SuSEFirewall::RemoveService(csync2_port, "TCP", "EXT");
+}
+
+void csync2_turn_on()
+{
+	SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2 on");
+	if (!SuSEFirewall::HaveService(csync2_port, "TCP", "EXT"))
+		SuSEFirewall::AddService(csync2_port, "TCP", "EXT");
+}
+
+void fill_csync_entries()
+{
+	integer i = 0;
+	integer ret = 0;
+	integer current = 0;
+	list<term> items = [];
+
+	// remove duplicated elements
+	Cluster::csync2_host = Cluster::csync2_host + [];
+	Cluster::csync2_include = Cluster::csync2_include + [];
+
+	i = 0;
+	items = [];
+	foreach(string value, Cluster::csync2_host, {
+		items = add(items, `item(`id(i), value));
+		i = i + 1;
+	});
+	current = (integer)UI::QueryWidget(`host_box, `CurrentItem);
+	if (current == nil) current = 0;
+	if (current >= i) current = i - 1;
+	UI::ChangeWidget(`host_box, `Items, items);
+	UI::ChangeWidget(`host_box, `CurrentItem, current);
+
+	i = 0;
+	items = [];
+	foreach(string value, Cluster::csync2_include, {
+		items = add(items, `item(`id(i), value));
+		i = i + 1;
+	});
+	current = (integer)UI::QueryWidget(`include_box, `CurrentItem);
+	if (current == nil) current = 0;
+	if (current >= i) current = i - 1;
+	UI::ChangeWidget(`include_box, `Items, items);
+	UI::ChangeWidget(`include_box, `CurrentItem, current);
+
+	ret = csync2_status();
+	UI::ChangeWidget(`id(`csync2_switch), `Enabled, (ret != 1));
+	if (ret == 1)
+		UI::ChangeWidget(`id(`csync2_switch), `Label, "Csync2 Status Unknown");
+	if (ret == 2)
+		UI::ChangeWidget(`id(`csync2_switch), `Label, "Turn csync2 ON");
+	if (ret == 3)
+		UI::ChangeWidget(`id(`csync2_switch), `Label, "Turn csync2 OFF");
+}
+
+
+any Csync2Dialog()
+{
+	any ret = nil;
+
+	my_SetContents("csync2", csync2_layout());
+
+
+	while(true) {
+		fill_csync_entries();
+
+		ret = UI::UserInput();
+
+		if (ret == `abort || ret == `cancel) {
+			if (ReallyAbort()) break;
+			continue;
+		}
+
+		if (ret == `next || ret == `back) {
+			break;
+		}
+
+		if (ret == `wizardTree)
+			ret = (string)UI::QueryWidget(`id(`wizardTree), `CurrentItem);
+
+		if (contains(DIALOG, (string)ret)) {
+			ret = symbolof(toterm(ret));
+			//SaveCsync2();
+			break;
+		} else {
+			Wizard::SelectTreeItem("csync2");
+			continue;
+		}
+
+		if (ret == `host_add) {
+			ret = text_input_dialog(_("Input a new host"), "");
+			if (ret == `cancel) continue;
+			Cluster::csync2_host = add(Cluster::csync2_host, (string)ret);
+		}
+
+		if (ret == `host_edit) {
+			integer current = 0;
+			string str = "";
+
+			current = (integer)UI::QueryWidget(`host_box, `CurrentItem);
+			ret = text_input_dialog(_("Edit a host"), Cluster::csync2_host[current]:"");
+			if (ret == `cancel) continue;
+			Cluster::csync2_host[current] = (string)ret;
+		}
+
+		if (ret == `host_del) {
+			integer current = 0;
+			current = (integer)UI::QueryWidget(`host_box, `CurrentItem);
+			Cluster::csync2_host = remove(Cluster::csync2_host, current);
+		}
+
+		if (ret == `include_add) {
+			ret = text_input_dialog(_("Input a new sync file"), "");
+			if (ret == `cancel) continue;
+			Cluster::csync2_include = add(Cluster::csync2_include, (string)ret);
+		}
+
+		if (ret == `include_edit) {
+			integer current = 0;
+
+			current = (integer)UI::QueryWidget(`include_box, `CurrentItem);
+			ret = text_input_dialog(_("Edit a sync file"), Cluster::csync2_include[current]:"");
+			if (ret == `cancel) continue;
+			Cluster::csync2_include[current] = (string)ret;
+		}
+
+		if (ret == `include_del) {
+			integer current = 0;
+			current = (integer)UI::QueryWidget(`include_box, `CurrentItem);
+			Cluster::csync2_include = remove(Cluster::csync2_include, current);
+		}
+
+		if (ret == `include_suggest) {
+			Cluster::csync2_include = Cluster::csync2_include + csync2_suggest_files;
+		}
+
+		if (ret == `generate_key) {
+			string key_file = Cluster::csync2_key_file;
+
+			// key file exist
+			if (SCR::Read(.target.size, key_file) > 0) {
+				if (!Popup::YesNo(sformat(_("Key file %1 already exist.\nDo you want to overwrite it?"), key_file)))
+					continue;
+
+				// remove exist key file
+				if (SCR::Execute(.target.remove, key_file) == false) {
+					Popup::Message(sformat(_("Delete key file %1 failed."), key_file));
+					continue;
+				}
+			}
+
+			// generate key file
+			ret = SCR::Execute(.target.bash, sformat("csync2 -k %1", key_file));
+			if (ret == 0)
+				Popup::Message(sformat(_("Key file %1 is generated.\nPlease copy this file to all members of the cluster."), key_file));
+			else
+				Popup::Message("Key generation failed.");
+		}
+
+		if (ret == `csync2_switch) {
+			string label = "";
+			label = (string)UI::QueryWidget(`csync2_switch, `Label);
+			if (issubstring(label, "OFF")) csync2_turn_off();
+			if (issubstring(label, "ON")) csync2_turn_on();
+		}
+	}
+
+	return ret;
+}
 /* EOF */
 }
 

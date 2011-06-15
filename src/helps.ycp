@@ -50,6 +50,13 @@ map HELPS = $[
 			<p><b><big>Booting</big></b><br>Starting openais service during boot or not</p>
 			<p><b><big>Start mgmtd</big></b><br>Mgmtd daemon is a standalone service daemon. It is required by the GUI</p>
 			"),
+
+	"csync2" : _("
+		<p><b><big>Sync Host</big></b><br>The hostnames used here must be the local hostnames of the cluster nodes. That means you must use exactly the same string as printed out by the hostname command.</p>
+		<p><b><big>Sync File</big></b><br>The full absolute filename to be synced.</p>
+		<p><b><big>Pre-Shared-Keys</big></b><br>Authentication is performed using the IP addresses and pre-shared-keys in Csync2. The key file is generated with csync2 -k /etc/csync2/key_hagroup. The file key_hagroup should be copied to all members of the cluster manually after it's created.</p>
+	"),
+
     /* Read dialog help 1/2 */
     "read" : _("<p><b><big>Initializing cluster Configuration</big></b><br>
 Please wait...<br></p>

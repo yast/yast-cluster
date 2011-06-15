@@ -42,6 +42,9 @@ import "Message";
 import "PackageSystem";
 import "SuSEFirewall";
 
+
+global string csync2_key_file = "/etc/csync2/key_hagroup";
+
 /**
  * Prototypes
  */
@@ -233,6 +236,30 @@ global void SaveClusterConfig()
 	SCR::Write(.openais, "");
 }
 
+global list<string> csync2_host = [];
+global list<string> csync2_include = [];
+
+global void load_csync2_conf()
+{
+	csync2_host = (list<string>)SCR::Read(.csync2_ha.value.ha_group.host);
+	csync2_include = (list<string>)SCR::Read(.csync2_ha.value.ha_group.include);
+
+	if (csync2_host == nil) csync2_host = [];
+	if (csync2_include == nil) csync2_include = [];
+	y2milestone("read csync2 conf: csync2_host = %1", csync2_host);
+	y2milestone("read csync2 conf: csync2_include = %1", csync2_include);
+}
+
+global void save_csync2_conf()
+{
+	y2milestone("write csync2 conf: csync2_host = %1", csync2_host);
+	y2milestone("write csync2 conf: csync2_include = %1", csync2_include);
+
+	SCR::Write(.csync2_ha.value.ha_group.host, csync2_host);
+	SCR::Write(.csync2_ha.value.ha_group.include, csync2_include);
+	SCR::Write(.csync2_ha.value.ha_group.key, [csync2_key_file]);
+}
+
 /**
  * Read all cluster settings
  * @return true on success
@@ -271,7 +298,7 @@ global boolean Read() {
     );
 
     boolean ret = false;
-    list<string> required_pack_list = ["pacemaker", "pacemaker-pygui"];
+    list<string> required_pack_list = ["pacemaker", "pacemaker-pygui", "csync2"];
     ret = PackageSystem::CheckAndInstallPackagesInteractive(required_pack_list);
     if (ret == false) {
 	    Report::Error(_("Cannot install required package"));
@@ -295,6 +322,7 @@ global boolean Read() {
     if(false) Report::Error(_("Cannot read database1."));
     sleep(sl);
 
+	load_csync2_conf();
     // read another database
     if(Abort()) return false;
     Progress::NextStep();
@@ -384,6 +412,8 @@ global boolean Write() {
 	if (enable2 == true) {
 		SuSEFirewall::AddService(mcastport2, "UDP", "EXT");
 	}
+
+	save_csync2_conf();
 
     // run SuSEconfig
 	SuSEFirewall::Write();
