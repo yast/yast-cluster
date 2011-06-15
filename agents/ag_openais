@@ -54,7 +54,7 @@ totem_option_table = {
 		   "suggested_value":"none"},
 	"token":{"doc":"Timeout for a token lost. in ms", 
 		 "type":"int", "default_value":1000,
-		 "suggested_value":3000},
+		 "suggested_value":5000},
 	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.", 
 			    "type":"int", "default_value":238},
 	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.", 
@@ -69,7 +69,7 @@ totem_option_table = {
 		     "type":"int", "default_value":0},
 	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.", 
 		     "type":"int", "default_value":3600,
-		     "suggested_value":4000},
+		     "suggested_value":6000},
 	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.", 
 		 "type":"int", "default_value":200},
 	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.", 
@@ -128,11 +128,11 @@ logging_option_table = {
 		    "suggested_value":"off"},
 	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
 		     "suggested_value":"yes"},
-	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
+	"to_stderr":{"doc":"Log to the standard error output", "default_value":"no", "suggested_value":"no"},
 	"to_logfile":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
 	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/tmp/saved_pacemaker_log"},
 	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
-	"timestamp":{"doc":"Log timestamp as well", "default_value":"on", "suggested_value":"on"},
+	"timestamp":{"doc":"Log timestamp as well", "default_value":"off", "suggested_value":"off"},
 }
 logger_option_table = {
 	"ident":{"doc":"Ident for the logger, i.e. AMF", "default_value":"AMF"},
@@ -407,6 +407,13 @@ def load_ais_conf(filename):
 		f = open(filename, "w")
 		f.write(" ")
 		f.close()
+		try:
+			f = open(filename+".example", "r")
+			file_parser(f)
+			f.close()
+			return
+		except:
+			pass
 		load_ais_conf(filename)
 
 
@@ -537,6 +544,9 @@ class OpenAISConf_Parser:
 
 		try:
 			os.rename("/etc/corosync/corosync.conf", "/etc/corosync/corosync.conf.YasT2.bak")
+		except OSError:
+			pass
+		try:
 			os.rename("/etc/corosync/corosync.conf.YaST2", "/etc/corosync/corosync.conf")
 		except OSError:
 			pass
