@@ -45,7 +45,7 @@ import "SuSEFirewallServices";
 include "cluster/helps.ycp";
 include "cluster/common.ycp";
 
-list<string> csync2_suggest_files = [];
+list<string> csync2_suggest_files = ["/etc/corosync/corosync.conf", "/etc/corosync/authkey", "/etc/sysconfig/pacemaekr", "/etc/drbd.d", "/etc/lvm/lvm.conf", "/etc/multipath.conf", "/etc/ha.d/ldirectord.cf", "/etc/ctdb/nodes", "/etc/samba/smb.conf"];
 string csync2_port = "30865";
 
 // return `cacel or a string
@@ -346,8 +346,8 @@ any SecurityDialog()
 			`VBox(
 				`InputField(`id(`threads), `opt(`hstretch), "Threads:"),
 				`VSpacing(1),
-				`Label(_("For newly created cluster, push the button below to generate /etc/ais/authkey.")),
-				`Label(_("To join an existing cluster, please copy /etc/ais/authkey from other nodes manually.")),
+				`Label(_("For newly created cluster, push the button below to generate /etc/corosync/authkey.")),
+				`Label(_("To join an existing cluster, please copy /etc/corosync/authkey from other nodes manually.")),
 				`PushButton(`id(`genf), `opt(`notify), "Generate Auth Key File")
 			)
 		),
@@ -365,11 +365,12 @@ any SecurityDialog()
 
 		if (ret == `genf) {
 			map result = $[];
-			result = (map)SCR::Execute(.target.bash_output, "/usr/sbin/ais-keygen");
+			result = (map)SCR::Execute(.target.bash_output, "/usr/sbin/corosync-keygen");
 			if (result["exit"]:-1 != 0) {
-				Popup::Message("Failed to create /etc/ais/authkey");
+				Popup::Message("Failed to create /etc/corosync/authkey");
 			} else {
-				Popup::Message(result["stdout"]:"Create /etc/ais/authkey successed");
+		//Popup::Message(result["stdout"]:"Create /etc/corosync/authkey successed");
+				Popup::Message("Create /etc/corosync/authkey successed");
 			}
 			continue;
 		}

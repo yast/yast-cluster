@@ -298,7 +298,7 @@ global boolean Read() {
     );
 
     boolean ret = false;
-    list<string> required_pack_list = ["pacemaker", "pacemaker-pygui", "csync2"];
+    list<string> required_pack_list = ["pacemaker", "pacemaker-mgmt", "pacemaker-mgmt-client", "csync2"];
     ret = PackageSystem::CheckAndInstallPackagesInteractive(required_pack_list);
     if (ret == false) {
 	    Report::Error(_("Cannot install required package"));
@@ -313,7 +313,7 @@ global boolean Read() {
 		Report::Error(_("Cannot load existing configuration"));
 		return false;
 	}
-	if (SCR::Read(.target.size, "/etc/ais/openais.conf") <= 1) {
+	if (SCR::Read(.target.size, "/etc/corosync/corosync.conf") <= 1) {
 		firstrun = true;
 		use_mgmtd = true; //the only interested default option
 	}
