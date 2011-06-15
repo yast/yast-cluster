@@ -487,11 +487,9 @@ any ServiceDialog () {
 
 		`Frame(_("Booting"),
 			`RadioButtonGroup(`id("bootopenais"),
-                `HBox(`HSpacing(1), `VBox (
-	                `Left(`RadioButton(`id ("on"),  `opt(`notify), _("On -- Start openais at booting"))),
-					`Left(`HBox(`HSpacing(6), `CheckBox(`id(`mgmtd), "Start mgmtd as well. The GUI client requires this.", true))),
-		            `Left(`RadioButton(`id ("off"), `opt(`notify), _("Off -- Start openais manually only"))),
-			        `VSpacing(1)
+				`HBox(`HSpacing(1), `VBox (
+					`Left(`RadioButton(`id ("on"),  `opt(`notify), _("On -- Start openais at booting"))),
+					`Left(`RadioButton(`id ("off"), `opt(`notify), _("Off -- Start openais manually only")))
 				))
 			)
 		),
@@ -509,7 +507,10 @@ any ServiceDialog () {
 				)))
 			))
 		),
-//		`Frame (_("Firewall Settings"), firewall_layout),
+		`VSpacing(1),
+		`Frame(_("Management Tool"),
+			`Left(`HBox(`HSpacing(1), `CheckBox(`id(`mgmtd), "Enable mgmtd. The GUI client requires this.", true)))
+		),
 		`VStretch()
 	);
 
