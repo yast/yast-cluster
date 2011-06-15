@@ -148,6 +148,11 @@ global boolean autoid = false;
 global string nodeid = "";
 global string rrpmode = "";
 
+global string corokey = "";
+global string csync2key = "";
+global boolean global_startopenais = false;
+global boolean global_startcsync2 = false;
+
 global boolean LoadClusterConfig()
 {
 	if ((string)(SCR::Read(.openais.pacemaker.use_mgmtd)) == "yes") {
@@ -432,6 +437,19 @@ global boolean Write() {
     Progress::NextStage();
     sleep(sl);
 
+	if (corokey != "") {
+		map out = (map)SCR::Execute(.target.bash_output, "echo " + corokey + " | uudecode -o /etc/corosync/authkey");
+	}
+	if (csync2key != "") {
+	    map out = (map)SCR::Execute(.target.bash_output, "echo " + csync2key + " | uudecode -o /etc/corosync/authkey");
+	}
+	if (global_startopenais == true) {
+		SCR::Execute(.target.bash_output, "/sbin/chkconfig openais on");
+	}
+	if (global_startcsync2 == true) {
+		SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2 on");
+	}
+
     if(Abort()) return false;
     return true;
 }
@@ -443,8 +461,28 @@ global boolean Write() {
  * @return boolean True on success
  */
 global boolean Import (map settings) {
-    // TODO FIXME: your code here (fill the above mentioned variables)...
-    return true;
+	use_mgmtd = settings["use_mgmtd"]:true;
+	secauth = settings["secauth"]:false;
+	threads = settings["threads"]:"";
+	bindnetaddr1 = settings["bindnetaddr1"]:"";
+	mcastaddr1 = settings["mcastaddr1"]:"";
+	mcastport1 = settings["mcastport1"]:"";
+	enable2 = settings["enable2"]:false;
+	bindnetaddr2 = settings["bindnetaddr2"]:"";
+	mcastaddr2 = settings["mcastaddr2"]:"";
+	mcastport2 = settings["mcastport2"]:"";
+	autoid = settings["autoid"]:true;
+	nodeid = "";
+	rrpmode = settings["rrpmode"]:"";
+	corokey = settings["corokey"]:"";
+	csync2key = settings["csync2key"]:"";
+
+	csync2_host = settings["csync2_host"]:[];
+	csync2_include = settings["csync2_include"]:[];
+
+	global_startopenais = true;
+	global_startcsync2 = true;
+	return true;
 }
 
 /**
@@ -453,8 +491,31 @@ global boolean Import (map settings) {
  * @return map Dumped settings (later acceptable by Import ())
  */
 global map Export () {
-    // TODO FIXME: your code here (return the above mentioned variables)...
-    return $[];
+	map result = $[];
+	result["use_mgmtd"] = use_mgmtd;
+	result["secauth"] = secauth;
+	result["threads"] = threads;
+	result["bindnetaddr1"] = bindnetaddr1;
+	result["mcastaddr1"] = mcastaddr1;
+	result["mcastport1"] = mcastport1;
+	result["enable2"] = enable2;
+	result["bindnetaddr2"] = bindnetaddr2;
+	result["mcastaddr2"] = mcastaddr2;
+	result["mcastport2"] = mcastport2;
+	result["autoid"] = true;
+	result["nodeid"] = "";
+	result["rrpmode"] = rrpmode;
+	result["csync2_host"] = csync2_host;
+	result["csync2_include"] = csync2_include;
+	if (SCR::Read(.target.size, "/etc/corosync/authkey") != -1) {
+		map out = (map) SCR::Execute(.target.bash_output, "uuencode -m /etc/corosync/authkey /dev/stdout");
+		result["corokey"] = out["stdout"]:"";
+	}
+	if (SCR::Read(.target.size, "/etc/csync2/key_hagroup") != -1) {
+		map out = (map) SCR::Execute(.target.bash_output, "uuencode -m /etc/csync2/key_hagroup /dev/stdout ");
+		result["csync2key"] = out["stdout"]:"";
+	}
+    return result;
 }
 
 /**
@@ -464,7 +525,7 @@ global map Export () {
 global list Summary() {
     // TODO FIXME: your code here...
     /* Configuration summary text for autoyast */
-    return [ _("Configuration summary..."), [] ];
+    return [ _("Change the configuration of HAE here..."), [] ];
 }
 
 /**
@@ -483,8 +544,7 @@ global list Overview() {
  * @return map with 2 lists.
  */
 global map AutoPackages() {
-    // TODO FIXME: your code here...
-    return $[ "install":[], "remove":[] ];
+    return $[ "install":["pacemaker-mgmt", "csync2", "pacemaker"], "remove":[] ];
 }
 
 /* EOF */
