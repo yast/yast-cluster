@@ -68,8 +68,8 @@ totem_option_table = {
 	"send_join":{"doc":"This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.", 
 		     "type":"int", "default_value":0},
 	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.", 
-		     "type":"int", "default_value":800,
-		     "suggested_value":1500},
+		     "type":"int", "default_value":3600,
+		     "suggested_value":4000},
 	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.", 
 		 "type":"int", "default_value":200},
 	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.", 
@@ -90,9 +90,7 @@ totem_option_table = {
 				     "type":"int", "default_value":2000},
 	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.", 
 					"type":"int", "default_value":10},
-	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
-	"keyfile":{"doc":"Location of key file. If not set, it defaults to the environoment OPENAIS_TOTEM_AUTHKEY_FILE, then /etc/ais/authkey", "default_value":"/etc/ais/authkey"},
-	"key":{"doc":"The key itself in the configuration file. Should be 128 characters. Dont use the default value", "default_value":"CatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMeeCatchMee"}
+	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47}
 }
 
 
@@ -101,12 +99,9 @@ aisexec_option_table = {
 	"group":{"doc":"Group to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}}
 
 service_option_table = {
-	"name":{"doc":"The name of the service", "default_value":"pacemaker"},
-	"ver":{"doc":"Version", "default_value":"0"},
+	"clustername":{"doc":"The name of the service", "default_value":"pacemaker"},
 	"use_mgmtd":{"doc":"Default to start mgmtd with pacemaker", "default_value":"yes"},
-	"expected_nodes":{"doc":"Nodes we expected to see in the cluster", "default_value":2},
-	"expected_votes":{"doc":"Votes we expected to see in the cluster", "default_value":2},
-	"quorum_votes":{"doc":"Votes needed to have the quorum", "default_value":1},
+	"to_file":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
 	"use_logd":{"doc":"Use logd for pacemaker", "default_value":"no"},
 }
 
@@ -134,7 +129,7 @@ logging_option_table = {
 	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
 		     "suggested_value":"yes"},
 	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
-	"to_file":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
+	"to_logfile":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
 	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/tmp/saved_pacemaker_log"},
 	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
 	"timestamp":{"doc":"Log timestamp as well", "default_value":"on", "suggested_value":"on"},
@@ -406,7 +401,7 @@ def load_ais_conf(filename):
 		f.close()
 	except:
 		try:
-			os.rename(filename, "/etc/ais/openais.conf.corrupted");
+			os.rename(filename, "/etc/corosync/corosync.conf.corrupted");
 		except:
 			pass
 		f = open(filename, "w")
@@ -417,7 +412,7 @@ def load_ais_conf(filename):
 
 class OpenAISConf_Parser:
 	def __init__(self):
-		load_ais_conf("/etc/ais/openais.conf")
+		load_ais_conf("/etc/corosync/corosync.conf")
     
 	def doList(self, path):
 		#remove the leading dot, 
@@ -530,7 +525,7 @@ class OpenAISConf_Parser:
 		fulfill_default_logging_options()
 		fulfill_suggested_totem_options()
 
-		f = open("/etc/ais/openais.conf.YaST2", "w")
+		f = open("/etc/corosync/corosync.conf.YaST2", "w")
 		print_ais_options(f)
 		print_pacemaker_service_options(f)
 		print_service_options(f)
@@ -541,8 +536,8 @@ class OpenAISConf_Parser:
 		f.close()
 
 		try:
-			os.rename("/etc/ais/openais.conf", "/etc/ais/openais.conf.YasT2.bak")
-			os.rename("/etc/ais/openais.conf.YaST2", "/etc/ais/openais.conf")
+			os.rename("/etc/corosync/corosync.conf", "/etc/corosync/corosync.conf.YasT2.bak")
+			os.rename("/etc/corosync/corosync.conf.YaST2", "/etc/corosync/corosync.conf")
 		except OSError:
 			pass
 		pass
