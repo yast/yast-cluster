@@ -376,8 +376,7 @@ any SecurityDialog()
 			if (result["exit"]:-1 != 0) {
 				Popup::Message("Failed to create /etc/corosync/authkey");
 			} else {
-		//Popup::Message(result["stdout"]:"Create /etc/corosync/authkey successed");
-				Popup::Message("Create /etc/corosync/authkey successed");
+				Popup::Message("Create /etc/corosync/authkey succeeded");
 			}
 			continue;
 		}
@@ -735,7 +734,7 @@ any Csync2Dialog()
 		}
 
 		if (ret == `host_add) {
-			ret = text_input_dialog(_("Input a new host"), "");
+			ret = text_input_dialog(_("Enter a hostname"), "");
 			if (ret == `cancel) continue;
 			Cluster::csync2_host = add(Cluster::csync2_host, (string)ret);
 		}
@@ -745,7 +744,7 @@ any Csync2Dialog()
 			string str = "";
 
 			current = (integer)UI::QueryWidget(`host_box, `CurrentItem);
-			ret = text_input_dialog(_("Edit a host"), Cluster::csync2_host[current]:"");
+			ret = text_input_dialog(_("Edit the hostname"), Cluster::csync2_host[current]:"");
 			if (ret == `cancel) continue;
 			Cluster::csync2_host[current] = (string)ret;
 		}
@@ -757,7 +756,7 @@ any Csync2Dialog()
 		}
 
 		if (ret == `include_add) {
-			ret = text_input_dialog(_("Input a new sync file"), "");
+			ret = text_input_dialog(_("Enter a filename to synchronize"), "");
 			if (ret == `cancel) continue;
 			Cluster::csync2_include = add(Cluster::csync2_include, (string)ret);
 		}
@@ -766,7 +765,7 @@ any Csync2Dialog()
 			integer current = 0;
 
 			current = (integer)UI::QueryWidget(`include_box, `CurrentItem);
-			ret = text_input_dialog(_("Edit a sync file"), Cluster::csync2_include[current]:"");
+			ret = text_input_dialog(_("Edit the filename"), Cluster::csync2_include[current]:"");
 			if (ret == `cancel) continue;
 			Cluster::csync2_include[current] = (string)ret;
 		}
