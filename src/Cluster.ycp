@@ -191,7 +191,7 @@ global boolean LoadClusterConfig()
 	if (enable2 == false) {
 		rrpmode = "none";
 	} else {
-		if (rrpmode != "passive" && rrpmode == "active") {
+		if (rrpmode != "passive" && rrpmode != "active") {
 			rrpmode = "passive";
 		}
 	}
