@@ -1,0 +1,29 @@
+/**
+ * File:
+ *   csync2_ha.scr
+ * Summary:
+ *   Limited reading/writing /etc/csync2/csync2.cfg
+ *   using the ini-agent. For the config file format, see
+ *   /usr/share/doc/packages/csync2/README included in csync2
+ *   package or http://www.clifford.at/papers/2005/csync2/paper.pdf
+ */
+
+.csync2_ha
+
+`ag_ini(
+	`IniAgent(
+		"/etc/csync2/csync2.cfg",
+	    $[
+			"options" : ["repeat_names"],
+			"comments": ["^[ \t]*#.*", "#.*", "^[ \t]*$"],
+			"sections": [
+				$[
+					"begin" : ["^[ \t]*group[ \t]+(.+)[ \t]*$", "group %s\n{"] , 
+					"end"   : ["^[ \t]*}[ \t]*$", "}"]
+				 ]
+			],
+			"params"  : [$["match" : ["^[ \t]*([a-zA-Z0-9_]+)[ \t]+(.+)[ \t]*;[ \t]*$", "%s %s;"]]],
+			"subindent" : "\t"
+		]
+  )
+)

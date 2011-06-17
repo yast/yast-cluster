@@ -1,0 +1,16 @@
+/**
+ * File:	cfg_openais.scr
+ * Summary:	Agent for reading/writing /etc/sysconfig/openais
+ * Author:	Klaus Kaempf <kkaempf@suse.de>
+ * Access:	read / write
+ *
+ * $Id: cfg_openais.scr 13069 2003-12-16 09:30:51Z jsrain $
+ *
+ * Read/Sets the values defined in <tt>/etc/sysconfig/openais</tt>
+ * in an easy manner.
+ */
+.sysconfig.openais
+
+`ag_ini(
+    `SysConfigFile("/etc/sysconfig/openais")
+)
