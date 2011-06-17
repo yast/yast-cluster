@@ -784,9 +784,9 @@ term csync2_layout()
 			`VBox(
 				`SelectionBox(`id(`host_box), ""),
 				`HBox(
-					`PushButton(`id(`host_add), "Add"),
-					`PushButton(`id(`host_del), "Del"),
-					`PushButton(`id(`host_edit), "Edit")
+					`PushButton(`id(`host_add), _("Add")),
+					`PushButton(`id(`host_del), _("Del")),
+					`PushButton(`id(`host_edit), _("Edit"))
 				)
 			)),
 			`HSpacing(),
@@ -794,10 +794,10 @@ term csync2_layout()
 			`VBox(
 				`SelectionBox(`id(`include_box), ""),
 				`HBox(
-					`PushButton(`id(`include_add), "Add"),
-					`PushButton(`id(`include_del), "Del"),
-					`PushButton(`id(`include_edit), "Edit"),
-					`PushButton(`id(`include_suggest), "Add Suggested Files")
+					`PushButton(`id(`include_add), _("Add")),
+					`PushButton(`id(`include_del), _("Del")),
+					`PushButton(`id(`include_edit), _("Edit")),
+					`PushButton(`id(`include_suggest), _("Add Suggested Files"))
 				)
 			))
 		),
@@ -817,7 +817,7 @@ integer csync2_status()
 	map ret = nil;
 
 	ret = (map)SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2");
-	y2milestone("chkconfig csync2 = %1", ret);
+	y2milestone("chkconfig csync2 = %1", ret)
 	if (issubstring(ret["stderr"]:"", "command not found") == true) return 1;
 	if (issubstring(ret["stderr"]:"", "unknown service") == true) return 1;
 	if (issubstring(ret["stdout"]:"", "off") == true) return 2;
@@ -886,11 +886,11 @@ void fill_csync_entries()
 	ret = csync2_status();
 	UI::ChangeWidget(`id(`csync2_switch), `Enabled, (ret != 1));
 	if (ret == 1)
-		UI::ChangeWidget(`id(`csync2_switch), `Label, "Csync2 Status Unknown");
+		UI::ChangeWidget(`id(`csync2_switch), `Label, _("Csync2 Status Unknown"));
 	if (ret == 2)
-		UI::ChangeWidget(`id(`csync2_switch), `Label, "Turn csync2 ON");
+		UI::ChangeWidget(`id(`csync2_switch), `Label, _("Turn csync2 ON"));
 	if (ret == 3)
-		UI::ChangeWidget(`id(`csync2_switch), `Label, "Turn csync2 OFF");
+		UI::ChangeWidget(`id(`csync2_switch), `Label, _("Turn csync2 OFF"));
 }
 
 
@@ -994,7 +994,7 @@ any Csync2Dialog()
 			if (ret == 0)
 				Popup::Message(sformat(_("Key file %1 is generated.\nClicking \"Add Suggested Files\" button adds it to sync list."), key_file));
 			else
-				Popup::Message("Key generation failed.");
+				Popup::Message(_("Key generation failed."));
 		}
 
 		if (ret == `csync2_switch) {

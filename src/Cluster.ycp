@@ -361,7 +361,7 @@ global boolean Read() {
     if(false) Report::Error(_("Cannot read database1."));
     sleep(sl);
 
-	load_csync2_conf();
+    load_csync2_conf();
     // read another database
     if(Abort()) return false;
     Progress::NextStep();
