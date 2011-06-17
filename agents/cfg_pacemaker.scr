@@ -1,0 +1,16 @@
+/**
+ * File:	cfg_pacemaker.scr
+ * Summary:	Agent for reading/writing /etc/sysconfig/pacemaker
+ * Author:	Klaus Kaempf <kkaempf@suse.de>
+ * Access:	read / write
+ *
+ * $Id: cfg_pacemaker.scr 13069 2003-12-16 09:30:51Z jsrain $
+ *
+ * Read/Sets the values defined in <tt>/etc/sysconfig/pacemaker</tt>
+ * in an easy manner.
+ */
+.sysconfig.pacemaker
+
+`ag_ini(
+    `SysConfigFile("/etc/sysconfig/pacemaker")
+)
