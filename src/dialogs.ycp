@@ -817,7 +817,7 @@ integer csync2_status()
 	map ret = nil;
 
 	ret = (map)SCR::Execute(.target.bash_output, "/sbin/chkconfig csync2");
-	y2milestone("chkconfig csync2 = %1", ret)
+	y2milestone("chkconfig csync2 = %1", ret);
 	if (issubstring(ret["stderr"]:"", "command not found") == true) return 1;
 	if (issubstring(ret["stderr"]:"", "unknown service") == true) return 1;
 	if (issubstring(ret["stdout"]:"", "off") == true) return 2;
