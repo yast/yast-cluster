@@ -337,7 +337,7 @@ global boolean Read() {
     );
 
     boolean ret = false;
-    list<string> required_pack_list = ["pacemaker", "pacemaker-mgmt", "pacemaker-mgmt-client", "csync2"];
+    list<string> required_pack_list = ["pacemaker", "pacemaker-mgmt", "pacemaker-mgmt-client", "csync2", "conntrack-tools"];
     ret = PackageSystem::CheckAndInstallPackagesInteractive(required_pack_list);
     if (ret == false) {
 	    Report::Error(_("Cannot install required package"));
