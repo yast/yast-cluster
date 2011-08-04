@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Aug  4 14:48:48 CEST 2011 - jsrain@suse.cz
+
+- fixed categories in the .desktop-file (bnc#607047)
+- 2.21.0
+
+-------------------------------------------------------------------
 Wed Jan 13 18:56:03 CET 2010 - kmachalkova@suse.cz
 
 - Adjusted .desktop file(s) to wrap /sbin/yast2/ calls in xdg-su
