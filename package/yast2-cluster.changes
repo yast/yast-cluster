@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Aug  5 12:31:08 CEST 2011 - tgoettlicher@suse.de
+
+- fixed .desktop file (bnc #681249)
+
+-------------------------------------------------------------------
 Thu Aug  4 14:48:48 CEST 2011 - jsrain@suse.cz
 
 - fixed categories in the .desktop-file (bnc#607047)
