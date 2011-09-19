@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Sep 19 08:42:00 CEST 2011 - visnov@suse.cz
+
+- remove unused dialogs and thus deprecated import (Wizard_hw)
+
+-------------------------------------------------------------------
 Fri Aug  5 12:31:08 CEST 2011 - tgoettlicher@suse.de
 
 - fixed .desktop file (bnc #681249)
