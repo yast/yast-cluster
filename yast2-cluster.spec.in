@@ -1,0 +1,34 @@
+@HEADER-COMMENT@
+
+@HEADER@
+Requires:	yast2
+BuildRequires:	perl-XML-Writer update-desktop-files yast2 yast2-devtools yast2-testsuite
+
+BuildArchitectures:	noarch
+
+Summary:	Configuration of cluster
+
+%description
+-
+
+@PREP@
+
+@BUILD@
+
+@INSTALL@
+
+@CLEAN@
+
+%files
+%defattr(-,root,root)
+%dir @yncludedir@/cluster
+@yncludedir@/cluster/*
+@clientdir@/cluster.ycp
+@clientdir@/cluster_*.ycp
+@moduledir@/Cluster.*
+@moduledir@/Cluster2.*
+@moduledir@/Cluster3.py
+@desktopdir@/cluster.desktop
+@scrconfdir@/openais.scr
+@agentdir@/ag_openais
+%doc @docdir@
