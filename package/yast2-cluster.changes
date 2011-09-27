@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Sep 26 13:14:34 CEST 2011 - visnov@suse.cz
+
+- set dialog title
+- 2.21.1 
+
+-------------------------------------------------------------------
 Mon Sep 19 08:42:00 CEST 2011 - visnov@suse.cz
 
 - remove unused dialogs and thus deprecated import (Wizard_hw)
