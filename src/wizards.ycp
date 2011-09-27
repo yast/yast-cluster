@@ -134,6 +134,7 @@ any ClusterSequence() {
     ];
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopTitleAndIcon("cluster");
 
     any ret = Sequencer::Run(aliases, sequence);
 
@@ -154,6 +155,7 @@ any ClusterAutoSequence() {
     term contents = `Label(_("Initializing..."));
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopTitleAndIcon("cluster");
     Wizard::SetContentsButtons(caption, contents, "",
 	    Label::BackButton(), Label::NextButton());
 
