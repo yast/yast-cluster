@@ -58,8 +58,8 @@ map HELPS = $[
 	"),
 
     /* Read dialog help 1/2 */
-    "read" : _("<p><b><big>Initializing cluster Configuration</big></b><br>
-Please wait...<br></p>
+    "read" : _("<p><b><big>Initializing Cluster Configuration</big></b><br>
+</p>
 ") +
 
     /* Read dialog help 2/2 */
@@ -69,7 +69,7 @@ Safely abort the configuration utility by pressing <b>Abort</b> now.</p>
 
     /* Write dialog help 1/2 */
     "write" : _("<p><b><big>Saving cluster Configuration</big></b><br>
-Please wait...<br></p>
+</p>
 ") +
 
     /* Write dialog help 2/2 */
