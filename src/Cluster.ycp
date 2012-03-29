@@ -306,7 +306,7 @@ global void save_csync2_conf()
 global boolean Read() {
 
     /* Cluster read dialog caption */
-    string caption = _("Initializing cluster Configuration");
+    string caption = _("Initializing Cluster Configuration");
 
     // TODO FIXME Set the right number of stages
     integer steps = 4;
@@ -349,7 +349,7 @@ global boolean Read() {
 	ret = false;
 	ret = LoadClusterConfig();
 	if (ret == false) {
-		Report::Error(_("Cannot load existing configuration"));
+		Report::Error(_("Cannot load existing configuration."));
 		return false;
 	}
 	if (SCR::Read(.target.size, "/etc/corosync/corosync.conf") <= 1) {
@@ -407,7 +407,7 @@ global boolean Read() {
 global boolean Write() {
 
     /* Cluster read dialog caption */
-    string caption = _("Saving cluster Configuration");
+    string caption = _("Saving Cluster Configuration");
 
     // TODO FIXME And set the right number of stages
     integer steps = 2;
