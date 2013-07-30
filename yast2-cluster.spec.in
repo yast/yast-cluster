@@ -6,6 +6,8 @@ BuildRequires:	perl-XML-Writer update-desktop-files yast2 yast2-devtools yast2-t
 
 BuildArchitectures:	noarch
 
+Requires:       yast2-ruby-bindings >= 1.0.0
+
 Summary:	Configuration of cluster
 
 %description
@@ -23,12 +25,10 @@ Summary:	Configuration of cluster
 %defattr(-,root,root)
 %dir @yncludedir@/cluster
 @yncludedir@/cluster/*
-@clientdir@/cluster.ycp
-@clientdir@/cluster_*.ycp
+@clientdir@/cluster.rb
+@clientdir@/cluster_*.rb
 @moduledir@/Cluster.*
-@moduledir@/Cluster2.*
-@moduledir@/Cluster3.py
 @desktopdir@/cluster.desktop
-@scrconfdir@/openais.scr
+@scrconfdir@/*.scr
 @agentdir@/ag_openais
 %doc @docdir@
