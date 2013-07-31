@@ -1,30 +1,33 @@
-# Makefile.am for cluster/src
+# Sources for cluster
+
+module_DATA = \
+  modules/Cluster.rb
+
+client_DATA = \
+  clients/cluster_proposal.rb \
+  clients/cluster_auto.rb \
+  clients/cluster.rb
 
 yncludedir = @yncludedir@/cluster
+ynclude_DATA = \
+  include/cluster/wizards.rb \
+  include/cluster/common.rb \
+  include/cluster/dialogs.rb \
+  include/cluster/complex.rb \
+  include/cluster/helps.rb
 
-client_DATA =			\
-	cluster.ycp		\
-	cluster_auto.ycp	\
-	cluster_proposal.ycp
+scrconf_DATA = \
+  scrconf/csync2_ha.scr \
+  scrconf/openais.scr \
+  scrconf/cfg_pacemaker.scr \
+  scrconf/cfg_openais.scr
 
-ynclude_DATA =			\
-	helps.ycp		\
-	wizards.ycp		\
-	dialogs.ycp		\
-	common.ycp		\
-	complex.ycp
+agent_SCRIPTS = \
+  servers_non_y2/ag_openais
 
-desktop_DATA =			\
-	cluster.desktop
+desktop_DATA = \
+  desktop/cluster.desktop
 
-module_DATA =			\
-	Cluster.ycp
-
-# create a symlink for local build, #145327
-cluster:
-	ln -sf . $@
-ycpchook = cluster
-
-EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
+EXTRA_DIST = $(module_DATA) $(client_DATA) $(ynclude_DATA) $(scrconf_DATA) $(agent_SCRIPTS) $(desktop_DATA)
 
 include $(top_srcdir)/Makefile.am.common
