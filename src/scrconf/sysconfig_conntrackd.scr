@@ -1,0 +1,20 @@
+/**
+ * File:
+ *   sysconfig_conntrackd.scr
+ * Summary:
+ *   SCR Agent for reading/writing /etc/sysconfig/conntrackd
+ * Access:
+ *   read/write
+ * Authors:
+ *   Xinwei Hu <xwhu@suse.de>
+ *
+ * $Id$
+ *
+ * Read/Sets the values defined in <tt>/etc/sysconfig/conntrackd</tt>
+ * in an easy manner.
+ */
+.sysconfig.conntrackd
+
+`ag_ini(
+		`SysConfigFile("/etc/sysconfig/conntrackd")
+	   )

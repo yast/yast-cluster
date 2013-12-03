@@ -49,18 +49,23 @@ module Yast
         "/etc/corosync/authkey",
         "/etc/sysconfig/pacemaker",
         "/etc/drbd.d",
+        "/etc/drbd.conf",
         "/etc/lvm/lvm.conf",
         "/etc/multipath.conf",
         "/etc/ha.d/ldirectord.cf",
         "/etc/ctdb/nodes",
         "/etc/samba/smb.conf",
-        "/etc/sysconfig/pacemaker",
+        "/etc/booth/booth.conf",
         "/etc/sysconfig/openais",
+        "/etc/sysconfig/sbd",
         "/etc/csync2/csync2.cfg",
         "/etc/csync2/key_hagroup"
       ]
 
       @csync2_port = "30865"
+
+      # This is the list of usable interface for conntrackd
+      @usable_interface = []
     end
 
     # return `cacel or a string
@@ -141,7 +146,7 @@ module Yast
         end
         i2 = Builtins.tointeger(noid)
         if i2 == 0
-          Popup.Message("NodeID 0 is reserved")
+          Popup.Message("Node ID 0 is reserved")
           UI.SetFocus(Id(:nodeid))
           return false
         end
@@ -274,14 +279,14 @@ module Yast
       nil
     end
 
-
+    #only work when IPv4
     def calc_network_addr(ip, mask)
-      str = IP.IPv4ToBits(ip)
-      str = Builtins.substring(str, 0, Builtins.tointeger(mask))
-      while Ops.less_than(Builtins.size(str), 32)
-        str = Ops.add(str, "0")
-      end
-      IP.BitsToIPv4(str)
+      IP.ToString(
+        Ops.bitwise_and(
+          IP.ToInteger(ip),
+          Ops.shift_left(4294967295, Ops.subtract(32, Builtins.tointeger(mask)))
+        )
+      )
     end
 
 
@@ -380,11 +385,11 @@ module Yast
           ComboBox(
             Id(:bindnetaddr2),
             Opt(:editable, :hstretch, :notify),
-            "Bind Network Address:",
+            _("Bind Network Address:"),
             existing_ips
           ),
-          InputField(Id(:mcastaddr2), Opt(:hstretch), "Multicast Address:"),
-          InputField(Id(:mcastport2), Opt(:hstretch), "Multicast Port:"),
+          InputField(Id(:mcastaddr2), Opt(:hstretch), _("Multicast Address:")),
+          InputField(Id(:mcastport2), Opt(:hstretch), _("Multicast Port:")),
           Left(Label(_("Member Address:"))),
           SelectionBox(Id(:memberaddr2), ""),
           HBox(
@@ -396,14 +401,16 @@ module Yast
       )
 
       nid = VBox(
-        InputField(Id(:nodeid), Opt(:hstretch), "Node ID:"),
-        Left(CheckBox(Id(:autoid), Opt(:notify), "Auto Generate Node ID", true))
+        InputField(Id(:nodeid), Opt(:hstretch), _("Node ID:")),
+        Left(
+          CheckBox(Id(:autoid), Opt(:notify), _("Auto Generate Node ID"), true)
+        )
       )
 
       rrpm = ComboBox(
         Id(:rrpmode),
         Opt(:hstretch),
-        "rrp mode:",
+        _("rrp mode:"),
         ["none", "active", "passive"]
       )
 
@@ -427,6 +434,11 @@ module Yast
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
 
       UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
+      if "none" == Cluster.rrpmode
+        UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
+      end
 
       if UI.QueryWidget(Id(:autoid), :Value) == true
         UI.ChangeWidget(Id(:nodeid), :Enabled, false)
@@ -512,9 +524,11 @@ module Yast
 
         if ret == :enable2
           if true == UI.QueryWidget(Id(:enable2), :Value)
+            UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
             UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
           else
             UI.ChangeWidget(Id(:rrpmode), :Value, "none")
+            UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
           end
         end
 
@@ -677,7 +691,7 @@ module Yast
           _("Enable Security Auth"),
           true,
           VBox(
-            InputField(Id(:threads), Opt(:hstretch), "Threads:"),
+            InputField(Id(:threads), Opt(:hstretch), _("Threads:")),
             VSpacing(1),
             Label(
               _(
@@ -833,11 +847,19 @@ module Yast
     def ServiceDialog
       ret = nil
 
-      # map<string, any> firewall_widget = CWMFirewallInterfaces::CreateOpenFirewallWidget ($[
-      # 		"services" : [ "port:5141" ],
-      # 		"display_details" : true,
-      # 		]);
-      # term firewall_layout = firewall_widget["custom_widget"]:`VBox();
+
+      firewall_widget = CWMFirewallInterfaces.CreateOpenFirewallWidget(
+        {
+          #servie:cluster is the  name of /etc/sysconfig/SuSEfirewall2.d/services/cluster
+          "services"        => [
+            "service:cluster"
+          ],
+          "display_details" => true
+        }
+      )
+      Builtins.y2milestone("%1", firewall_widget)
+      firewall_layout = Ops.get_term(firewall_widget, "custom_widget", VBox())
+
 
       contents = VBox(
         VSpacing(1),
@@ -904,6 +926,8 @@ module Yast
             )
           )
         ),
+        VSpacing(1),
+        Frame(_("firewall settings"), firewall_layout),
         VStretch()
       )
 
@@ -911,10 +935,14 @@ module Yast
       my_SetContents("service", contents)
 
       UI.ChangeWidget(Id(:mgmtd), :Value, Cluster.use_mgmtd)
-
+      event = {}
+      CWMFirewallInterfaces.OpenFirewallInit(firewall_widget, "")
       while true
         UpdateServiceStatus()
-        ret = UI.UserInput
+        #add event
+        event = UI.WaitForEvent
+        ret = Ops.get(event, "ID")
+        # ret = UI::UserInput();
 
         if ret == "on" || ret == "off"
           SCR.Execute(
@@ -940,6 +968,7 @@ module Yast
           val = ValidateService()
           if val == true
             SaveService()
+            CWMFirewallInterfaces.OpenFirewallStore(firewall_widget, "", event)
             break
           else
             ret = nil
@@ -971,6 +1000,8 @@ module Yast
             next
           end
         end
+
+        CWMFirewallInterfaces.OpenFirewallHandle(firewall_widget, "", event)
 
         Builtins.y2error("unexpected retcode: %1", ret)
       end
@@ -1020,7 +1051,7 @@ module Yast
 
 
     # return 1 if csync2 is not installed well
-    # return 2 if csync2 is OFF
+    # return 2 if csync2 is OFF or csync2 is blocked by firewall
     # return 3 if csync2 is ON
     def csync2_status
       ret = nil
@@ -1044,21 +1075,36 @@ module Yast
       if Builtins.issubstring(Ops.get_string(ret, "stdout", ""), "off") == true
         return 2
       end
+      #check the firewall whether csync2 port was blocked.
+      tcp_ports = []
+      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      pos = nil
+      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
+      return 2 if pos == nil
 
       3
     end
 
     def try_restart_xinetd
-      r = Service.RunInitScript("xinetd", "try-restart")
+      r = Service.RunInitScript("xinetd", "restart")
       Builtins.y2debug("try_restart_xinetd return %1", r)
       r
     end
 
     def csync2_turn_off
       SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2 off")
-      if SuSEFirewall.HaveService(@csync2_port, "TCP", "EXT")
-        SuSEFirewall.RemoveService(@csync2_port, "TCP", "EXT")
+      tcp_ports = []
+      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      pos = nil
+      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
+      if pos != nil
+        tcp_ports = Builtins.remove(tcp_ports, Builtins.tointeger(pos))
       end
+      SuSEFirewallServices.SetNeededPortsAndProtocols(
+        "service:cluster",
+        { "tcp_ports" => tcp_ports }
+      )
+
       try_restart_xinetd
 
       nil
@@ -1066,9 +1112,18 @@ module Yast
 
     def csync2_turn_on
       SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2 on")
-      if !SuSEFirewall.HaveService(@csync2_port, "TCP", "EXT")
-        SuSEFirewall.AddService(@csync2_port, "TCP", "EXT")
-      end
+
+      tcp_ports = []
+      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      pos = nil
+      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
+      tcp_ports = Builtins.add(tcp_ports, @csync2_port) if pos == nil
+      SuSEFirewallServices.SetNeededPortsAndProtocols(
+        "service:cluster",
+        { "tcp_ports" => tcp_ports }
+      )
+
+      SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig xinetd on")
       try_restart_xinetd
 
       nil
@@ -1144,15 +1199,6 @@ module Yast
 
         if ret == :wizardTree
           ret = Convert.to_string(UI.QueryWidget(Id(:wizardTree), :CurrentItem))
-        end
-
-        if Builtins.contains(@DIALOG, Convert.to_string(ret))
-          ret = Builtins.symbolof(Builtins.toterm(ret))
-          #SaveCsync2();
-          break
-        else
-          Wizard.SelectTreeItem("csync2")
-          next
         end
 
         if ret == :host_add
@@ -1272,8 +1318,303 @@ module Yast
           csync2_turn_off if Builtins.issubstring(label, "OFF")
           csync2_turn_on if Builtins.issubstring(label, "ON")
         end
+
+        if Builtins.contains(@DIALOG, Convert.to_string(ret))
+          ret = Builtins.symbolof(Builtins.toterm(ret))
+          #SaveCsync2();
+          break
+        else
+          Wizard.SelectTreeItem("csync2")
+          next
+        end
       end
 
+      deep_copy(ret)
+    end
+
+    def conntrack_layout
+      result = {}
+
+      result = Convert.to_map(
+        SCR.Execute(
+          path(".target.bash_output"),
+          "/sbin/ip a | grep MULTICAST | grep 'state UP' | awk '{print $2}' | awk -F: '{print $1}'"
+        )
+      )
+
+      if Builtins.size(Ops.get_string(result, "stdout", "")) != 0
+        infs = Builtins.splitstring(Ops.get_string(result, "stdout", ""), "\n")
+        Builtins.foreach(infs) do |inf|
+          result = Convert.to_map(
+            SCR.Execute(
+              path(".target.bash_output"),
+              Ops.add(
+                Ops.add("/sbin/ip addr show scope global dev ", inf),
+                " | grep inet | awk '{print $2}' | awk -F/ '{print $1}'"
+              )
+            )
+          )
+          ip = Ops.get(
+            Builtins.splitstring(Ops.get_string(result, "stdout", ""), "\n"),
+            0,
+            ""
+          )
+          if Builtins.size(ip) != 0
+            @usable_interface = Builtins.add(@usable_interface, inf)
+          end
+        end
+      end
+
+      VBox(
+        Opt(:hvstretch),
+        Label(
+          Id(:conntrack_explain),
+          Opt(:hstretch),
+          _(
+            "Conntrackd is a daemon which helps to duplicate firewall status between cluster nodes.\n" +
+              "YaST can help to configure some basic aspects of conntrackd.\n" +
+              "You need to start it with the ocf:heartbeat:conntrackd."
+          )
+        ),
+        HBox(
+          Opt(),
+          ComboBox(
+            Id(:conntrack_bindinf),
+            Opt(:hstretch, :notify),
+            _("Dedicated Interface:"),
+            Builtins.toset(@usable_interface)
+          ),
+          Label(Id(:conntrack_bindip), Opt(:hstretch), _("IP:"))
+        ),
+        InputField(Id(:conntrack_addr), Opt(:hstretch), _("Multicast Address:")),
+        InputField(Id(:conntrack_group), Opt(:hstretch), _("Group Number:")),
+        PushButton(
+          Id(:conntrack_generate),
+          Opt(:hstretch),
+          _("Generate /etc/conntrackd/conntrackd.conf")
+        )
+      )
+    end
+
+    def fill_conntrack_entries
+      value = ""
+      value = Convert.to_string(UI.QueryWidget(:conntrack_addr, :Value))
+      if value == ""
+        value = Convert.to_string(
+          SCR.Read(path(".sysconfig.conntrackd.CONNTRACK_ADDR"))
+        )
+        value = "225.0.0.50" if Builtins.size(value) == 0
+        UI.ChangeWidget(:conntrack_addr, :Value, value)
+      end
+      value = Convert.to_string(UI.QueryWidget(:conntrack_group, :Value))
+      if value == ""
+        value = Convert.to_string(
+          SCR.Read(path(".sysconfig.conntrackd.CONNTRACK_GROUP"))
+        )
+        value = "3780" if value == ""
+        UI.ChangeWidget(:conntrack_group, :Value, value)
+      end
+      value = Convert.to_string(
+        SCR.Read(path(".sysconfig.conntrackd.CONNTRACK_INTERFACE"))
+      )
+      if value != ""
+        if Builtins.contains(@usable_interface, value)
+          UI.ChangeWidget(:conntrack_bindinf, :Value, value)
+        end
+      end
+      qr = Convert.to_string(UI.QueryWidget(:conntrack_bindinf, :Value))
+      ip = ""
+      if qr != ""
+        result = {}
+        result = Convert.to_map(
+          SCR.Execute(
+            path(".target.bash_output"),
+            Ops.add(
+              Ops.add("/sbin/ip addr show scope global dev ", qr),
+              " | grep inet | awk '{print $2}' | awk -F/ '{print $1}'"
+            )
+          )
+        )
+        ip = Ops.get(
+          Builtins.splitstring(Ops.get_string(result, "stdout", ""), "\n"),
+          0,
+          ""
+        )
+      end
+      UI.ChangeWidget(:conntrack_bindip, :Label, Ops.add("IP: ", ip))
+
+      nil
+    end
+
+    def VerifyConntrackdConf
+      if IP.Check(
+          Convert.to_string(UI.QueryWidget(Id(:conntrack_addr), :Value))
+        ) == false
+        Popup.Message("The Multicast Address has to be fulfilled")
+        UI.SetFocus(:conntrack_addr)
+        return false
+      end
+      if !Builtins.regexpmatch(
+          Convert.to_string(UI.QueryWidget(Id(:conntrack_group), :Value)),
+          "^[0-9]+$"
+        )
+        Popup.Message("The Group Number must be a positive integer")
+        UI.SetFocus(Id(:conntrack_group))
+        return false
+      end
+      true
+    end
+
+    def ConntrackDialog
+      ret = nil
+
+      my_SetContents("conntrack", conntrack_layout)
+
+      fill_conntrack_entries
+      while true
+        ret = UI.UserInput
+
+        if ret == :abort || ret == :cancel
+          break if ReallyAbort()
+          next
+        end
+
+        if ret == :next || ret == :back
+          value = ""
+          value = Convert.to_string(UI.QueryWidget(:conntrack_addr, :Value))
+          if value != ""
+            SCR.Write(path(".sysconfig.conntrackd.CONNTRACK_ADDR"), value)
+          end
+          value = Convert.to_string(UI.QueryWidget(:conntrack_group, :Value))
+          if value != ""
+            SCR.Write(path(".sysconfig.conntrackd.CONNTRACK_GROUP"), value)
+          end
+          value = Convert.to_string(UI.QueryWidget(:conntrack_bindinf, :Value))
+          if value != ""
+            SCR.Write(path(".sysconfig.conntrackd.CONNTRACK_INTERFACE"), value)
+          end
+          break
+        end
+
+        if ret == :wizardTree
+          ret = Convert.to_string(UI.QueryWidget(Id(:wizardTree), :CurrentItem))
+        end
+
+        if ret == :conntrack_bindinf
+          qr = Convert.to_string(UI.QueryWidget(:conntrack_bindinf, :Value))
+          ip = ""
+          if qr != ""
+            result = {}
+            result = Convert.to_map(
+              SCR.Execute(
+                path(".target.bash_output"),
+                Ops.add(
+                  Ops.add("/sbin/ip addr show scope global dev ", qr),
+                  " | grep inet | awk '{print $2}' | awk -F/ '{print $1}'"
+                )
+              )
+            )
+            ip = Ops.get(
+              Builtins.splitstring(Ops.get_string(result, "stdout", ""), "\n"),
+              0,
+              ""
+            )
+          end
+          UI.ChangeWidget(:conntrack_bindip, :Label, Ops.add("IP: ", ip))
+          next
+        end
+
+        if ret == :conntrack_generate
+          next if !VerifyConntrackdConf()
+          addr = Convert.to_string(UI.QueryWidget(:conntrack_addr, :Value))
+          group = Convert.to_string(UI.QueryWidget(:conntrack_group, :Value))
+          inf = Convert.to_string(UI.QueryWidget(:conntrack_bindinf, :Value))
+          ip = ""
+          if inf != ""
+            result = {}
+            result = Convert.to_map(
+              SCR.Execute(
+                path(".target.bash_output"),
+                Ops.add(
+                  Ops.add("/sbin/ip addr show scope global dev ", inf),
+                  " | grep inet | awk '{print $2}' | awk -F/ '{print $1}'"
+                )
+              )
+            )
+            ip = Ops.get(
+              Builtins.splitstring(Ops.get_string(result, "stdout", ""), "\n"),
+              0,
+              ""
+            )
+          end
+
+          fc_template = "Sync {\n" +
+            "\tMode FTFW {\n" +
+            "\t}\n" +
+            "\tMulticast {\n" +
+            "\t\tIPv4_address %1\n" +
+            "\t\tGroup %2\n" +
+            "\t\tIPv4_interface %3\n" +
+            "\t\tInterface %4\n" +
+            "\t\tSndSocketBuffer 1249280\n" +
+            "\t\tRcvSocketBuffer 1249280\n" +
+            "\t\tChecksum on\n" +
+            "\t}\n" +
+            "}\n" +
+            "General {\n" +
+            "\tNice -20\n" +
+            "\tHashSize 32768\n" +
+            "\tHashLimit 131072\n" +
+            "\tLogFile on\n" +
+            "\tLockFile /var/lock/conntrack.lock\n" +
+            "\tUNIX {\n" +
+            "\t\tPath /var/run/conntrackd.ctl\n" +
+            "\t\tBacklog 20\n" +
+            "\t}\n" +
+            "\tNetlinkBufferSize 2097152\n" +
+            "\tNetlinkBufferSizeMaxGrowth 8388608\n" +
+            "\tFilter From Userspace {\n" +
+            "\t\tProtocol Accept {\n" +
+            "\t\t\tTCP\n" +
+            "\t\t\tSCTP\n" +
+            "\t\t\tDCCP\n" +
+            "\t\t}\n" +
+            "\t\tAddress Ignore {\n" +
+            "\t\t\tIPv4_address 127.0.0.1\n" +
+            "\t\t\tIPv4_address %5\n" +
+            "\t\t}\n" +
+            "\t}\n" +
+            "}"
+          fc = Builtins.sformat(fc_template, addr, group, ip, inf, ip)
+
+          SCR.Execute(path(".target.bash_output"), "mkdir -p /etc/conntrackd")
+          SCR.Execute(
+            path(".target.bash_output"),
+            "mv /etc/conntrackd/conntrackd.conf /etc/conntrackd/conntrackd.conf.YaST2bak"
+          )
+          SCR.Execute(
+            path(".target.bash_output"),
+            Ops.add(
+              Ops.add("echo \"", fc),
+              "\" > /etc/conntrackd/conntrackd.conf.YaST2"
+            )
+          )
+          SCR.Execute(
+            path(".target.bash_output"),
+            "mv /etc/conntrackd/conntrackd.conf.YaST2 /etc/conntrackd/conntrackd.conf"
+          )
+          Popup.Message("Generated /etc/conntrackd/conntrackd.conf")
+          next
+        end
+
+        if Builtins.contains(@DIALOG, Convert.to_string(ret))
+          ret = Builtins.symbolof(Builtins.toterm(ret))
+          break
+        else
+          Wizard.SelectTreeItem("conntrack")
+          next
+        end
+      end
       deep_copy(ret)
     end
   end

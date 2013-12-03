@@ -39,7 +39,7 @@ module Yast
       Yast.import "SuSEFirewall"
       Yast.import "SuSEFirewallServices"
 
-      @DIALOG = ["communication", "security", "service", "csync2"]
+      @DIALOG = ["communication", "security", "csync2", "conntrack", "service"]
 
       @PARENT = {}
 
@@ -47,7 +47,8 @@ module Yast
         "communication" => _("Communication Channels"),
         "security"      => _("Security"),
         "service"       => _("Service"),
-        "csync2"        => _("Configure Csync2")
+        "csync2"        => _("Configure Csync2"),
+        "conntrack"     => _("Configure conntrackd")
       }
     end
 

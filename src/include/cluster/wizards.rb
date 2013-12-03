@@ -42,8 +42,9 @@ module Yast
       @Aliases = {
         "communication" => lambda { CommunicationDialog() },
         "security"      => lambda { SecurityDialog() },
-        "service"       => lambda { ServiceDialog() },
-        "csync2"        => lambda { Csync2Dialog() }
+        "csync2"        => lambda { Csync2Dialog() },
+        "conntrack"     => lambda { ConntrackDialog() },
+        "service"       => lambda { ServiceDialog() }
       }
     end
 
@@ -92,6 +93,7 @@ module Yast
       Wizard.SelectTreeItem(Ops.get_string(sequence, "ws_start", ""))
 
       ret = Sequencer.Run(@Aliases, sequence)
+      Wizard.CloseDialog
       deep_copy(ret)
     end
 
@@ -104,18 +106,23 @@ module Yast
           :abort => :abort
         },
         "security"      => {
-          :next  => "service",
+          :next  => "csync2",
           :back  => "communication",
           :abort => :abort
         },
-        "service"       => {
-          :next  => "csync2",
+        "csync2"        => {
+          :next  => "conntrack",
           :back  => "security",
           :abort => :abort
         },
-        "csync2"        => {
+        "conntrack"     => {
+          :next  => "service",
+          :back  => "csync2",
+          :abort => :abort
+        },
+        "service"       => {
           :next  => :next,
-          :back  => "service",
+          :back  => "conntrack",
           :abort => :abort
         }
       }
@@ -150,7 +157,6 @@ module Yast
       }
 
       Wizard.CreateDialog
-      Wizard.SetDesktopTitleAndIcon("cluster")
 
       ret = Sequencer.Run(aliases, sequence)
 
@@ -168,7 +174,6 @@ module Yast
       contents = Label(_("Initializing..."))
 
       Wizard.CreateDialog
-      Wizard.SetDesktopTitleAndIcon("cluster")
       Wizard.SetContentsButtons(
         caption,
         contents,
