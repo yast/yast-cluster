@@ -10,17 +10,18 @@ client_DATA = \
 
 yncludedir = @yncludedir@/cluster
 ynclude_DATA = \
-  include/cluster/wizards.rb \
-  include/cluster/common.rb \
   include/cluster/dialogs.rb \
+  include/cluster/common.rb \
   include/cluster/complex.rb \
-  include/cluster/helps.rb
+  include/cluster/helps.rb \
+  include/cluster/wizards.rb
 
 scrconf_DATA = \
-  scrconf/csync2_ha.scr \
   scrconf/openais.scr \
   scrconf/cfg_pacemaker.scr \
-  scrconf/cfg_openais.scr
+  scrconf/cfg_openais.scr \
+  scrconf/sysconfig_conntrackd.scr \
+  scrconf/csync2_ha.scr
 
 agent_SCRIPTS = \
   servers_non_y2/ag_openais

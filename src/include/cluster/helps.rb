@@ -35,7 +35,8 @@ module Yast
         "communication" => _(
           "<p><b><big>Bind Network Address</big></b><br>This  specifies  the  address which the openais executive should bind.  This address should always end in  zero.   If  the  totem traffic  should  be routed over 192.168.5.92, set bindnetaddr to 192.168.5.0.<br>This may also be an IPV6 address, in which case IPV6  networking will  be used.  In this case, the full address must be specified and there is no automatic selection  of  the  network  interface within a specific subnet as with IPv4. If IPv6 networking is used, the nodeid field must be specified.<br></p>\n" +
             "<p><b><big>Multicast Address</big></b><br>This is the multicast address used by  openais  executive.   The default  should work for most networks, but the network administrator should be queried  about  a  multicast  address  to  use.  Avoid 224.x.x.x because this is a \"config\" multicast address.<br>This  may  also be an IPV6 multicast address, in which case IPV6 networking will be used.  If IPv6 networking is used, the nodeid field must be specified.</p>\n" +
-            "<p><b><big>Multicast Port</big></b><br>This  specifies  the UDP port number.  It is possible to use the same multicast address on a network with  the  openais  services configured for different UDP ports.<br></p>\n" +
+            "<p><b><big>Port</big></b><br>This  specifies  the UDP port number.  It is possible to use the same multicast address on a network with  the  openais  services configured for different UDP ports.<br></p>\n" +
+            "<p><b><big>Member Address</big></b><br>This list specifies all the nodes in the cluster by IP address. This could be configurable when using udpu <br></p>\n" +
             "<p><b><big>Node ID</big></b><br>This  configuration  option  is  optional  when  using  IPv4 and required when using IPv6.  This is a 32 bit value specifying the node identifier delivered to the cluster membership service.  If this is not specified with IPv4, the node id will be  determined from  the  32  bit  IP address the system to which the system is bound with ring identifier of 0.  The node identifier  value  of zero is reserved and should not be used.<br></p>\n" +
             "<p><b><big>rrp_mode</big></b><br>This specifies the mode of redundant ring, which  may  be  none, active,  or  passive.   Active replication offers slightly lower latency from transmit to delivery in faulty network environments but  with less performance.  Passive replication may nearly double the speed of the totem  protocol  if  the  protocol  doesn't become  cpu bound.  The final option is none, in which case only one network interface will be used to operate the  totem  protocol.  If  only one interface directive is specified, none is automatically chosen.  If multiple interface directives  are  specified, only active or passive may be chosen.<br></p>\n"
         ),
@@ -57,9 +58,17 @@ module Yast
             "\t\t<p><b><big>Pre-Shared-Keys</big></b><br>Authentication is performed using the IP addresses and pre-shared-keys in Csync2. The key file is generated with csync2 -k /etc/csync2/key_hagroup. The file key_hagroup should be copied to all members of the cluster manually after it's created.</p>\n" +
             "\t"
         ),
+        "conntrack"     => _(
+          "\n" +
+            "\t\t<p><b><big>Dedicated Interface</big></b><br>A dedicated network interface for syncing. The interface must support multicast, and is UP for using. You may have to have it pre-configured. </p>\n" +
+            "\t\t<p><b><big>IP</big></b><br>The IPv4 address assigned to the dedicated network interface. This is detected automatically.</p>\n" +
+            "\t\t<p><b><big>Multicast Address</big></b><br>The multicast address to be used for syncing.</p>\n" +
+            "\t\t<p><b><big>Group Number</big></b><br>A numeric ID indicate the group for syncing.</p>\n" +
+            "\t"
+        ),
         # Read dialog help 1/2
         "read"          => _(
-          "<p><b><big>Initializing Cluster Configuration</big></b><br>\n</p>\n"
+          "<p><b><big>Initializing cluster Configuration</big></b><br>\nPlease wait...<br></p>\n"
         ) +
           # Read dialog help 2/2
           _(
@@ -67,7 +76,7 @@ module Yast
           ),
         # Write dialog help 1/2
         "write"         => _(
-          "<p><b><big>Saving cluster Configuration</big></b><br>\n</p>\n"
+          "<p><b><big>Saving cluster Configuration</big></b><br>\nPlease wait...<br></p>\n"
         ) +
           # Write dialog help 2/2
           _(

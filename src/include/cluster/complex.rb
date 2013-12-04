@@ -19,22 +19,21 @@
 # current contact information at www.novell.com.
 # ------------------------------------------------------------------------------
 
-# File:	include/cluster/complex.ycp
+# File:	include/cluster/wizards.ycp
 # Package:	Configuration of cluster
-# Summary:	Dialogs definitions
+# Summary:	Wizards definitions
 # Authors:	Cong Meng <cmeng@novell.com>
 #
-# $Id: complex.ycp 41350 2007-10-10 16:59:00Z dfiser $
+# $Id: wizards.ycp 27914 2006-02-13 14:32:08Z locilka $
 module Yast
   module ClusterComplexInclude
     def initialize_cluster_complex(include_target)
-      Yast.import "UI"
-
       textdomain "cluster"
 
       Yast.import "Label"
       Yast.import "Popup"
       Yast.import "Wizard"
+      #import "Wizard_hw";
       Yast.import "Confirm"
       Yast.import "Cluster"
 
@@ -74,6 +73,125 @@ module Yast
       # Cluster::SetAbortFunction(PollAbort);
       ret = Cluster.Write
       ret ? :next : :abort
+    end
+
+    # Summary dialog
+    # @return dialog result
+    def SummaryDialog
+      # Cluster summary dialog caption
+      caption = _("Cluster Configuration")
+
+      # FIXME
+      summary = Cluster.Summary
+      unconfigured = Ops.get_list(summary, 1, [])
+      configured = Ops.get_string(summary, 0, "")
+
+      # Frame label
+      contents = nil # Wizard_hw::DetectedContent(_("Cluster to Configure"),
+      #	    unconfigured, false, configured);
+
+      Wizard.SetContentsButtons(
+        caption,
+        contents,
+        Ops.get_string(@HELPS, "summary", ""),
+        Label.BackButton,
+        Label.FinishButton
+      )
+
+      ret = nil
+      while true
+        ret = UI.UserInput
+
+        # abort?
+        if ret == :abort || ret == :cancel || ret == :back
+          if ReallyAbort()
+            break
+          else
+            next
+          end
+        # overview dialog
+        elsif ret == :edit_button
+          ret = :overview
+          break
+        # configure the selected device
+        elsif ret == :configure_button
+          # TODO FIXME: check for change of the configuration
+          selected = UI.QueryWidget(Id(:detected_selbox), :CurrentItem)
+          if selected == :other
+            ret = :other
+          else
+            ret = :configure
+          end
+          break
+        elsif ret == :next
+          break
+        else
+          Builtins.y2error("unexpected retcode: %1", ret)
+          next
+        end
+      end
+
+      deep_copy(ret)
+    end
+
+    # Overview dialog
+    # @return dialog result
+    def OverviewDialog
+      # Cluster overview dialog caption
+      caption = _("Cluster Overview")
+
+      overview = Cluster.Overview
+
+      # FIXME table header
+      contents = nil # Wizard_hw::ConfiguredContent(
+      # Table header
+      #	`header(_("Number"), _("Cluster")),
+      #	overview, nil, nil, nil, nil );
+
+      contents = nil #Wizard_hw::SpacingAround(contents, 1.5, 1.5, 1.0, 1.0);
+
+      Wizard.SetContentsButtons(
+        caption,
+        contents,
+        Ops.get_string(@HELPS, "overview", ""),
+        Label.BackButton,
+        Label.FinishButton
+      )
+
+      ret = nil
+      while true
+        ret = UI.UserInput
+
+        # abort?
+        if ret == :abort || ret == :cancel
+          if ReallyAbort()
+            break
+          else
+            next
+          end
+        # add
+        elsif ret == :add_button
+          # FIXME
+          ret = :add
+          break
+        # edit
+        elsif ret == :edit_button
+          # FIXME
+          ret = :edit
+          break
+        # delete
+        elsif ret == :delete_button
+          # FIXME
+          next
+        elsif ret == :next || ret == :back
+          break
+        else
+          Builtins.y2error("unexpected retcode: %1", ret)
+          next
+        end
+      end
+
+      deep_copy(ret)
     end
   end
 end

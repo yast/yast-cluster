@@ -41,6 +41,7 @@ module Yast
       Yast.import "Message"
       Yast.import "PackageSystem"
       Yast.import "SuSEFirewall"
+      Yast.import "SuSEFirewallServices"
 
 
       @csync2_key_file = "/etc/csync2/key_hagroup"
@@ -75,7 +76,7 @@ module Yast
       @mcastaddr2 = ""
       @mcastport2 = ""
 
-      @autoid = false
+      @autoid = true
       @nodeid = ""
       @rrpmode = ""
 
@@ -208,11 +209,13 @@ module Yast
       end
 
       ai = Convert.to_string(SCR.Read(path(".openais.totem.autoid")))
-      if ai == "yes"
+
+      if ai == "yes" || ai == "new"
         @autoid = true
       else
         @autoid = false
       end
+
       @nodeid = Convert.to_string(SCR.Read(path(".openais.totem.nodeid")))
 
       @rrpmode = Convert.to_string(SCR.Read(path(".openais.totem.rrpmode")))
@@ -291,7 +294,7 @@ module Yast
       end
 
       if @autoid == true
-        SCR.Write(path(".openais.totem.autoid"), "yes")
+        SCR.Write(path(".openais.totem.autoid"), "new")
         SCR.Write(path(".openais.totem.nodeid"), "")
       else
         SCR.Write(path(".openais.totem.nodeid"), @nodeid)
@@ -350,7 +353,7 @@ module Yast
     # @return true on success
     def Read
       # Cluster read dialog caption
-      caption = _("Initializing Cluster Configuration")
+      caption = _("Initializing cluster Configuration")
 
       # TODO FIXME Set the right number of stages
       steps = 4
@@ -391,7 +394,9 @@ module Yast
         "pacemaker-mgmt",
         "pacemaker-mgmt-client",
         "csync2",
-        "conntrack-tools"
+        "conntrack-tools",
+        "hawk",
+        "crmsh"
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
       if ret == false
@@ -404,7 +409,7 @@ module Yast
       ret = false
       ret = LoadClusterConfig()
       if ret == false
-        Report.Error(_("Cannot load existing configuration."))
+        Report.Error(_("Cannot load existing configuration"))
         return false
       end
       if Ops.less_or_equal(
@@ -436,14 +441,7 @@ module Yast
 
       # detect devices
       SuSEFirewall.Read
-      if @mcastport1 != "" &&
-          SuSEFirewall.HaveService(@mcastport1, "UDP", "EXT")
-        SuSEFirewall.RemoveService(@mcastport1, "UDP", "EXT")
-      end
-      if @enable2 && @mcastport2 != "" &&
-          SuSEFirewall.HaveService(@mcastport2, "UDP", "EXT")
-        SuSEFirewall.RemoveService(@mcastport2, "UDP", "EXT")
-      end
+
       return false if Abort()
       Progress.NextStage
       # Error message
@@ -464,7 +462,7 @@ module Yast
     # @return true on success
     def Write
       # Cluster read dialog caption
-      caption = _("Saving Cluster Configuration")
+      caption = _("Saving cluster Configuration")
 
       # TODO FIXME And set the right number of stages
       steps = 2
@@ -504,13 +502,28 @@ module Yast
       Builtins.sleep(sl)
 
       # Work with SuSEFirewall
-      if @use_mgmtd == true
-        SuSEFirewall.AddService("5560", "TCP", "EXT")
-      else
-        SuSEFirewall.RemoveService("5560", "TCP", "EXT")
+      udp_ports = []
+      udp_ports = Builtins.add(udp_ports, @mcastport1) if @mcastport1 != ""
+      if @enable2 && @mcastport2 != ""
+        udp_ports = Builtins.add(udp_ports, @mcastport2)
       end
-      SuSEFirewall.AddService(@mcastport1, "UDP", "EXT")
-      SuSEFirewall.AddService(@mcastport2, "UDP", "EXT") if @enable2 == true
+
+      temp_tcp_ports = ["21064", "7630"]
+      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      if @use_mgmtd == true
+        temp_tcp_ports = Builtins.add(temp_tcp_ports, "5560")
+      end
+      #Union
+      tcp_ports = Convert.convert(
+        Builtins.union(tcp_ports, temp_tcp_ports),
+        :from => "list",
+        :to   => "list <string>"
+      )
+
+      SuSEFirewallServices.SetNeededPortsAndProtocols(
+        "service:cluster",
+        { "tcp_ports" => tcp_ports, "udp_ports" => udp_ports }
+      )
 
       save_csync2_conf
 
@@ -544,8 +557,8 @@ module Yast
           SCR.Execute(
             path(".target.bash_output"),
             Ops.add(
-              Ops.add("echo '", @csync2key),
-              "' | uudecode -o /etc/corosync/authkey"
+              Ops.add(Ops.add("echo '", @csync2key), "' | uudecode -o "),
+              @csync2_key_file
             )
           )
         )
@@ -570,11 +583,14 @@ module Yast
       @use_mgmtd = Ops.get_boolean(settings, "use_mgmtd", true)
       @secauth = Ops.get_boolean(settings, "secauth", false)
       @threads = Ops.get_string(settings, "threads", "")
+      @transport = Ops.get_string(settings, "transport", "udp")
       @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
+      @memberaddr1 = Ops.get_list(settings, "memberaddr1", [])
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @mcastport1 = Ops.get_string(settings, "mcastport1", "")
       @enable2 = Ops.get_boolean(settings, "enable2", false)
       @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
+      @memberaddr2 = Ops.get_list(settings, "memberaddr2", [])
       @mcastaddr2 = Ops.get_string(settings, "mcastaddr2", "")
       @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
@@ -599,11 +615,14 @@ module Yast
       Ops.set(result, "use_mgmtd", @use_mgmtd)
       Ops.set(result, "secauth", @secauth)
       Ops.set(result, "threads", @threads)
+      Ops.set(result, "transport", @transport)
       Ops.set(result, "bindnetaddr1", @bindnetaddr1)
+      Ops.set(result, "memberaddr1", @memberaddr1)
       Ops.set(result, "mcastaddr1", @mcastaddr1)
       Ops.set(result, "mcastport1", @mcastport1)
       Ops.set(result, "enable2", @enable2)
       Ops.set(result, "bindnetaddr2", @bindnetaddr2)
+      Ops.set(result, "memberaddr2", @memberaddr2)
       Ops.set(result, "mcastaddr2", @mcastaddr2)
       Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
@@ -624,7 +643,7 @@ module Yast
         out = Convert.to_map(
           SCR.Execute(
             path(".target.bash_output"),
-            "uuencode -m /etc/csync2/key_hagroup /dev/stdout "
+            Ops.add(Ops.add("uuencode -m ", @csync2_key_file), " /dev/stdout ")
           )
         )
         Ops.set(result, "csync2key", Ops.get_string(out, "stdout", ""))
@@ -635,9 +654,31 @@ module Yast
     # Create a textual summary and a list of unconfigured cards
     # @return summary of the current configuration
     def Summary
-      # TODO FIXME: your code here...
       # Configuration summary text for autoyast
-      [_("Change the configuration of HAE here..."), []]
+      configured = ""
+      if @bindnetaddr1 != ""
+        configured = "Corosync is configured<br/>\n"
+        configured = Ops.add(
+          Ops.add(
+            Ops.add(configured, "Ring 1 is configued to use "),
+            @bindnetaddr1
+          ),
+          "<br/>\n"
+        )
+      end
+      if @bindnetaddr2 != ""
+        configured = Ops.add(
+          Ops.add(
+            Ops.add(configured, "Ring 2 is configured to use "),
+            @bindnetaddr2
+          ),
+          "<br/>\n"
+        )
+      end
+
+      configured = "Change the configuration of HAE here..." if configured == ""
+
+      [configured, []]
     end
 
     # Create an overview table with all configured cards

@@ -420,9 +420,6 @@ def load_ais_conf(filename):
 			os.rename(filename, "/etc/corosync/corosync.conf.corrupted");
 		except:
 			pass
-		f = open(filename, "w")
-		f.write(" ")
-		f.close()
 		try:
 			f = open(filename+".example", "r")
 			file_parser(f)
@@ -430,7 +427,6 @@ def load_ais_conf(filename):
 			return
 		except:
 			pass
-		load_ais_conf(filename)
 
 
 class OpenAISConf_Parser:
@@ -494,7 +490,7 @@ class OpenAISConf_Parser:
 				if path[1] == "secauth":
 					return '"%s"' % totem_options.get("secauth", "")
 				elif path[1] == "autoid":
-					return '"%s"' % totem_options.get("clear_node_high_bit", "")
+					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
 				elif path[1] == "nodeid":
 					return '"%d"' % totem_options.get("nodeid", 0)
 				elif path[1] == "threads":
