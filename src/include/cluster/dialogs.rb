@@ -95,6 +95,51 @@ module Yast
       deep_copy(ret)
     end
 
+    # return `cacel or a address hash
+    def addr_input_dialog(value, autoid)
+      ret = nil
+
+      value.default=""
+
+      UI.OpenDialog(
+        MarginBox(
+          1,
+          1,
+          VBox(
+            HBox(
+            MinWidth(75, TextEntry(Id(:addr), "IP Address", value[:addr])),
+            HSpacing(1),
+            MinWidth(25, TextEntry(Id(:mynodeid), "nodeid" , value[:nodeid]))
+            ),
+            VSpacing(1),
+            Right(
+              HBox(
+                PushButton(Id(:ok), _("OK")),
+                PushButton(Id(:cancel), _("Cancel"))
+              )
+            )
+          )
+        )
+      )
+
+
+
+      if (autoid)
+        UI.ChangeWidget(:mynodeid, :Enabled, false)
+      end
+
+      ret = UI.UserInput
+      if ret == :ok
+        if UI.QueryWidget(:mynodeid, :Value) != ""
+          ret = {:addr=>UI.QueryWidget(:addr, :Value), :nodeid=>UI.QueryWidget(:mynodeid, :Value)}
+        else
+          ret = {:addr=>UI.QueryWidget(:addr, :Value)}
+        end
+      end
+      UI.CloseDialog
+      deep_copy(ret)
+    end
+
 
     def ValidateCommunication
       i = 0
@@ -107,7 +152,7 @@ module Yast
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         i = 0
         Builtins.foreach(Cluster.memberaddr1) do |value|
-          if IP.Check(value) == false
+          if IP.Check(value[:addr]) == false
             UI.ChangeWidget(:memberaddr1, :CurrentItem, i)
             i = 0
             raise Break
@@ -136,22 +181,6 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:autoid), :Value) == false
-        noid = Convert.to_string(UI.QueryWidget(Id(:nodeid), :Value))
-        s = Builtins.regexpmatch(noid, "^[0-9]+$")
-        if !s
-          Popup.Message("Node ID has to be a positive integer")
-          UI.SetFocus(Id(:nodeid))
-          return false
-        end
-        i2 = Builtins.tointeger(noid)
-        if i2 == 0
-          Popup.Message("Node ID 0 is reserved")
-          UI.SetFocus(Id(:nodeid))
-          return false
-        end
-      end
-
       if UI.QueryWidget(Id(:enable2), :Value) == true
         if IP.Check(
             Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
@@ -164,7 +193,7 @@ module Yast
         if UI.QueryWidget(Id(:transport), :Value) == "udpu"
           i = 0
           Builtins.foreach(Cluster.memberaddr2) do |value|
-            if IP.Check(value) == false
+            if IP.Check(value[:addr]) == false
               UI.ChangeWidget(:memberaddr2, :CurrentItem, i)
               i = 0
               raise Break
@@ -232,12 +261,7 @@ module Yast
 
       if UI.QueryWidget(Id(:autoid), :Value) == true
         SCR.Write(path(".openais.totem.autoid"), "yes")
-        SCR.Write(path(".openais.totem.nodeid"), "0")
       else
-        SCR.Write(
-          path(".openais.totem.nodeid"),
-          Convert.to_string(UI.QueryWidget(Id(:nodeid), :Value))
-        )
         SCR.Write(path(".openais.totem.autoid"), "no")
       end
 
@@ -270,8 +294,8 @@ module Yast
       )
       Cluster.enable2 = Convert.to_boolean(UI.QueryWidget(Id(:enable2), :Value))
       Cluster.autoid = Convert.to_boolean(UI.QueryWidget(Id(:autoid), :Value))
-      Cluster.nodeid = Convert.to_string(UI.QueryWidget(Id(:nodeid), :Value))
       Cluster.rrpmode = Convert.to_string(UI.QueryWidget(Id(:rrpmode), :Value))
+      Cluster.cluster_name = UI.QueryWidget(Id(:cluster_name), :Value)
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
       )
@@ -367,7 +391,7 @@ module Yast
           ),
           InputField(Id(:mcastport1), Opt(:hstretch), _("Multicast Port:")),
           Left(Label(_("Member Address:"))),
-          SelectionBox(Id(:memberaddr1), ""),
+          Table(Id(:memberaddr1), Header("ip","nodeid"),[]),
           HBox(
             PushButton(Id(:memberaddr1_add), "Add"),
             PushButton(Id(:memberaddr1_del), "Del"),
@@ -391,7 +415,7 @@ module Yast
           InputField(Id(:mcastaddr2), Opt(:hstretch), _("Multicast Address:")),
           InputField(Id(:mcastport2), Opt(:hstretch), _("Multicast Port:")),
           Left(Label(_("Member Address:"))),
-          SelectionBox(Id(:memberaddr2), ""),
+          Table(Id(:memberaddr2), Header("ip","nodeid"),[]),
           HBox(
             PushButton(Id(:memberaddr2_add), "Add"),
             PushButton(Id(:memberaddr2_del), "Del"),
@@ -401,7 +425,7 @@ module Yast
       )
 
       nid = VBox(
-        InputField(Id(:nodeid), Opt(:hstretch), _("Node ID:")),
+        InputField(Id(:cluster_name), Opt(:hstretch), _("Cluster Name:")),
         Left(
           CheckBox(Id(:autoid), Opt(:notify), _("Auto Generate Node ID"), true)
         )
@@ -430,7 +454,7 @@ module Yast
       UI.ChangeWidget(Id(:mcastport2), :Value, Cluster.mcastport2)
 
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
-      UI.ChangeWidget(Id(:nodeid), :Value, Cluster.nodeid)
+      UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
 
       UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
@@ -438,10 +462,6 @@ module Yast
         UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
       else
         UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
-      end
-
-      if UI.QueryWidget(Id(:autoid), :Value) == true
-        UI.ChangeWidget(Id(:nodeid), :Enabled, false)
       end
 
       transport_switch
@@ -463,9 +483,10 @@ module Yast
       i = 0
       items = []
       Builtins.foreach(Cluster.memberaddr1) do |value|
-        items = Builtins.add(items, Item(Id(i), value))
-        i = Ops.add(i, 1)
+          items.push(Item(Id(i), value[:addr], value[:nodeid]))
+          i += 1
       end
+
       current = Convert.to_integer(UI.QueryWidget(:memberaddr1, :CurrentItem))
       current = 0 if current == nil
       current = Ops.subtract(i, 1) if Ops.greater_or_equal(current, i)
@@ -475,8 +496,8 @@ module Yast
       i = 0
       items = []
       Builtins.foreach(Cluster.memberaddr2) do |value|
-        items = Builtins.add(items, Item(Id(i), value))
-        i = Ops.add(i, 1)
+        items.push(Item(Id(i), value[:addr], value[:nodeid]))
+        i += 1
       end
       current = Convert.to_integer(UI.QueryWidget(:memberaddr2, :CurrentItem))
       current = 0 if current == nil
@@ -492,6 +513,7 @@ module Yast
 
       CommunicationLayout()
 
+
       while true
         fill_memberaddr_entries
         transport_switch
@@ -505,20 +527,10 @@ module Yast
           ip6 = IP.Check6(netaddr)
           if ip6
             UI.ChangeWidget(Id(:autoid), :Value, false)
-            UI.ChangeWidget(Id(:nodeid), :Enabled, true)
             UI.ChangeWidget(Id(:autoid), :Enabled, false)
           else
             UI.ChangeWidget(Id(:autoid), :Enabled, true)
           end
-          next
-        end
-
-        if ret == :autoid
-          UI.ChangeWidget(
-            Id(:nodeid),
-            :Enabled,
-            true != UI.QueryWidget(Id(:autoid), :Value)
-          )
           next
         end
 
@@ -533,12 +545,9 @@ module Yast
         end
 
         if ret == :memberaddr1_add
-          ret = text_input_dialog(_("Enter a member address"), "")
+          ret = addr_input_dialog({}, UI.QueryWidget(Id(:autoid), :Value))
           next if ret == :cancel
-          Cluster.memberaddr1 = Builtins.add(
-            Cluster.memberaddr1,
-            Convert.to_string(ret)
-          )
+          Cluster.memberaddr1.push(ret)
         end
 
         if ret == :memberaddr1_edit
@@ -548,12 +557,9 @@ module Yast
           current = Convert.to_integer(
             UI.QueryWidget(:memberaddr1, :CurrentItem)
           )
-          ret = text_input_dialog(
-            _("Edit the member address"),
-            Ops.get(Cluster.memberaddr1, current, "")
-          )
+          ret = addr_input_dialog(Cluster.memberaddr1[current] || "" ,UI.QueryWidget(Id(:autoid), :Value))
           next if ret == :cancel
-          Ops.set(Cluster.memberaddr1, current, Convert.to_string(ret))
+          Cluster.memberaddr1[current]= ret
         end
 
         if ret == :memberaddr1_del
@@ -565,12 +571,9 @@ module Yast
         end
 
         if ret == :memberaddr2_add
-          ret = text_input_dialog(_("Enter a member address"), "")
+          ret = addr_input_dialog({}, UI.QueryWidget(Id(:autoid), :Value))
           next if ret == :cancel
-          Cluster.memberaddr2 = Builtins.add(
-            Cluster.memberaddr2,
-            Convert.to_string(ret)
-          )
+          Cluster.memberaddr2.push(ret)
         end
 
         if ret == :memberaddr2_edit
@@ -580,12 +583,10 @@ module Yast
           current = Convert.to_integer(
             UI.QueryWidget(:memberaddr2, :CurrentItem)
           )
-          ret = text_input_dialog(
-            _("Edit the member address"),
-            Ops.get(Cluster.memberaddr2, current, "")
-          )
+          ret = addr_input_dialog(Cluster.memberaddr2[current] || "" ,
+                                  UI.QueryWidget(Id(:autoid), :Value))
           next if ret == :cancel
-          Ops.set(Cluster.memberaddr2, current, Convert.to_string(ret))
+          Cluster.memberaddr1[current] = ret
         end
 
         if ret == :memberaddr2_del
@@ -723,7 +724,7 @@ module Yast
           result = Convert.to_map(
             SCR.Execute(
               path(".target.bash_output"),
-              "/usr/sbin/corosync-keygen"
+              "/usr/sbin/corosync-keygen -l"
             )
           )
           if Ops.get_integer(result, "exit", -1) != 0
@@ -799,25 +800,10 @@ module Yast
       true
     end
 
-    def SaveServiceToConf
-      if UI.QueryWidget(Id(:mgmtd), :Value) == true
-        SCR.Write(path(".openais.pacemaker.use_mgmtd"), "yes")
-      else
-        SCR.Write(path(".openais.pacemaker.use_mgmtd"), "no")
-      end
-
-      nil
-    end
-
-    def SaveService
-      Cluster.use_mgmtd = Convert.to_boolean(UI.QueryWidget(Id(:mgmtd), :Value))
-
-      nil
-    end
 
     def UpdateServiceStatus
       ret = 0
-      ret = Service.Status("openais")
+      ret = Service.Status("corosync")
       if ret == 0
         UI.ChangeWidget(Id(:status), :Value, _("Running"))
       else
@@ -826,14 +812,7 @@ module Yast
       UI.ChangeWidget(Id("start_now"), :Enabled, ret != 0)
       UI.ChangeWidget(Id("stop_now"), :Enabled, ret == 0)
 
-      result = {}
-      result = Convert.to_map(
-        SCR.Execute(
-          path(".target.bash_output"),
-          "/sbin/chkconfig openais 2>/dev/null | awk '{print $2}'"
-        )
-      )
-      if Builtins.find(Ops.get_string(result, "stdout", ""), "off") != -1
+      if not Service.Enabled("corosync")
         UI.ChangeWidget(Id("off"), :Value, true)
         UI.ChangeWidget(Id("on"), :Value, false)
       else
@@ -866,7 +845,7 @@ module Yast
         Frame(
           _("Booting"),
           RadioButtonGroup(
-            Id("bootopenais"),
+            Id("bootcorosync"),
             HBox(
               HSpacing(1),
               VBox(
@@ -874,14 +853,14 @@ module Yast
                   RadioButton(
                     Id("on"),
                     Opt(:notify),
-                    _("On -- Start openais at booting")
+                    _("On -- Start corosync at booting")
                   )
                 ),
                 Left(
                   RadioButton(
                     Id("off"),
                     Opt(:notify),
-                    _("Off -- Start openais manually only")
+                    _("Off -- Start corosync manually only")
                   )
                 )
               )
@@ -904,24 +883,10 @@ module Yast
                 HBox(
                   HSpacing(1),
                   HBox(
-                    PushButton(Id("start_now"), _("Start openais Now")),
-                    PushButton(Id("stop_now"), _("Stop openais Now"))
+                    PushButton(Id("start_now"), _("Start corosync Now")),
+                    PushButton(Id("stop_now"), _("Stop corosync Now"))
                   )
                 )
-              )
-            )
-          )
-        ),
-        VSpacing(1),
-        Frame(
-          _("Management Tool"),
-          Left(
-            HBox(
-              HSpacing(1),
-              CheckBox(
-                Id(:mgmtd),
-                "Enable mgmtd. The GUI client requires this.",
-                true
               )
             )
           )
@@ -934,7 +899,6 @@ module Yast
 
       my_SetContents("service", contents)
 
-      UI.ChangeWidget(Id(:mgmtd), :Value, Cluster.use_mgmtd)
       event = {}
       CWMFirewallInterfaces.OpenFirewallInit(firewall_widget, "")
       while true
@@ -942,32 +906,32 @@ module Yast
         #add event
         event = UI.WaitForEvent
         ret = Ops.get(event, "ID")
-        # ret = UI::UserInput();
 
-        if ret == "on" || ret == "off"
-          SCR.Execute(
-            path(".target.bash"),
-            Builtins.sformat("chkconfig openais %1", ret)
-          )
+        if ret == "on"
+          Service.Enable("corosync")
+          next
+        end
+
+        if ret == "off"
+          Service.Disable("corosync")
           next
         end
 
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
-          Report.Error(Service.Error) if !Service.Start("openais")
+          Report.Error(Service.Error) if !Service.Start("corosync")
           next
         end
 
         if ret == "stop_now"
-          Report.Error(Service.Error) if !Service.Stop("openais")
+          Report.Error(Service.Error) if !Service.Stop("corosync")
           next
         end
 
         if ret == :next || ret == :back
           val = ValidateService()
           if val == true
-            SaveService()
             CWMFirewallInterfaces.OpenFirewallStore(firewall_widget, "", event)
             break
           else
@@ -992,7 +956,6 @@ module Yast
           ret = Builtins.symbolof(Builtins.toterm(ret))
           val = ValidateService()
           if val == true
-            SaveService()
             break
           else
             ret = nil
