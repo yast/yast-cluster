@@ -37,6 +37,12 @@ totem_option_table = {
 		   "type":"int",
 		   "default_value":2,
 		   "suggested_value":2},
+	"crypto_cipher":{"doc":"Used for mutual node authentication",
+		"type":"select[aes256, aes192, aes128 and 3des,none]","default_value":"none",
+		},
+	"crypto_hash":{"doc":"Used for mutual node authentication",
+		"type":"select[none,md5,sha1,sha256,sha384,sha512]","default_value":"none",
+		},
 	"nodeid":{"doc":"The fixed 32 bit value to indentify node to cluster membership. Optional for IPv4, and required for IPv6. 0 is reserved for other usage", 
 		  "type":"int",
 		  "default_value":70912},
@@ -95,9 +101,6 @@ totem_option_table = {
 }
 
 
-aisexec_option_table = {
-	"user":{"doc":"User to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}, 
-	"group":{"doc":"Group to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}}
 
 service_option_table = {
 	"clustername":{"doc":"The name of the service", "default_value":"pacemaker"},
@@ -146,7 +149,6 @@ logger_option_table = {
 	}
 
 totem_options = {"interface":[]}
-ais_options = {}
 pacemaker_service_options = {}
 service_options = {}
 logging_options = {"logger":[]}
@@ -162,10 +164,6 @@ def get_next_line(ff):
 
 def is_ais_true(s):
 	return (s == "true" or s == "on" or s == "yes" or s == "y" or s == "1")
-
-def generate_default_ais_options():
-	ais_options["user"] = "root"
-	ais_options["group"] = "root"
 
 def fulfill_default_amf_options():
 	if amf_options.get("mode", None) == None:
@@ -192,13 +190,6 @@ def fulfill_suggested_totem_options():
 		if v == None and sv != None:
 			totem_options[opt] = sv
 			
-def print_ais_options(f):
-	f.write("aisexec {\n")
-	for key in ais_options.keys():
-		f.write("\t#%s\n\n" % (aisexec_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, ais_options[key]))
-	f.write("}\n")	
-	
 def print_amf_options(f):
 	f.write("amf {\n")
 	for key in amf_options.keys ():
@@ -282,7 +273,6 @@ def print_totem_options(f):
 	f.write("}\n")
 
 def file_parser(file):
-	global ais_options
 	global totem_options
 	global pacemaker_service_options
 	global service_options
@@ -297,9 +287,7 @@ def file_parser(file):
 
 		if i[-1] == "{":
 			i = i.lstrip().split(" ")[0]
-			if i == "aisexec":
-				ais_options = opt_parser(file, aisexec_option_table)
-			elif i == "service":
+			if i == "service":
 				o = opt_parser(file, service_option_table)
 				if o.get("name", "") == "pacemaker":
 					pacemaker_service_options = o
@@ -549,7 +537,6 @@ class OpenAISConf_Parser:
 			return "nil"
 		
 	def saveFile(self):
-		generate_default_ais_options()
 
 		fulfill_default_amf_options()
 		fulfill_default_pacemaker_options()
@@ -557,7 +544,6 @@ class OpenAISConf_Parser:
 		fulfill_suggested_totem_options()
 
 		f = open("/etc/corosync/corosync.conf.YaST2", "w")
-		print_ais_options(f)
 		print_pacemaker_service_options(f)
 		print_service_options(f)
 		print_totem_options(f)
