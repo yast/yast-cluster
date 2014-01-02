@@ -30,102 +30,103 @@ from gettext import textdomain
 textdomain("openais")
 
 from ycp import *
+import pdb
+import copy
 
+
+#the option table is used to parse and write suggested_value if no options are read
+
+#default_value is used in file_parser, if input has the option, but failed to parse,
+#use the default_value.
+
+#suggested_value is used in file printing, if we do not parse any from input, but The
+#option has suggested_value, print it.
 
 totem_option_table = {
-	"version":{"doc":"The only valid version is 2", 
+	"version":{"doc":"The only valid version is 2",
 		   "type":"int",
 		   "default_value":2,
 		   "suggested_value":2},
-	"nodeid":{"doc":"The fixed 32 bit value to indentify node to cluster membership. Optional for IPv4, and required for IPv6. 0 is reserved for other usage", 
-		  "type":"int",
-		  "default_value":70912},
-	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive", 
+	"crypto_cipher":{"doc":"Used for mutual node authentication",
+		"type":"select[aes256, aes192, aes128 and 3des,none]","default_value":"none",
+		},
+	"crypto_hash":{"doc":"Used for mutual node authentication",
+		"type":"select[none,md5,sha1,sha256,sha384,sha512]","default_value":"none",
+		},
+	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
 			       "default_value":"yes"},
-	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message", 
+	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"cluster"},
+	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message",
 		   "default_value":"off"},
-	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen", 
+	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
 		    "type":"select[none,active,passive]", "default_value":"none"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
-	"threads":{"doc":"How many threads should be used to encypt and sending message. Only have meanings when secauth is turned on", 
+	"threads":{"doc":"How many threads should be used to encypt and sending message. Only have meanings when secauth is turned on",
 		   "type":"int", "default_value":0},
-	"vsftype":{"doc":"The virtual synchrony filter type used to indentify a primary component. Change with care.", 
+	"vsftype":{"doc":"The virtual synchrony filter type used to indentify a primary component. Change with care.",
 		   "default_value":"ykd",
 		   "suggested_value":"none"},
-	"token":{"doc":"Timeout for a token lost. in ms", 
+	"token":{"doc":"Timeout for a token lost. in ms",
 		 "type":"int", "default_value":1000,
 		 "suggested_value":5000},
-	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.", 
+	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.",
 			    "type":"int", "default_value":238},
-	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.", 
+	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.",
 		"type":"int", "default_value":180},
-	"token_retransmits_before_loss_const":{"doc":"How many token retransmits should be attempted before forming a new configuration.", 
+	"token_retransmits_before_loss_const":{"doc":"How many token retransmits should be attempted before forming a new configuration.",
 					       "type":"int", "default_value":4,
 					       "suggested_value":10},
-	"join":{"doc":"How long to wait for join messages in membership protocol. in ms", 
+	"join":{"doc":"How long to wait for join messages in membership protocol. in ms",
 		"type":"int", "default_value":50,
 		"suggested_value":60},
-	"send_join":{"doc":"This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.", 
+	"send_join":{"doc":"This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.",
 		     "type":"int", "default_value":0},
-	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.", 
+	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.",
 		     "type":"int", "default_value":3600,
 		     "suggested_value":6000},
-	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.", 
+	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.",
 		 "type":"int", "default_value":200},
-	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.", 
+	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.",
 		     "type":"int", "default_value":1000},
-	"fail_to_recv_const":{"doc":"How many rotations of the token without receiving any of the messages when messages should be received may occur before a new configuration is formed", 
+	"fail_to_recv_const":{"doc":"How many rotations of the token without receiving any of the messages when messages should be received may occur before a new configuration is formed",
 			      "type":"int", "default_value":50},
-	"seqno_unchanged_const":{"doc":"How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.", 
+	"seqno_unchanged_const":{"doc":"How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.",
 				 "type":"int", "default_value":30},
 	"heartbeat_failure_allowed":{"doc":"Configures the optional HeartBeating mechanism for faster failure detection. 0 for disable.", "type":"int", "default_value":0},
-	"max_network_delay":{"doc":"The approximate delay that your network takes to transport one packet from one machine to another.", 
+	"max_network_delay":{"doc":"The approximate delay that your network takes to transport one packet from one machine to another.",
 			     "type":"int", "default_value":50},
-	"window_size":{"doc":"The maximum number of messages that may be sent on one token rotation.", 
+	"window_size":{"doc":"The maximum number of messages that may be sent on one token rotation.",
 		       "type":"int", "default_value":50},
-	"max_messages":{"doc":"The maximum number of messages that may be sent by one processor on receipt of the token.", 
+	"max_messages":{"doc":"The maximum number of messages that may be sent by one processor on receipt of the token.",
 			"type":"int", "default_value":17,
 			"suggested_value":20},
-	"rrp_problem_count_timeout":{"doc":"The time in milliseconds to wait before decrementing the problem count by 1 for a particular ring to ensure a link is not marked faulty for transient network failures.", 
+	"rrp_problem_count_timeout":{"doc":"The time in milliseconds to wait before decrementing the problem count by 1 for a particular ring to ensure a link is not marked faulty for transient network failures.",
 				     "type":"int", "default_value":2000},
-	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.", 
+	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.",
 					"type":"int", "default_value":10},
 	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
 	"transport":{"doc":"", "type":"select[udp,udpu]","default_value":"udp"},
 }
 
 
-aisexec_option_table = {
-	"user":{"doc":"User to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}, 
-	"group":{"doc":"Group to run aisexec as. Needs to be root for Pacemaker", "default_value":"root"}}
 
-service_option_table = {
-	"clustername":{"doc":"The name of the service", "default_value":"pacemaker"},
-	"use_mgmtd":{"doc":"Default to start mgmtd with pacemaker", "default_value":"yes"},
-	"to_file":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
-	"use_logd":{"doc":"Use logd for pacemaker", "default_value":"no"},
-}
 
 interface_option_table = {
 	"ringnumber":{"doc":"The ringnumber assigned to this interface setting", "default_value":0, "type":"int"},
 	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
 	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
 	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
+	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
 	}
 
-event_option_table = {
-	"delivery_queue_size":{"doc":"The full size of the outgoing  delivery queue to  the application", "default_value":1000},
-	"delivery_queue_resume":{"doc":"When new events can be accepted by the event service when the delivery queue count of pending messages has reached this value",
-				 "default_value":500},
+
+#only has two rings at most
+node_option_table = {
+		"ring0_addr":{"doc":"ring0 address", "type":"string", "default_value":"0"},
+		"ring1_addr":{"doc":"ring1 address","type":"string", "default_value":"0"},
+		"nodeid":{"doc":"required in ipv6, optional in ipv4","type":"string"},
 }
 
-member_option_table = {
-	"memberaddr":{"doc":"", "default_value":0},
-}
-
-amf_option_table = {
-	"mode":{"doc":"Enable or disable AMF ", "default_value":"disable", "suggested_value":"disable"},
-}
 logging_option_table = {
 	"debug":{"doc":"Whether or not turning on the debug information in the log", "default_value":"off",
 		 "suggested_value":"off"},
@@ -139,42 +140,42 @@ logging_option_table = {
 	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
 	"timestamp":{"doc":"Log timestamp as well", "default_value":"off", "suggested_value":"off"},
 }
-logger_option_table = {
-	"ident":{"doc":"Ident for the logger, i.e. AMF", "default_value":"AMF"},
+
+logger_subsys_option_table = {
+	"subsys":{"doc":"This specifies the subsystem identity (name) for which logging is specified", "default_value":"QUORUM"},
 	"debug":{"doc":"Enable debug for this logger.", "default_value":"on"},
-	"tags":{"doc":"Tags used for this logger.", "default_value":"enter|leave|trace1"},
 	}
 
+
+quorum_option_table = {
+		"provider":{"doc":"Enable and configure quorum subsystem","type":"string", "default_value":"corosync_votequorum"},
+		"expected_votes":{"doc":"votequorum requires an expected_votes value to function", "type":"int", "default_value":1},
+		"two_node":{"doc":"Enables two node cluster operations", "type":"int", "default_value":0},
+		"wait_for_all":{"doc":"Enables Wait For All (WFA) feature", "type":"int", "default_value":0},
+		"last_man_standing":{"doc":"Enables Last Man Standing (LMS) feature (default: 0)", "type":"int","default_value":0},
+		"last_man_standing_window":{"type":"int","default_value":10000},
+		"auto_tie_breaker":{"doc":"Enables Auto Tie Breaker (ATB) feature", "type":"int", "default_value":0},
+		"allow_downscale":{"doc":"Enables allow downscale (AD) feature","type":"int", "default_value":0},
+		}
+
+qb_option_table = { "ipc_type":{"doc":"This specifies type of IPC to use",
+		    "type":"string", "default_value":"native"}
+		  }
+
 totem_options = {"interface":[]}
-ais_options = {}
-pacemaker_service_options = {}
-service_options = {}
-logging_options = {"logger":[]}
-amf_options = {}
-event_options = {}
+logging_options = {"logger_subsys":[]}
+quorum_options={}
+nodelist_options={"node":[]}
+qb_options={}
 
 def strip_comments_and_pending_space(line):
-	return line.split('#')[0].rstrip()
+	return line.split('#')[0].rstrip().lstrip()
 
 def get_next_line(ff):
 	l = ff.next()
 	return strip_comments_and_pending_space(l)
 
-def is_ais_true(s):
-	return (s == "true" or s == "on" or s == "yes" or s == "y" or s == "1")
 
-def generate_default_ais_options():
-	ais_options["user"] = "root"
-	ais_options["group"] = "root"
-
-def fulfill_default_amf_options():
-	if amf_options.get("mode", None) == None:
-		amf_options["mode"] = "disable"
-
-def fulfill_default_pacemaker_options ():
-	pacemaker_service_options["name"] = "pacemaker"
-	pacemaker_service_options["ver"] = "0"
-	
 def fulfill_default_logging_options ():
 	for opt in logging_option_table.keys():
 		if opt == "logger": continue
@@ -192,53 +193,47 @@ def fulfill_suggested_totem_options():
 		if v == None and sv != None:
 			totem_options[opt] = sv
 			
-def print_ais_options(f):
-	f.write("aisexec {\n")
-	for key in ais_options.keys():
-		f.write("\t#%s\n\n" % (aisexec_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, ais_options[key]))
-	f.write("}\n")	
-	
-def print_amf_options(f):
-	f.write("amf {\n")
-	for key in amf_options.keys ():
-		f.write("\t#%s\n\n" % (amf_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, amf_options[key]))
+
+def print_quorum_options(f):
+	if(len(quorum_options) == 0):
+		return
+	f.write("quorum {\n");
+	for key in quorum_options.keys():
+		f.write("\t#%s\n\n" % (quorum_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
 	f.write("}\n")
 
-def print_event_options(f):
-	if event_options == {}: return
-	f.write("event {\n")
-	for key in event_options.keys ():
-		f.write("\t#%s\n\n" % (event_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, event_options[key]))
+def print_qb_options(f):
+	if(len(qb_options) == 0):
+		return
+	f.write("qb {\n");
+	for key in qb_options.keys():
+		f.write("\t#%s\n\n" % (qb_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, qb_options[key]))
 	f.write("}\n")
-		
-def print_service_options(f):
-	for key in service_options.keys():
-		f.write("service {\n")
-		for k1 in service_options[key].keys():
-			f.write("\t%s:\t%s\n\n" % (k1, service_options[key][k1]))
-		f.write("}\n")
-		
-def print_pacemaker_service_options(f):
-	f.write("service {\n")
-	for key in pacemaker_service_options.keys():
-		if pacemaker_service_options[key] == "":
-			continue
-		if service_option_table.get(key, None) != None:
-			f.write("\t#%s\n\n" % (service_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, pacemaker_service_options[key]))
-	f.write("}\n")	
+
+def print_nodelist_options(f):
+	nodelist = nodelist_options["node"]
+	if len(nodelist) ==  0:
+		return
+	f.write("nodelist {\n");
+	for node in nodelist:
+		f.write("\tnode {\n")
+		for key in node.keys():
+			f.write("\t#%s\n" % (node_option_table[key]["doc"]))
+			f.write("\t%s:\t%s\n\n" % (key, node[key]))
+		f.write("\t}\n")
+	f.write("}\n")
+
 			
 def print_logging_options(f):
 	f.write("logging {\n")
 	for key in logging_options.keys():
-		if key == "logger":
-			for log in logging_options["logger"]:
-				f.write("\tlogger {\n")
+		if key == "logger_subsys":
+			for log in logging_options["logger_subsys"]:
+				f.write("\tlogger_subsys {\n")
 				for l in log.keys():
-					f.write("\t\t#%s\n\n" % (logger_option_table[l]["doc"]))
+					f.write("\t\t#%s\n\n" % (logger_subsys_option_table[l]["doc"]))
 					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
 				f.write("\t}\n")
 			continue
@@ -247,6 +242,7 @@ def print_logging_options(f):
 	f.write("}\n")
 
 def print_totem_options(f):
+
 	f.write("totem {\n")
 	transport_protocol = totem_options.get("transport", "udp")
 	for key in totem_options.keys():
@@ -254,12 +250,7 @@ def print_totem_options(f):
 			for inf in totem_options["interface"]:
 				f.write("\tinterface {\n")
 				for k in inf.keys():
-					if k == "member":
-						for m in inf[k]:
-							if m["memberaddr"] != "":
-								f.write("\t\tmember {\n")
-								f.write("\t\t\tmemberaddr:\t%s\n\t\t}\n" % m["memberaddr"])
-					elif inf[k] == "":
+					if inf[k] == "":
 						continue;
 					else:
 						f.write("\t\t#%s\n\n" % (interface_option_table[k]["doc"]))
@@ -267,7 +258,7 @@ def print_totem_options(f):
 				f.write("\t}\n")
 			continue
 		if totem_options[key] == "":
-			continue	
+			continue
 		f.write("\t#%s\n\n" % (totem_option_table[key]["doc"]))
 		f.write("\t%s:\t%s\n\n" % (key, totem_options[key]))
 	# We print out all possible configurations as well
@@ -282,13 +273,11 @@ def print_totem_options(f):
 	f.write("}\n")
 
 def file_parser(file):
-	global ais_options
 	global totem_options
-	global pacemaker_service_options
-	global service_options
 	global logging_options
-	global amf_options
-	global event_options
+	global nodelist_options
+	global qb_options
+	global quorum_options
 	
 	for l in file:
 		i = strip_comments_and_pending_space(l)
@@ -296,25 +285,17 @@ def file_parser(file):
 			continue
 
 		if i[-1] == "{":
-			i = i.lstrip().split(" ")[0]
-			if i == "aisexec":
-				ais_options = opt_parser(file, aisexec_option_table)
-			elif i == "service":
-				o = opt_parser(file, service_option_table)
-				if o.get("name", "") == "pacemaker":
-					pacemaker_service_options = o
-				elif o.get("name", "") != "":
-					service_options[o["name"]] = o
-				else:
-					pass
-			elif i == "totem":
+			i = i[:-1].rsplit()[0]
+			if i == "totem":
 				totem_options = opt_parser(file, totem_option_table)
 			elif i == "logging":
 				logging_options = opt_parser(file, logging_option_table)
-			elif i == "amf":
-				amf_options = opt_parser(file, amf_option_table)
-			elif i == "event":
-				event_options = opt_parser(file, event_option_table)
+			elif i == "nodelist":
+				nodelist_options = opt_parser(file, {})
+			elif i == "quorum":
+				quorum_options = opt_parser(file, quorum_option_table)
+			elif i == "qb":
+				qb_options = opt_parser(file, qb_option_table)
 			else:
 				pass
 	
@@ -329,15 +310,15 @@ def opt_parser(file, options):
 			if i.lstrip().split(" ")[0] == "interface":
 				infs = result.get("interface", [])
 				infs.append(opt_parser(file, interface_option_table))
-				result["interface"] = infs		
-			elif i.lstrip().split(" ")[0] == "logger":
-				logs = result.get("logger", [])
-				logs.append(opt_parser(file, logger_option_table))
-				result["logger"] = logs
-			elif i.lstrip().split(" ")[0] == "member":
-				members = result.get("member", [])
-				members.append(opt_parser(file, member_option_table))
-				result["member"] = members
+				result["interface"] = infs
+			elif i.lstrip().split(" ")[0] == "logger_subsys":
+				logs = result.get("logger_subsys", [])
+				logs.append(opt_parser(file, logger_subsys_option_table))
+				result["logger_subsys"] = logs
+			elif i.lstrip().split(" ")[0] == "node":
+				members = result.get("node", [])
+				members.append(opt_parser(file, node_option_table))
+				result["node"] = members
 			else:
 				y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
 				while (i[-1] != "}"):
@@ -353,10 +334,6 @@ def opt_parser(file, options):
 			doc = options[opt[0].strip()]["doc"]
 		except KeyError:
 			y2warning("Unknown options %s"%opt[0].strip())
-			if options == service_option_table:
-				result[opt[0].strip()] = opt[1].strip()
-			else:
-				y2warning("Unknown options %s found, ignore it" % (opt[0].strip()))
 		else:
 			if options[opt[0].strip()].get("type", "string") == "int":
 				try:
@@ -369,6 +346,7 @@ def opt_parser(file, options):
 		i = ""
 		while (i == ""):
 			i = get_next_line(file)
+
 	return result.copy()
 
 def validate_conf():
@@ -404,6 +382,21 @@ def get_interface(i):
 	else:
 		return None
 
+def generateMemberString(ringnum):
+	member_str = ""
+
+	ring_address = "ring%d_addr" % ringnum
+	#filter all nodes in a same ring
+	for item in  nodelist_options.get("node"):
+		if item.has_key(ring_address):
+			address = item.get(ring_address, None)
+			nodeid = item.get("nodeid", None)
+			member_str += address
+			if nodeid:
+				member_str = member_str + ":" + nodeid
+			member_str = member_str + " "
+	return '"%s"' % member_str.strip()
+
 def del_interface(k):
 	for i in range(len(totem_options["interface"])):
 		if totem_options["interface"][i]["ringnumber"] == k:
@@ -434,19 +427,14 @@ class OpenAISConf_Parser:
 		load_ais_conf("/etc/corosync/corosync.conf")
     
 	def doList(self, path):
-		#remove the leading dot, 
+		#remove the leading dot
 		path_arr = path
 	
 		if path_arr[0] == '':
-			return '[ "pacemaker", "totem" ]'
-		elif path_arr[0] == 'pacemaker':
-			if len(path_arr) == 1:
-				return '[ "use_mgmtd" ]'
-			else:
-				return '[]'
+			return '["quorum", "totem", "nodelist"]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
-				return '[ "secauth", "autoid", "threads", "nodeid", "rrpmode", "transport", "interface" ]'
+				return '["crypto_cipher","crypto_hash","secauth", "autoid", "threads", "rrpmode", "transport", "interface", "cluster_name"]'
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
@@ -460,9 +448,9 @@ class OpenAISConf_Parser:
 					else:
 						if len(path_arr) == 3:
 							if path_arr[2] == "interface0" and get_interface(0) != None:
-								return '["bindnetaddr", "mcastaddr", "mcastport", "member"]'
+								return '["bindnetaddr", "mcastaddr", "mcastport","ttl"]'
 							elif path_arr[2] == "interface1" and get_interface(1) != None:
-								return ' ["bindnetaddr", "mcastaddr", "mcastport", "member"]'
+								return ' ["bindnetaddr", "mcastaddr", "mcastport", "ttl"]'
 							else:
 								return '[]'
 						else:
@@ -475,14 +463,6 @@ class OpenAISConf_Parser:
 	def doRead(self, path):
 		if path[0] == "":
 			return "nil\n"
-		elif path[0] == "pacemaker":
-			if len(path) == 1:
-				return "nil\n"
-			elif len(path) == 2 and path[1] == "use_mgmtd":
-				y2warning(pacemaker_service_options.get("use_mgmtd", "yes"))
-				return '"%s"'%pacemaker_service_options.get("use_mgmtd", "no")
-			else:
-				return "nil"
 		elif path[0] == "totem":
 			if len(path) == 1:
 				return "nil"
@@ -490,15 +470,19 @@ class OpenAISConf_Parser:
 				if path[1] == "secauth":
 					return '"%s"' % totem_options.get("secauth", "")
 				elif path[1] == "autoid":
+					#FIXME, check nodelist has nodeid
+					for i in nodelist_options.get('node'):
+						if i.has_key('nodeid'):
+							return '"no"'
 					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
-				elif path[1] == "nodeid":
-					return '"%d"' % totem_options.get("nodeid", 0)
 				elif path[1] == "threads":
 					return '"%d"' % totem_options.get("threads", 0)
 				elif path[1] == "rrpmode":
 					return '"%s"' % totem_options.get("rrp_mode", "none")
 				elif path[1] == "transport":
 					return '"%s"' % totem_options.get("transport", "udp")
+				elif path[1] == "cluster_name":
+					return '"%s"' % totem_options.get("cluster_name", "cluster")
 				else:
 					return "nil"
 			elif len(path) == 4:
@@ -514,11 +498,10 @@ class OpenAISConf_Parser:
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
+							if path[3] == "ttl":
+								return '"%d"' % i.get("ttl", 1)
 							elif path[3] == "member":
-								member_str = ""
-								for member in i.get("member", []):
-									member_str = member_str + member.get("memberaddr", "") + " "
-								return '"%s"' % member_str.strip()
+								return generateMemberString(0)
 							else:
 								return "nil"
 					elif path[2] == "interface1":
@@ -533,10 +516,7 @@ class OpenAISConf_Parser:
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
 							elif path[3] == "member":
-								member_str = ""
-								for member in i.get("member", []):
-									member_str = member_str + member.get("memberaddr", "") + " "
-								return '"%s"' % member_str.strip()
+								return generateMemberString(1)
 							else:
 								return "nil"
 					else:
@@ -547,23 +527,19 @@ class OpenAISConf_Parser:
 				return "nil"
 		else:
 			return "nil"
-		
-	def saveFile(self):
-		generate_default_ais_options()
 
-		fulfill_default_amf_options()
-		fulfill_default_pacemaker_options()
+
+	def saveFile(self):
+
 		fulfill_default_logging_options()
 		fulfill_suggested_totem_options()
 
 		f = open("/etc/corosync/corosync.conf.YaST2", "w")
-		print_ais_options(f)
-		print_pacemaker_service_options(f)
-		print_service_options(f)
 		print_totem_options(f)
+		print_nodelist_options(f)
 		print_logging_options(f)
-		print_amf_options(f)
-		print_event_options(f)
+		print_quorum_options(f)
+		print_qb_options(f)
 		f.close()
 
 		try:
@@ -575,34 +551,15 @@ class OpenAISConf_Parser:
 		except OSError:
 			pass
 		pass
-	
+
 	def doWrite(self, path, args):
 		if path[0] == "":
 			self.saveFile()
-		elif path[0] == "pacemaker":
-			if len(path) == 2:
-				if path[1] == "use_mgmtd":
-					pacemaker_service_options["use_mgmtd"] = str(args)
-					return "true"
-				else:
-					return "false"
-			else:
-				return "false"
 		elif path[0] == "totem":
 			if len(path) == 2:
 				if path[1] == "autoid":
 					totem_options["clear_node_high_bit"] = args
 					return "true"
-				elif path[1] == "nodeid":
-					if args == "":
-						if totem_options.get("nodeid", None) != None:
-							del totem_options["nodeid"]
-						return "true"
-					try:
-						totem_options["nodeid"] = int(args)
-						return "true"
-					except ValueError:
-						return "false"
 				elif path[1] == "secauth":
 					totem_options["secauth"] = args
 					return "true"
@@ -621,6 +578,9 @@ class OpenAISConf_Parser:
 					return "true"
 				elif path[1] == "transport":
 					totem_options["transport"] = args
+					return "true"
+				elif path[1] == "cluster_name":
+					totem_options["cluster_name"] = args
 					return "true"
 				else:
 					return "false"
@@ -642,14 +602,17 @@ class OpenAISConf_Parser:
 				else:
 					return "false"
 			elif len(path) == 4:
+				ring_num = 0
 				if path[1] == "interface":
 					i = None
 					if path[2] == "interface0":
 						i = get_interface(0)
+						ring_num = 0
 						if i == None:
 							totem_options["interface"].append({"ringnumber":0})
 							i = get_interface(0)
 					elif path[2] == "interface1":
+						ring_num = 1
 						i = get_interface(1)
 						if i == None:
 							totem_options["interface"].append({"ringnumber":1})
@@ -672,9 +635,18 @@ class OpenAISConf_Parser:
 								return "false"
 						elif path[3] == "member":
 							member_addr_set = []
+							ring_address = "ring%d_addr" % ring_num
 							for member_address in args.strip().split(" "):
-								member_addr_set.append({"memberaddr":member_address})
-							i["member"] = member_addr_set
+								colon_pos = member_address.find(":")
+								if (colon_pos > -1):
+									member_addr_set.append({ring_address:member_address[:colon_pos],"nodeid":member_address[colon_pos+1:]})
+								else:
+									member_addr_set.append({ring_address:member_address})
+							#if ring_num=1,this is interface1. This means I already has interface0, so keep the previous nodelist options
+							if (ring_num):
+								nodelist_options["node"] += member_addr_set
+							else:
+								nodelist_options["node"] = member_addr_set
 							return "true"
 						else:
 							return "false"
@@ -730,7 +702,7 @@ class SCR_Agent:
 					self.args = self.args[:-1]
 			except (IndexError, AttributeError):
 				y2debug("No args in %s " % scr_command)
-				return 
+				return
 		else:
 			y2error ("No command in '%s'" % scr_command)
 			return
@@ -741,11 +713,12 @@ class SCR_Agent:
 def main_entry():
 	scr_agent = SCR_Agent ()
 	openais_agent = OpenAISConf_Parser()
+
     
 	while True:
 		scr_agent.SCR_Command ()
 
-		y2debug ("Command '%s'" % scr_agent.command);
+		y2error ("Command '%s'" % scr_agent.command);
 		
 		if (scr_agent.command == 'Dir' ):
 			print openais_agent.doList(scr_agent.path)
@@ -762,8 +735,11 @@ def main_entry():
 		else:
 			y2error ("Unknown command: %s" % scr_agent.command)
 			print "nil\n"
-		sys.stdout.flush()
-# <-- main    
+		try:
+			sys.stdout.flush()
+		except:
+			break
+# <-- main
     
 if __name__ == "__main__":
 	main_entry()

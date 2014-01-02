@@ -48,7 +48,6 @@ module Yast
         "service"       => _(
           "\n" +
             "\t\t\t<p><b><big>Booting</big></b><br>Starting openais service during boot or not</p>\n" +
-            "\t\t\t<p><b><big>Start mgmtd</big></b><br>Mgmtd daemon is a standalone service daemon. It is required by the GUI</p>\n" +
             "\t\t\t"
         ),
         "csync2"        => _(

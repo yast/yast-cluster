@@ -28,6 +28,7 @@
 #
 # Representation of the configuration of cluster.
 # Input and output routines.
+#
 require "yast"
 
 module Yast
@@ -64,9 +65,9 @@ module Yast
 
 
       # Settings: Define all variables needed for configuration of cluster
-      @use_mgmtd = false
       @secauth = false
       @threads = ""
+      @cluster_name = ""
 
       @bindnetaddr1 = ""
       @mcastaddr1 = ""
@@ -77,7 +78,6 @@ module Yast
       @mcastport2 = ""
 
       @autoid = true
-      @nodeid = ""
       @rrpmode = ""
 
       @corokey = ""
@@ -86,6 +86,10 @@ module Yast
       @global_startcsync2 = false
 
       @transport = ""
+
+      #example:
+      #[{:addr=>"10.16.35.101", :nodeid=>"1"}, {:addr=>"10.16.35.102", :nodeid=>"2"},
+      #{:addr=>"10.16.35.103"}, {:addr=>"10.16.35.104"}, {:addr=>"10.16.35.105"}]
       @memberaddr1 = []
       @memberaddr2 = []
 
@@ -145,11 +149,6 @@ module Yast
     end
 
     def LoadClusterConfig
-      if Convert.to_string(SCR.Read(path(".openais.pacemaker.use_mgmtd"))) == "yes"
-        @use_mgmtd = true
-      else
-        @use_mgmtd = false
-      end
 
       if Convert.to_string(SCR.Read(path(".openais.totem.secauth"))) == "on"
         @secauth = true
@@ -159,19 +158,25 @@ module Yast
 
       @threads = Convert.to_string(SCR.Read(path(".openais.totem.threads")))
 
-      @transport = Convert.to_string(SCR.Read(path(".openais.totem.transport")))
+      @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
+
+      @transport = SCR.Read(path(".openais.totem.transport"))
       @transport = "udp" if @transport == nil
 
       interfaces = SCR.Dir(path(".openais.totem.interface"))
       Builtins.foreach(interfaces) do |interface|
         if interface == "interface0"
           if @transport == "udpu"
-            @memberaddr1 = Builtins.splitstring(
-              Convert.to_string(
-                SCR.Read(path(".openais.totem.interface.interface0.member"))
-              ),
-              " "
-            )
+            address = SCR.Read(path(".openais.totem.interface.interface0.member")).split(" ")
+            address.each do |addr|
+              p = addr.split(":")
+              if p[1] != nil
+                @memberaddr1.push({:addr=>p[0],:nodeid=>p[1]})
+              elsif
+                @memberaddr1.push({:addr=>p[0]})
+              end
+            end
+
           else
             @mcastaddr1 = Convert.to_string(
               SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
@@ -186,12 +191,15 @@ module Yast
         end
         if interface == "interface1"
           if @transport == "udpu"
-            @memberaddr2 = Builtins.splitstring(
-              Convert.to_string(
-                SCR.Read(path(".openais.totem.interface.interface1.member"))
-              ),
-              " "
-            )
+            address = SCR.Read(path(".openais.totem.interface.interface1.member")).split(" ")
+            address.each do |addr|
+              p = addr.split(":")
+              if p[1] != nil
+                @memberaddr2.push({:addr=>p[0],:nodeid=>p[1]})
+              elsif
+                @memberaddr2.push({:addr=>p[0]})
+              end
+            end
           else
             @mcastaddr2 = Convert.to_string(
               SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
@@ -210,13 +218,11 @@ module Yast
 
       ai = Convert.to_string(SCR.Read(path(".openais.totem.autoid")))
 
-      if ai == "yes" || ai == "new"
+      if ai == "yes"
         @autoid = true
       else
         @autoid = false
       end
-
-      @nodeid = Convert.to_string(SCR.Read(path(".openais.totem.nodeid")))
 
       @rrpmode = Convert.to_string(SCR.Read(path(".openais.totem.rrpmode")))
       if @enable2 == false
@@ -228,12 +234,20 @@ module Yast
       nil
     end
 
-    def SaveClusterConfig
-      if @use_mgmtd == true
-        SCR.Write(path(".openais.pacemaker.use_mgmtd"), "yes")
-      else
-        SCR.Write(path(".openais.pacemaker.use_mgmtd"), "no")
+
+    def generateMemberString(memberaddr)
+      address_string = ""
+      memberaddr.each do |i|
+        address_string += i[:addr]
+        if i[:nodeid]
+          address_string += ":#{i[:nodeid]}"
+        end
+        address_string += " "
       end
+      return address_string
+    end
+
+    def SaveClusterConfig
 
       if @secauth == true
         SCR.Write(path(".openais.totem.secauth"), "on")
@@ -244,11 +258,13 @@ module Yast
       end
 
       SCR.Write(path(".openais.totem.transport"), @transport)
+      SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
 
       if @transport == "udpu"
+
         SCR.Write(
           path(".openais.totem.interface.interface0.member"),
-          Builtins.mergestring(@memberaddr1, " ")
+          generateMemberString(@memberaddr1)
         )
         SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
       else
@@ -273,7 +289,7 @@ module Yast
         if @transport == "udpu"
           SCR.Write(
             path(".openais.totem.interface.interface1.member"),
-            Builtins.mergestring(@memberaddr2, " ")
+            generateMemberString(@memberaddr2)
           )
           SCR.Write(path(".openais.totem.interface.interface1.mcastaddr"), "")
         else
@@ -293,11 +309,10 @@ module Yast
         )
       end
 
+      #FIXME TODO
       if @autoid == true
-        SCR.Write(path(".openais.totem.autoid"), "new")
-        SCR.Write(path(".openais.totem.nodeid"), "")
+        SCR.Write(path(".openais.totem.autoid"), "yes")
       else
-        SCR.Write(path(".openais.totem.nodeid"), @nodeid)
         SCR.Write(path(".openais.totem.autoid"), "no")
       end
       SCR.Write(path(".openais.totem.rrpmode"), @rrpmode)
@@ -391,8 +406,6 @@ module Yast
       ret = false
       required_pack_list = [
         "pacemaker",
-        "pacemaker-mgmt",
-        "pacemaker-mgmt-client",
         "csync2",
         "conntrack-tools",
         "hawk",
@@ -417,7 +430,6 @@ module Yast
           1
         )
         @firstrun = true
-        @use_mgmtd = true #the only interested default option
       end
       Progress.NextStage
       # Error message
@@ -510,10 +522,6 @@ module Yast
 
       temp_tcp_ports = ["21064", "7630"]
       tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      if @use_mgmtd == true
-        temp_tcp_ports = Builtins.add(temp_tcp_ports, "5560")
-      end
-      #Union
       tcp_ports = Convert.convert(
         Builtins.union(tcp_ports, temp_tcp_ports),
         :from => "list",
@@ -564,10 +572,10 @@ module Yast
         )
       end
       if @global_startopenais == true
-        SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig openais on")
+        SCR.Execute(path(".target.bash_output"), "systemctl enable corosync.service")
       end
       if @global_startcsync2 == true
-        SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2 on")
+        SCR.Execute(path(".target.bash_output"), "systemctl enable csync2")
       end
 
       return false if Abort()
@@ -580,13 +588,13 @@ module Yast
     # @return [Boolean] True on success
     def Import(settings)
       settings = deep_copy(settings)
-      @use_mgmtd = Ops.get_boolean(settings, "use_mgmtd", true)
       @secauth = Ops.get_boolean(settings, "secauth", false)
       @threads = Ops.get_string(settings, "threads", "")
       @transport = Ops.get_string(settings, "transport", "udp")
       @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
       @memberaddr1 = Ops.get_list(settings, "memberaddr1", [])
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
+      @cluster_name  = settings["cluster_name"] || ""
       @mcastport1 = Ops.get_string(settings, "mcastport1", "")
       @enable2 = Ops.get_boolean(settings, "enable2", false)
       @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
@@ -594,7 +602,6 @@ module Yast
       @mcastaddr2 = Ops.get_string(settings, "mcastaddr2", "")
       @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
-      @nodeid = ""
       @rrpmode = Ops.get_string(settings, "rrpmode", "")
       @corokey = Ops.get_string(settings, "corokey", "")
       @csync2key = Ops.get_string(settings, "csync2key", "")
@@ -612,13 +619,13 @@ module Yast
     # @return [Hash] Dumped settings (later acceptable by Import ())
     def Export
       result = {}
-      Ops.set(result, "use_mgmtd", @use_mgmtd)
       Ops.set(result, "secauth", @secauth)
       Ops.set(result, "threads", @threads)
       Ops.set(result, "transport", @transport)
       Ops.set(result, "bindnetaddr1", @bindnetaddr1)
       Ops.set(result, "memberaddr1", @memberaddr1)
       Ops.set(result, "mcastaddr1", @mcastaddr1)
+      result["cluster_name"] = @cluster_name
       Ops.set(result, "mcastport1", @mcastport1)
       Ops.set(result, "enable2", @enable2)
       Ops.set(result, "bindnetaddr2", @bindnetaddr2)
@@ -626,7 +633,6 @@ module Yast
       Ops.set(result, "mcastaddr2", @mcastaddr2)
       Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
-      Ops.set(result, "nodeid", "")
       Ops.set(result, "rrpmode", @rrpmode)
       Ops.set(result, "csync2_host", @csync2_host)
       Ops.set(result, "csync2_include", @csync2_include)
@@ -684,7 +690,6 @@ module Yast
     # Create an overview table with all configured cards
     # @return table items
     def Overview
-      # TODO FIXME: your code here...
       []
     end
 
@@ -693,7 +698,7 @@ module Yast
     # installed.
     # @return [Hash] with 2 lists.
     def AutoPackages
-      { "install" => ["pacemaker-mgmt", "csync2", "pacemaker"], "remove" => [] }
+      { "install" => ["csync2", "pacemaker"], "remove" => [] }
     end
 
     publish :variable => :csync2_key_file, :type => "string"
@@ -707,11 +712,11 @@ module Yast
     publish :function => :LoadClusterConfig, :type => "boolean ()"
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
-    publish :variable => :use_mgmtd, :type => "boolean"
     publish :variable => :secauth, :type => "boolean"
     publish :variable => :threads, :type => "string"
     publish :variable => :bindnetaddr1, :type => "string"
     publish :variable => :mcastaddr1, :type => "string"
+    publish :variable => :cluster_name, :type => "string"
     publish :variable => :mcastport1, :type => "string"
     publish :variable => :enable2, :type => "boolean"
     publish :variable => :bindnetaddr2, :type => "string"
