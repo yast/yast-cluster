@@ -148,9 +148,9 @@ logger_subsys_option_table = {
 
 
 quorum_option_table = {
-		"provider":{"doc":"Enable and configure quorum subsystem","type":"string", "default_value":"corosync_votequorum"},
-		"expected_votes":{"doc":"votequorum requires an expected_votes value to function", "type":"int", "default_value":1},
-		"two_node":{"doc":"Enables two node cluster operations", "type":"int", "default_value":0},
+		"provider":{"doc":"Enable and configure quorum subsystem","type":"string", "default_value":"corosync_votequorum","suggested_value":"corosync_votequorum"},
+		"expected_votes":{"doc":"votequorum requires an expected_votes value to function","default_value":""},
+		"two_node":{"doc":"Enables two node cluster operations"},
 		"wait_for_all":{"doc":"Enables Wait For All (WFA) feature", "type":"int", "default_value":0},
 		"last_man_standing":{"doc":"Enables Last Man Standing (LMS) feature (default: 0)", "type":"int","default_value":0},
 		"last_man_standing_window":{"type":"int","default_value":10000},
@@ -193,14 +193,22 @@ def fulfill_suggested_totem_options():
 		if v == None and sv != None:
 			totem_options[opt] = sv
 			
+def fulfill_suggested_quorum_options():
+	# must has provider
+	for opt in ['provider']:
+		sv = quorum_option_table[opt].get("suggested_value", None)
+		v = quorum_options.get(opt, None)
+		if v == None and sv != None:
+			quorum_options[opt] = sv
 
 def print_quorum_options(f):
-	if(len(quorum_options) == 0):
-		return
 	f.write("quorum {\n");
 	for key in quorum_options.keys():
-		f.write("\t#%s\n\n" % (quorum_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
+		if quorum_options[key] == "":
+			continue
+		else:
+			f.write("\t#%s\n\n" % (quorum_option_table[key]["doc"]))
+			f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
 	f.write("}\n")
 
 def print_qb_options(f):
@@ -463,6 +471,11 @@ class OpenAISConf_Parser:
 	def doRead(self, path):
 		if path[0] == "":
 			return "nil\n"
+		elif path[0] == "quorum" and len(path) >= 2:
+			if path[1] == "expected_votes":
+				return '"%s"' % quorum_options.get("expected_votes", "nil")
+			else:
+				return "nil"
 		elif path[0] == "totem":
 			if len(path) == 1:
 				return "nil"
@@ -533,6 +546,7 @@ class OpenAISConf_Parser:
 
 		fulfill_default_logging_options()
 		fulfill_suggested_totem_options()
+		fulfill_suggested_quorum_options()
 
 		f = open("/etc/corosync/corosync.conf.YaST2", "w")
 		print_totem_options(f)
@@ -555,6 +569,10 @@ class OpenAISConf_Parser:
 	def doWrite(self, path, args):
 		if path[0] == "":
 			self.saveFile()
+		elif path[0] == "quorum":
+			if path[1] == "expected_votes":
+				quorum_options["expected_votes"] = args
+				return "true"
 		elif path[0] == "totem":
 			if len(path) == 2:
 				if path[1] == "autoid":
@@ -718,7 +736,7 @@ def main_entry():
 	while True:
 		scr_agent.SCR_Command ()
 
-		y2error ("Command '%s'" % scr_agent.command);
+		y2debug("Command %s %s" % (scr_agent.command, scr_agent.path));
 		
 		if (scr_agent.command == 'Dir' ):
 			print openais_agent.doList(scr_agent.path)
