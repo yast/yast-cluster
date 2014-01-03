@@ -77,7 +77,7 @@ module Yast
           1,
           1,
           VBox(
-            MinWidth(100, TextEntry(Id(:text), title, value)),
+            MinWidth(100, InputField(Id(:text), title, value)),
             VSpacing(1),
             Right(
               HBox(
@@ -95,7 +95,6 @@ module Yast
       deep_copy(ret)
     end
 
-    # return `cacel or a address hash
     def addr_input_dialog(value, autoid)
       ret = nil
 
@@ -107,9 +106,9 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(75, TextEntry(Id(:addr), "IP Address", value[:addr])),
+            MinWidth(75, InputField(Id(:addr), _("IP Address"), value[:addr])),
             HSpacing(1),
-            MinWidth(25, TextEntry(Id(:mynodeid), "nodeid" , value[:nodeid]))
+            MinWidth(25, InputField(Id(:mynodeid), _("nodeid") , value[:nodeid]))
             ),
             VSpacing(1),
             Right(
