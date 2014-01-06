@@ -56,7 +56,6 @@ module Yast
         "/etc/ctdb/nodes",
         "/etc/samba/smb.conf",
         "/etc/booth/booth.conf",
-        "/etc/sysconfig/openais",
         "/etc/sysconfig/sbd",
         "/etc/csync2/csync2.cfg",
         "/etc/csync2/key_hagroup"
@@ -77,7 +76,7 @@ module Yast
           1,
           1,
           VBox(
-            MinWidth(100, TextEntry(Id(:text), title, value)),
+            MinWidth(100, InputField(Id(:text), title, value)),
             VSpacing(1),
             Right(
               HBox(
@@ -95,7 +94,6 @@ module Yast
       deep_copy(ret)
     end
 
-    # return `cacel or a address hash
     def addr_input_dialog(value, autoid)
       ret = nil
 
@@ -107,9 +105,9 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(75, TextEntry(Id(:addr), "IP Address", value[:addr])),
+            MinWidth(75, InputField(Id(:addr), _("IP Address"), value[:addr])),
             HSpacing(1),
-            MinWidth(25, TextEntry(Id(:mynodeid), "nodeid" , value[:nodeid]))
+            MinWidth(25, InputField(Id(:mynodeid), _("nodeid") , value[:nodeid]))
             ),
             VSpacing(1),
             Right(
@@ -225,6 +223,15 @@ module Yast
         end
       end
 
+      votes = UI.QueryWidget(Id(:expected_votes), :Value)
+
+
+      # is a integer?
+      if not votes =~ /\A[-+]?[0-9]*\.?[0-9]+\Z/
+        Popup.Message(_"expected_votes must have an integer number")
+        return false
+      end
+
       true
     end
 
@@ -296,6 +303,7 @@ module Yast
       Cluster.autoid = Convert.to_boolean(UI.QueryWidget(Id(:autoid), :Value))
       Cluster.rrpmode = Convert.to_string(UI.QueryWidget(Id(:rrpmode), :Value))
       Cluster.cluster_name = UI.QueryWidget(Id(:cluster_name), :Value)
+      Cluster.expected_votes = UI.QueryWidget(Id(:expected_votes), :Value).to_s
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
       )
@@ -425,22 +433,27 @@ module Yast
       )
 
       nid = VBox(
-        InputField(Id(:cluster_name), Opt(:hstretch), _("Cluster Name:")),
+        HBox(
+        Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"))),
+        Left(InputField(Id(:expected_votes),Opt(:hstretch), _("expected votes:"),"")),
+        ),
         Left(
           CheckBox(Id(:autoid), Opt(:notify), _("Auto Generate Node ID"), true)
         )
       )
 
-      rrpm = ComboBox(
+      rrpm = VBox(
+        ComboBox(
         Id(:rrpmode),
         Opt(:hstretch),
         _("rrp mode:"),
         ["none", "active", "passive"]
-      )
+      ))
+
 
       contents = VBox(
         transport,
-        HBox(VBox(iface, nid), VBox(riface, rrpm, VSpacing(1)))
+        HBox(HWeight(1,VBox(iface, nid)),HWeight(1,VBox(riface, rrpm)))
       )
 
       my_SetContents("communication", contents)
@@ -455,6 +468,8 @@ module Yast
 
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
+      UI.ChangeWidget(Id(:expected_votes), :Value, Cluster.expected_votes)
+
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
 
       UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
@@ -803,7 +818,7 @@ module Yast
 
     def UpdateServiceStatus
       ret = 0
-      ret = Service.Status("corosync")
+      ret = Service.Status("pacemaker")
       if ret == 0
         UI.ChangeWidget(Id(:status), :Value, _("Running"))
       else
@@ -812,7 +827,7 @@ module Yast
       UI.ChangeWidget(Id("start_now"), :Enabled, ret != 0)
       UI.ChangeWidget(Id("stop_now"), :Enabled, ret == 0)
 
-      if not Service.Enabled("corosync")
+      if not Service.Enabled("pacemaker")
         UI.ChangeWidget(Id("off"), :Value, true)
         UI.ChangeWidget(Id("on"), :Value, false)
       else
@@ -853,14 +868,14 @@ module Yast
                   RadioButton(
                     Id("on"),
                     Opt(:notify),
-                    _("On -- Start corosync at booting")
+                    _("On -- Start pacemaker at booting")
                   )
                 ),
                 Left(
                   RadioButton(
                     Id("off"),
                     Opt(:notify),
-                    _("Off -- Start corosync manually only")
+                    _("Off -- Start pacemaker manually only")
                   )
                 )
               )
@@ -883,8 +898,8 @@ module Yast
                 HBox(
                   HSpacing(1),
                   HBox(
-                    PushButton(Id("start_now"), _("Start corosync Now")),
-                    PushButton(Id("stop_now"), _("Stop corosync Now"))
+                    PushButton(Id("start_now"), _("Start pacemaker Now")),
+                    PushButton(Id("stop_now"), _("Stop pacemaker Now"))
                   )
                 )
               )
@@ -903,24 +918,26 @@ module Yast
       CWMFirewallInterfaces.OpenFirewallInit(firewall_widget, "")
       while true
         UpdateServiceStatus()
-        #add event
+        # add event
         event = UI.WaitForEvent
         ret = Ops.get(event, "ID")
 
         if ret == "on"
-          Service.Enable("corosync")
+          Service.Enable("pacemaker")
           next
         end
 
         if ret == "off"
-          Service.Disable("corosync")
+          Service.Disable("pacemaker")
           next
         end
 
+        # pacemaker will start corosync automatically.
+        # to stop pacemaker, you have to stop corosync first.
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
-          Report.Error(Service.Error) if !Service.Start("corosync")
+          Report.Error(Service.Error) if !Service.Start("pacemaker")
           next
         end
 
