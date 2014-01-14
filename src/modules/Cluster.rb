@@ -68,6 +68,7 @@ module Yast
       @secauth = false
       @threads = ""
       @cluster_name = ""
+      @expected_votes = ""
 
       @bindnetaddr1 = ""
       @mcastaddr1 = ""
@@ -87,9 +88,9 @@ module Yast
 
       @transport = ""
 
-      #example:
-      #[{:addr=>"10.16.35.101", :nodeid=>"1"}, {:addr=>"10.16.35.102", :nodeid=>"2"},
-      #{:addr=>"10.16.35.103"}, {:addr=>"10.16.35.104"}, {:addr=>"10.16.35.105"}]
+      # example:
+      # [{:addr=>"10.16.35.101", :nodeid=>"1"}, {:addr=>"10.16.35.102", :nodeid=>"2"},
+      # {:addr=>"10.16.35.103"}, {:addr=>"10.16.35.104"}, {:addr=>"10.16.35.105"}]
       @memberaddr1 = []
       @memberaddr2 = []
 
@@ -159,6 +160,9 @@ module Yast
       @threads = Convert.to_string(SCR.Read(path(".openais.totem.threads")))
 
       @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
+
+      @expected_votes = SCR.Read(path(".openais.quorum.expected_votes")).to_s
+
 
       @transport = SCR.Read(path(".openais.totem.transport"))
       @transport = "udp" if @transport == nil
@@ -259,6 +263,7 @@ module Yast
 
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
+      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
 
       if @transport == "udpu"
 
@@ -595,6 +600,7 @@ module Yast
       @memberaddr1 = Ops.get_list(settings, "memberaddr1", [])
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
+      @expected_votes = settings["expected_votes"] || ""
       @mcastport1 = Ops.get_string(settings, "mcastport1", "")
       @enable2 = Ops.get_boolean(settings, "enable2", false)
       @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
@@ -626,6 +632,7 @@ module Yast
       Ops.set(result, "memberaddr1", @memberaddr1)
       Ops.set(result, "mcastaddr1", @mcastaddr1)
       result["cluster_name"] = @cluster_name
+      result["expected_votes"] = @expected_votes
       Ops.set(result, "mcastport1", @mcastport1)
       Ops.set(result, "enable2", @enable2)
       Ops.set(result, "bindnetaddr2", @bindnetaddr2)
@@ -717,6 +724,7 @@ module Yast
     publish :variable => :bindnetaddr1, :type => "string"
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"
+    publish :variable => :expected_votes, :type => "string"
     publish :variable => :mcastport1, :type => "string"
     publish :variable => :enable2, :type => "boolean"
     publish :variable => :bindnetaddr2, :type => "string"
