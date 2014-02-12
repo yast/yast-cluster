@@ -17,6 +17,7 @@
 
 
 Name:           yast2-cluster
+%define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
 Version:        3.1.1
 Release:        0
 License:	GPL-2.0
@@ -24,6 +25,7 @@ Group:		System/YaST
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
+Source1:        cluster.fwd
 
 Requires:	yast2
 BuildRequires:	perl-XML-Writer update-desktop-files yast2 yast2-testsuite
@@ -47,6 +49,10 @@ Summary:	Configuration of cluster
 %install
 %yast_install
 
+mkdir -p $RPM_BUILD_ROOT/%{_fwdefdir}
+install -m 644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster
+
+
 
 %files
 %defattr(-,root,root)
@@ -59,3 +65,4 @@ Summary:	Configuration of cluster
 %{yast_scrconfdir}/*.scr
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
+%config %{_fwdefdir}/cluster
