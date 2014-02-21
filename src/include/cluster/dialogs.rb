@@ -901,7 +901,7 @@ module Yast
           )
         ),
         VSpacing(1),
-        Frame(_("firewall settings"), firewall_layout),
+        firewall_layout,
         VStretch()
       )
 
