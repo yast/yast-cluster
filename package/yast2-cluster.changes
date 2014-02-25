@@ -1,4 +1,28 @@
 -------------------------------------------------------------------
+Tue Feb 25 10:46:43 UTC 2014 - dmzhang@suse.com
+
+- add yast2-python-bindings in spec files
+
+-------------------------------------------------------------------
+Tue Feb 25 02:51:18 UTC 2014 - dmzhang@suse.com
+
+- bnc#863953,  yast2 display issue 
+  add cluster.fwd, and fix disply issue
+
+-------------------------------------------------------------------
+Mon Jan 20 05:01:39 UTC 2014 - dmzhang@suse.com
+
+- add expected_votes field in GUI 
+
+-------------------------------------------------------------------
+Mon Jan 13 07:12:03 UTC 2014 - dmzhang@suse.com
+
+- edit yast2-cluster to adapt new corosync.conf  
+  fix bnc#854882,bnc#845910
+- remove SummaryDialog, OverviewDialog and aisexec options
+- convert ycp to ruby
+
+-------------------------------------------------------------------
 Wed Jan 13 18:56:03 CET 2010 - kmachalkova@suse.cz
 
 - Adjusted .desktop file(s) to wrap /sbin/yast2/ calls in xdg-su
