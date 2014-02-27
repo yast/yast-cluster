@@ -29,9 +29,12 @@ import gettext, os, re
 from gettext import textdomain
 textdomain("openais")
 
-from ycp import *
-import pdb
+# python bindings will be droped
+# delete all python bindings
+
+#from ycp import *
 import copy
+import sys
 
 
 #the option table is used to parse and write suggested_value if no options are read
@@ -328,7 +331,7 @@ def opt_parser(file, options):
 				members.append(opt_parser(file, node_option_table))
 				result["node"] = members
 			else:
-				y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
+				#y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
 				while (i[-1] != "}"):
 					i = get_next_line(file)
 				
@@ -341,13 +344,14 @@ def opt_parser(file, options):
 		try:
 			doc = options[opt[0].strip()]["doc"]
 		except KeyError:
-			y2warning("Unknown options %s"%opt[0].strip())
+			#y2warning("Unknown options %s"%opt[0].strip())
+			pass
 		else:
 			if options[opt[0].strip()].get("type", "string") == "int":
 				try:
 					result[opt[0].strip()] = int(opt[1].strip())
 				except ValueError:
-					y2warning("Invalid option %s found, default to %s" % (opt[0].strip(), options[opt[0].strip()]["default_value"]))
+					#y2warning("Invalid option %s found, default to %s" % (opt[0].strip(), options[opt[0].strip()]["default_value"]))
 					result[opt[0].strip()] = options[opt[0].strip()]["default_value"]
 			else:
 				result[opt[0].strip()] = opt[1].strip()
@@ -606,11 +610,11 @@ class OpenAISConf_Parser:
 				if path[1] == "interface":
 					if args == "":
 						if path[2] == "interface0":
-							y2debug("deleting interface 0")
+							#y2debug("deleting interface 0")
 							del_interface(0)
 							return "true"
 						elif path[2] == "interface1":
-							y2debug("deleting interface 1")
+							#y2debug("deleting interface 1")
 							del_interface(1)
 							return "true"
 						else:
@@ -689,10 +693,10 @@ class SCR_Agent:
 		self.args = ""
 		self.path = ""
 			
-		y2debug ("waiting for a command");
+		#y2debug ("waiting for a command");
 		scr_command = sys.stdin.readline().strip()
 		
-		y2debug ("newline: %s" % scr_command);
+		#y2debug ("newline: %s" % scr_command);
 		
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
 		r = p.match(scr_command)
@@ -700,7 +704,7 @@ class SCR_Agent:
 			try:
 				self.command = r.group(1)
 			except IndexError:
-				y2error("No command in %s " % scr_command)
+				#y2error("No command in %s " % scr_command)
 				return
 			
 			try:
@@ -710,7 +714,7 @@ class SCR_Agent:
 				self.path = path.split('.')
 
 			except IndexError:
-				y2debug("No path in %s " % scr_command)
+				#y2debug("No path in %s " % scr_command)
 				return
 			try:
 				self.args = r.group(5).strip()
@@ -719,10 +723,10 @@ class SCR_Agent:
 				if self.args[-1] == '"':
 					self.args = self.args[:-1]
 			except (IndexError, AttributeError):
-				y2debug("No args in %s " % scr_command)
+				#y2debug("No args in %s " % scr_command)
 				return
 		else:
-			y2error ("No command in '%s'" % scr_command)
+			#y2error ("No command in '%s'" % scr_command)
 			return
 
     # <-- SCR_Command
@@ -736,7 +740,7 @@ def main_entry():
 	while True:
 		scr_agent.SCR_Command ()
 
-		y2debug("Command %s %s" % (scr_agent.command,scr_agent.path));
+		#y2debug("Command %s %s" % (scr_agent.command,scr_agent.path));
 		
 		if (scr_agent.command == 'Dir' ):
 			print openais_agent.doList(scr_agent.path)
@@ -751,7 +755,7 @@ def main_entry():
 			break
 
 		else:
-			y2error ("Unknown command: %s" % scr_agent.command)
+			#y2error ("Unknown command: %s" % scr_agent.command)
 			print "nil\n"
 		try:
 			sys.stdout.flush()
