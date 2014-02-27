@@ -34,7 +34,6 @@ BuildRequires:  yast2-devtools >= 3.1.10
 BuildArchitectures:	noarch
 
 Requires:       yast2-ruby-bindings >= 1.0.0
-Requires:       yast2-python-bindings
 
 Summary:	Configuration of cluster
 
