@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Feb 27 09:26:09 UTC 2014 - dmzhang@suse.com
+
+- upstream does not maintain yast2-python-bindings any more
+  remove the dependency for yast2-yast2-bindings 
+
+-------------------------------------------------------------------
 Tue Feb 25 10:46:43 UTC 2014 - dmzhang@suse.com
 
 - add yast2-python-bindings in spec files
