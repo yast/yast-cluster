@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Mon Mar 10 10:12:18 UTC 2014 - dmzhang@suse.com
+
+- bnc#867090, fix expected_votes showing "nil" in case of ncurse
+
+-------------------------------------------------------------------
 Thu Feb 27 09:26:09 UTC 2014 - dmzhang@suse.com
 
 - upstream does not maintain yast2-python-bindings any more
