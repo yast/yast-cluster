@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Apr 22 08:13:18 UTC 2014 - nwang@suse.com
+
+- BNC#874563,stop pacemaker could stop corosync at the same time.
+  So change behavior to stop pacemaker directly. 
+
+-------------------------------------------------------------------
 Tue Apr 22 03:13:23 UTC 2014 - nwang@suse.com
 
 - BNC#871970.BNC#872000 could be fixed at the same time. 

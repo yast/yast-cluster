@@ -908,7 +908,7 @@ module Yast
         end
 
         # pacemaker will start corosync automatically.
-        # to stop pacemaker, you have to stop corosync first.
+        # BNC#872651 is fixed, so stop pacemaker could stop corosync at the same time.
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
@@ -917,7 +917,8 @@ module Yast
         end
 
         if ret == "stop_now"
-          Report.Error(Service.Error) if !Service.Stop("corosync")
+          # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
+          Report.Error(Service.Error) if !Service.Stop("pacemaker")
           next
         end
 
