@@ -89,10 +89,17 @@ module Yast
       @transport = ""
 
       # example:
+      # [{:addr1=>"10.16.35.101",:addr2=>"192.168.0.1", :nodeid=>"1"}, 
+      # {:addr1=>"10.16.35.102",:addr2=>"192.168.0.2", :nodeid=>"2"},
+      # {:addr1=>"10.16.35.103",:addr2=>"192.168.0.3" },
+      # {:addr1=>"10.16.35.104",:nodeid=>"4" },
+      # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
+      @memberaddr = []
+      # example:
       # [{:addr=>"10.16.35.101", :nodeid=>"1"}, {:addr=>"10.16.35.102", :nodeid=>"2"},
       # {:addr=>"10.16.35.103"}, {:addr=>"10.16.35.104"}, {:addr=>"10.16.35.105"}]
-      @memberaddr1 = []
-      @memberaddr2 = []
+      #@memberaddr1 = []
+      #@memberaddr2 = []
 
       @csync2_host = []
       @csync2_include = []
@@ -171,15 +178,29 @@ module Yast
       Builtins.foreach(interfaces) do |interface|
         if interface == "interface0"
           if @transport == "udpu"
-            address = SCR.Read(path(".openais.totem.interface.interface0.member")).split(" ")
+            # BNC#871970, change member addresses to nodelist structure
+            # memberaddr of udpu only read in interface0
+            # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
+            # 123.3.21.44;156.32.123.9"
+            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
             address.each do |addr|
               p = addr.split(":")
               if p[1] != nil
-                @memberaddr1.push({:addr=>p[0],:nodeid=>p[1]})
-              elsif
-                @memberaddr1.push({:addr=>p[0]})
+                q = p[0].split(";")
+                  if q[1] != nil
+                    @memberaddr.push({:addr1=>q[0],:addr2=>q[1],:nodeid=>p[1]})
+                  else
+                    @memberaddr.push({:addr1=>q[0],:nodeid=>p[1]})
+                  end
+              else
+                q = p[0].split(";")
+                  if q[1] != nil
+                    @memberaddr.push({:addr1=>q[0],:addr2=>q[1]})
+                  else
+                    @memberaddr.push({:addr1=>q[0]})
+                  end
               end
-            end
+            end  # end address.each 
 
           else
             @mcastaddr1 = Convert.to_string(
@@ -194,17 +215,8 @@ module Yast
           )
         end
         if interface == "interface1"
-          if @transport == "udpu"
-            address = SCR.Read(path(".openais.totem.interface.interface1.member")).split(" ")
-            address.each do |addr|
-              p = addr.split(":")
-              if p[1] != nil
-                @memberaddr2.push({:addr=>p[0],:nodeid=>p[1]})
-              elsif
-                @memberaddr2.push({:addr=>p[0]})
-              end
-            end
-          else
+          # member address only get in interface0
+          if @transport == "udp"
             @mcastaddr2 = Convert.to_string(
               SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
             )
@@ -239,12 +251,20 @@ module Yast
     end
 
 
+    # BNC#871970, generate string like "123.3.21.32;156.32.123.1:1"
     def generateMemberString(memberaddr)
       address_string = ""
       memberaddr.each do |i|
-        address_string += i[:addr]
-        if i[:nodeid]
-          address_string += ":#{i[:nodeid]}"
+        address_string += i[:addr1]
+        if i[:addr2]
+          address_string += ";#{i[:addr2]}"
+          if i[:nodeid]
+            address_string += ":#{i[:nodeid]}"
+          end
+        else 
+          if i[:nodeid]
+            address_string += ":#{i[:nodeid]}"
+          end
         end
         address_string += " "
       end
@@ -264,12 +284,13 @@ module Yast
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
-
+  
+      # BNC#871970, only write member address when interface0  
       if @transport == "udpu"
 
         SCR.Write(
-          path(".openais.totem.interface.interface0.member"),
-          generateMemberString(@memberaddr1)
+          path(".openais.nodelist.node"),
+          generateMemberString(@memberaddr)
         )
         SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
       else
@@ -277,7 +298,7 @@ module Yast
           path(".openais.totem.interface.interface0.mcastaddr"),
           @mcastaddr1
         )
-        SCR.Write(path(".openais.totem.interface.interface0.member"), "")
+        SCR.Write(path(".openais.nodelist.node"), "")
       end
       SCR.Write(
         path(".openais.totem.interface.interface0.bindnetaddr"),
@@ -292,17 +313,12 @@ module Yast
         SCR.Write(path(".openais.totem.interface.interface1"), "")
       else
         if @transport == "udpu"
-          SCR.Write(
-            path(".openais.totem.interface.interface1.member"),
-            generateMemberString(@memberaddr2)
-          )
           SCR.Write(path(".openais.totem.interface.interface1.mcastaddr"), "")
         else
           SCR.Write(
             path(".openais.totem.interface.interface1.mcastaddr"),
             @mcastaddr2
           )
-          SCR.Write(path(".openais.totem.interface.interface1.member"), "")
         end
         SCR.Write(
           path(".openais.totem.interface.interface1.bindnetaddr"),
@@ -576,6 +592,8 @@ module Yast
           )
         )
       end
+      # is that necessary? since enable pacemaker will triger corosync/csync2?
+      # FIXME if not necessary
       if @global_startopenais == true
         SCR.Execute(path(".target.bash_output"), "systemctl enable corosync.service")
       end
@@ -591,20 +609,20 @@ module Yast
     # (For use by autoinstallation.)
     # @param [Hash] settings The YCP structure to be imported.
     # @return [Boolean] True on success
+    # BNC#871970 , change to memberaddr. But seems still not functional
     def Import(settings)
       settings = deep_copy(settings)
       @secauth = Ops.get_boolean(settings, "secauth", false)
       @threads = Ops.get_string(settings, "threads", "")
       @transport = Ops.get_string(settings, "transport", "udp")
       @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
-      @memberaddr1 = Ops.get_list(settings, "memberaddr1", [])
+      @memberaddr = Ops.get_list(settings, "memberaddr", [])
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
       @expected_votes = settings["expected_votes"] || ""
-      @mcastport1 = Ops.get_string(settings, "mcastport1", "")
+      @mcastport2 = Ops.get_string(settings, "mcastport1", "")
       @enable2 = Ops.get_boolean(settings, "enable2", false)
       @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
-      @memberaddr2 = Ops.get_list(settings, "memberaddr2", [])
       @mcastaddr2 = Ops.get_string(settings, "mcastaddr2", "")
       @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
@@ -623,20 +641,20 @@ module Yast
     # Dump the cluster settings to a single map
     # (For use by autoinstallation.)
     # @return [Hash] Dumped settings (later acceptable by Import ())
+    # BNC#871970 , change to memberaddr. But seems still not functional
     def Export
       result = {}
       Ops.set(result, "secauth", @secauth)
       Ops.set(result, "threads", @threads)
       Ops.set(result, "transport", @transport)
       Ops.set(result, "bindnetaddr1", @bindnetaddr1)
-      Ops.set(result, "memberaddr1", @memberaddr1)
+      Ops.set(result, "memberaddr", @memberaddr)
       Ops.set(result, "mcastaddr1", @mcastaddr1)
       result["cluster_name"] = @cluster_name
       result["expected_votes"] = @expected_votes
       Ops.set(result, "mcastport1", @mcastport1)
       Ops.set(result, "enable2", @enable2)
       Ops.set(result, "bindnetaddr2", @bindnetaddr2)
-      Ops.set(result, "memberaddr2", @memberaddr2)
       Ops.set(result, "mcastaddr2", @mcastaddr2)
       Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
@@ -738,8 +756,7 @@ module Yast
     publish :variable => :global_startopenais, :type => "boolean"
     publish :variable => :global_startcsync2, :type => "boolean"
     publish :variable => :transport, :type => "string"
-    publish :variable => :memberaddr1, :type => "list <string>"
-    publish :variable => :memberaddr2, :type => "list <string>"
+    publish :variable => :memberaddr, :type => "list <string>"
     publish :function => :SaveClusterConfig, :type => "void ()"
     publish :variable => :csync2_host, :type => "list <string>"
     publish :variable => :csync2_include, :type => "list <string>"
