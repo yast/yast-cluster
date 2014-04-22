@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Apr 22 03:13:23 UTC 2014 - nwang@suse.com
+
+- BNC#871970.BNC#872000 could be fixed at the same time. 
+  Change udpu member addresses structure and the format of 
+  nodelist in "corosync.conf". 
+
+-------------------------------------------------------------------
 Mon Mar 10 10:12:18 UTC 2014 - dmzhang@suse.com
 
 - bnc#867090, fix expected_votes showing "nil" in case of ncurse
