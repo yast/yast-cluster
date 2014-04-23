@@ -218,6 +218,13 @@ module Yast
           UI.SetFocus(Id(:mcastport2))
           return false
         end
+
+        if UI.QueryWidget(Id(:rrpmode), :Value) == "none"
+          Popup.Message("Only passive or active can be chosen if multiple interface used. Set to passive.")
+          UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
+          UI.SetFocus(Id(:rrpmode))
+          return false
+        end
       end
 
       votes = UI.QueryWidget(Id(:expected_votes), :Value)
@@ -531,9 +538,13 @@ module Yast
 
         if ret == :enable2
           if UI.QueryWidget(Id(:enable2), :Value)
+            # Changewidget items will change value to first one automatically
+            rrpvalue = UI.QueryWidget(Id(:rrpmode), :Value)
+            UI.ChangeWidget(Id(:rrpmode), :Items, ["passive","active"])
             UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
-            UI.ChangeWidget(Id(:rrpmode), :Value, "passive") if UI.QueryWidget(Id(:rrpmode), :Value) != "active"
+            UI.ChangeWidget(Id(:rrpmode), :Value, rrpvalue) if rrpvalue != "none"
           else
+            UI.ChangeWidget(Id(:rrpmode), :Items, ["none"])
             UI.ChangeWidget(Id(:rrpmode), :Value, "none")
             UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
           end

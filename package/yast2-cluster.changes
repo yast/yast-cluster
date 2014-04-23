@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Apr 23 07:41:49 UTC 2014 - nwang@suse.com
+
+- BNC#874710, Only active or passive of rrp_mode is valid 
+  for multiple interface.
+
+-------------------------------------------------------------------
 Tue Apr 22 08:13:18 UTC 2014 - nwang@suse.com
 
 - BNC#874563,stop pacemaker could stop corosync at the same time.
