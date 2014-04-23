@@ -95,11 +95,6 @@ module Yast
       # {:addr1=>"10.16.35.104",:nodeid=>"4" },
       # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
       @memberaddr = []
-      # example:
-      # [{:addr=>"10.16.35.101", :nodeid=>"1"}, {:addr=>"10.16.35.102", :nodeid=>"2"},
-      # {:addr=>"10.16.35.103"}, {:addr=>"10.16.35.104"}, {:addr=>"10.16.35.105"}]
-      #@memberaddr1 = []
-      #@memberaddr2 = []
 
       @csync2_host = []
       @csync2_include = []
@@ -187,18 +182,18 @@ module Yast
               p = addr.split(":")
               if p[1] != nil
                 q = p[0].split(";")
-                  if q[1] != nil
-                    @memberaddr.push({:addr1=>q[0],:addr2=>q[1],:nodeid=>p[1]})
-                  else
-                    @memberaddr.push({:addr1=>q[0],:nodeid=>p[1]})
-                  end
+                if q[1] != nil
+                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1],:nodeid=>p[1]})
+                else
+                  @memberaddr.push({:addr1=>q[0],:nodeid=>p[1]})
+                end
               else
                 q = p[0].split(";")
-                  if q[1] != nil
-                    @memberaddr.push({:addr1=>q[0],:addr2=>q[1]})
-                  else
-                    @memberaddr.push({:addr1=>q[0]})
-                  end
+                if q[1] != nil
+                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1]})
+                else
+                  @memberaddr.push({:addr1=>q[0]})
+                end
               end
             end  # end address.each 
 
@@ -255,19 +250,16 @@ module Yast
     def generateMemberString(memberaddr)
       address_string = ""
       memberaddr.each do |i|
-        address_string += i[:addr1]
+        address_string << i[:addr1]
         if i[:addr2]
-          address_string += ";#{i[:addr2]}"
-          if i[:nodeid]
-            address_string += ":#{i[:nodeid]}"
-          end
+          address_string << ";#{i[:addr2]}"
+          address_string << ":#{i[:nodeid]}" if i [:nodeid]
         else 
-          if i[:nodeid]
-            address_string += ":#{i[:nodeid]}"
-          end
+          address_string << ":#{i[:nodeid]}" if i[:nodeid]
         end
-        address_string += " "
+        address_string << " "
       end
+
       return address_string
     end
 

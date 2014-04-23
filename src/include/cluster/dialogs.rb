@@ -162,7 +162,7 @@ module Yast
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         i = 0
         Builtins.foreach(Cluster.memberaddr) do |value|
-          if  ( IP.Check(value[:addr1])==false ) or ( (true==UI.QueryWidget(Id(:enable2), :Value)) and IP.Check(value[:addr2])==false)
+          if  !IP.Check(value[:addr1]) || ( UI.QueryWidget(Id(:enable2), :Value) && !IP.Check(value[:addr2]) )
             UI.ChangeWidget(:memberaddr, :CurrentItem, i)
             i = 0
             raise Break
@@ -175,7 +175,7 @@ module Yast
           return false
         end
       else
-        if IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value))) == false
+        if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
           Popup.Message("The Multicast Address has to be fulfilled")
           UI.SetFocus(:mcastaddr1)
           return false
@@ -191,7 +191,7 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:enable2), :Value) == true
+      if UI.QueryWidget(Id(:enable2), :Value)
         if IP.Check(
             Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
           ) == false
@@ -239,7 +239,7 @@ module Yast
         Convert.to_string(UI.QueryWidget(Id(:mcastport1), :Value))
       )
 
-      if UI.QueryWidget(Id(:enable2), :Value) == false
+      if !UI.QueryWidget(Id(:enable2), :Value)
         SCR.Write(path(".openais.totem.interface.interface1"), "")
       else
         SCR.Write(
@@ -256,7 +256,7 @@ module Yast
         )
       end
 
-      if UI.QueryWidget(Id(:autoid), :Value) == true
+      if UI.QueryWidget(Id(:autoid), :Value)
         SCR.Write(path(".openais.totem.autoid"), "yes")
       else
         SCR.Write(path(".openais.totem.autoid"), "no")
@@ -299,16 +299,12 @@ module Yast
       )
 
       #BNC#871970, clear second IP when redundant channel is disabled
-      if UI.QueryWidget(Id(:enable2), :Value) == false
-        Cluster.memberaddr.each_index do |index_num|
-          Cluster.memberaddr[index_num][:addr2]=""
-        end
+      if !UI.QueryWidget(Id(:enable2), :Value)
+        Cluster.memberaddr.each { |member| member[:addr2] = "" }
       end
 
-      if UI.QueryWidget(Id(:autoid), :Value) == true
-        Cluster.memberaddr.each_index do |index_num|
-          Cluster.memberaddr[index_num][:nodeid]=""
-        end
+      if UI.QueryWidget(Id(:autoid), :Value)
+        Cluster.memberaddr.each  { |member| member[:nodeid] = "" }
       end
 
       nil
@@ -327,8 +323,8 @@ module Yast
 
     # BNC#871970, change member address struct to memberaddr
     def transport_switch
-      udp = Convert.to_string(UI.QueryWidget(Id(:transport), :Value)) == "udp"
-      enable2 = Convert.to_boolean(UI.QueryWidget(Id(:enable2), :Value))
+      udp = UI.QueryWidget(Id(:transport), :Value) == "udp"
+      enable2 = UI.QueryWidget(Id(:enable2), :Value)
 
       enable1 = udp
       enable2 = udp && enable2
@@ -399,14 +395,6 @@ module Yast
             _("Multicast Address:")
           ),
           InputField(Id(:mcastport1), Opt(:hstretch), _("Multicast Port:")),
-#          BNC#871970
-#          Left(Label(_("Member Address:"))),
-#          Table(Id(:memberaddr1), Header("ip","nodeid"),[]),
-#          HBox(
-#            PushButton(Id(:memberaddr1_add), "Add"),
-#            PushButton(Id(:memberaddr1_del), "Del"),
-#            PushButton(Id(:memberaddr1_edit), "Edit")
-#          )
         )
       )
 
@@ -424,14 +412,6 @@ module Yast
           ),
           InputField(Id(:mcastaddr2), Opt(:hstretch), _("Multicast Address:")),
           InputField(Id(:mcastport2), Opt(:hstretch), _("Multicast Port:")),
-#          BNC#871970
-#          Left(Label(_("Member Address:"))),
-#          Table(Id(:memberaddr2), Header("ip","nodeid"),[]),
-#          HBox(
-#            PushButton(Id(:memberaddr2_add), "Add"),
-#            PushButton(Id(:memberaddr2_del), "Del"),
-#            PushButton(Id(:memberaddr2_edit), "Edit")
-#          )
         )
       )
 
@@ -451,7 +431,7 @@ module Yast
         )
       )
 
-      ip_table=VBox(
+      ip_table = VBox(
         Left(Label(_("Member Address:"))),
         Table(Id(:memberaddr), Header("IP","Redundant IP","nodeid"),[]),
         Right(HBox(
@@ -549,18 +529,16 @@ module Yast
           next
         end
 
-        # BNC#871970
         if ret == :enable2
-          if true == UI.QueryWidget(Id(:enable2), :Value)
+          if UI.QueryWidget(Id(:enable2), :Value)
             UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
-            UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
+            UI.ChangeWidget(Id(:rrpmode), :Value, "passive") if UI.QueryWidget(Id(:rrpmode), :Value) != "active"
           else
             UI.ChangeWidget(Id(:rrpmode), :Value, "none")
             UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
           end
         end
 
-        # BNC#871970,change structure
         if ret == :memberaddr_add
           ret = addr_input_dialog({}, UI.QueryWidget(Id(:autoid), :Value), UI.QueryWidget(Id(:enable2), :Value))
           next if ret == :cancel

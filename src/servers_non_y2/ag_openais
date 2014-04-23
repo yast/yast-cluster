@@ -528,9 +528,6 @@ class OpenAISConf_Parser:
 								return '"%d"' % i.get("mcastport", 5405)
 							if path[3] == "ttl":
 								return '"%d"' % i.get("ttl", 1)
-							# BNC#871970,member should belong to nodelist not totem
-							#elif path[3] == "member":
-							#	return generateMemberString()
 							else:
 								return "nil"
 					elif path[2] == "interface1":
@@ -544,9 +541,6 @@ class OpenAISConf_Parser:
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
-							#BNC#871970,only ring0 is available for IPs
-							#elif path[3] == "member":
-								#return generateMemberString()
 							else:
 								return "nil"
 					else:
@@ -738,6 +732,7 @@ class SCR_Agent:
 		
 		#y2debug ("newline: %s" % scr_command);
 		
+		# eg. Read(.totem.interface.interface0.binnetaddr,"args")  Write(.)
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
 		r = p.match(scr_command)
 		if (r):
