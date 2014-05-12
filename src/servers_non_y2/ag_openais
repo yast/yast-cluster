@@ -108,7 +108,7 @@ totem_option_table = {
 	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.",
 					"type":"int", "default_value":10},
 	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
-	"transport":{"doc":"", "type":"select[udp,udpu]","default_value":"udp"},
+	"transport":{"doc":"Transport protocol", "type":"select[udp,udpu]","default_value":"udp"},
 }
 
 
@@ -210,7 +210,7 @@ def print_quorum_options(f):
 		if quorum_options[key] == "":
 			continue
 		else:
-			f.write("\t#%s\n\n" % (quorum_option_table[key]["doc"]))
+			f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
 			f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
 	f.write("}\n")
 
@@ -219,7 +219,7 @@ def print_qb_options(f):
 		return
 	f.write("qb {\n");
 	for key in qb_options.keys():
-		f.write("\t#%s\n\n" % (qb_option_table[key]["doc"]))
+		f.write("\t#%s\n" % (qb_option_table[key]["doc"]))
 		f.write("\t%s:\t%s\n\n" % (key, qb_options[key]))
 	f.write("}\n")
 
@@ -230,7 +230,12 @@ def print_nodelist_options(f):
 	f.write("nodelist {\n");
 	for node in nodelist:
 		f.write("\tnode {\n")
-		for key in node.keys():
+		# Sort the keys like ring0 and ring1
+		klist=node.keys()
+		klist.sort()
+		for key in klist:
+			if node[key] == "":
+				continue
 			f.write("\t#%s\n" % (node_option_table[key]["doc"]))
 			f.write("\t%s:\t%s\n\n" % (key, node[key]))
 		f.write("\t}\n")
@@ -248,7 +253,7 @@ def print_logging_options(f):
 					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
 				f.write("\t}\n")
 			continue
-		f.write("\t#%s\n\n" % (logging_option_table[key]["doc"]))
+		f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
 		f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
 	f.write("}\n")
 
@@ -264,13 +269,13 @@ def print_totem_options(f):
 					if inf[k] == "":
 						continue;
 					else:
-						f.write("\t\t#%s\n\n" % (interface_option_table[k]["doc"]))
+						f.write("\t\t#%s\n" % (interface_option_table[k]["doc"]))
 						f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
 				f.write("\t}\n")
 			continue
 		if totem_options[key] == "":
 			continue
-		f.write("\t#%s\n\n" % (totem_option_table[key]["doc"]))
+		f.write("\t#%s\n" % (totem_option_table[key]["doc"]))
 		f.write("\t%s:\t%s\n\n" % (key, totem_options[key]))
 	# We print out all possible configurations as well
 	# dont for now. looking for better solution
@@ -278,7 +283,7 @@ def print_totem_options(f):
 	for opt in totem_option_table.keys():
 		v = totem_options.get(opt, None)
 		if v == None:
-			f.write("\t#%s\n\n" % (totem_option_table[opt]["doc"]))
+			f.write("\t#%s\n" % (totem_option_table[opt]["doc"]))
 			f.write("\t#%s:\t%s\n\n" % (opt, totem_option_table[opt]["default_value"]))
 	"""
 	f.write("}\n")
@@ -394,16 +399,19 @@ def get_interface(i):
 	else:
 		return None
 
-def generateMemberString(ringnum):
+# BNC#871970,combine ring0 and ring1 of one node into one struct
+# Only ring0 is available
+def generateMemberString():
 	member_str = ""
 
-	ring_address = "ring%d_addr" % ringnum
-	#filter all nodes in a same ring
 	for item in  nodelist_options.get("node"):
-		if item.has_key(ring_address):
-			address = item.get(ring_address, None)
+		if item.has_key("ring0_addr"):
+			address1 = item.get("ring0_addr", None)
+			member_str += address1
+			address2 = item.get("ring1_addr", None)
+			if address2:
+				member_str = member_str + ";" + address2
 			nodeid = item.get("nodeid", None)
-			member_str += address
 			if nodeid:
 				member_str = member_str + ":" + nodeid
 			member_str = member_str + " "
@@ -469,6 +477,9 @@ class OpenAISConf_Parser:
 							return '[]'
 				else:
 					return '[]'
+		elif path_arr[0] == 'nodelist':
+			if len(path_arr) == 1:
+				return '["node"]'
 		else:
 			return 'nil\n'
 	
@@ -517,8 +528,6 @@ class OpenAISConf_Parser:
 								return '"%d"' % i.get("mcastport", 5405)
 							if path[3] == "ttl":
 								return '"%d"' % i.get("ttl", 1)
-							elif path[3] == "member":
-								return generateMemberString(0)
 							else:
 								return "nil"
 					elif path[2] == "interface1":
@@ -532,8 +541,6 @@ class OpenAISConf_Parser:
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "member":
-								return generateMemberString(1)
 							else:
 								return "nil"
 					else:
@@ -542,8 +549,18 @@ class OpenAISConf_Parser:
 					return "nil"
 			else:
 				return "nil"
+		elif path[0] == "nodelist":
+			if len(path[0]) == 1:
+				return "nil"
+			elif len(path) == 2:
+				if path[1] == 'node':
+					return generateMemberString()
+				else:
+					return "nil"
+			else:
+				return "nil"
 		else:
-			return "nil"
+			return "nil"     # end of path[0]
 
 
 	def saveFile(self):
@@ -573,6 +590,7 @@ class OpenAISConf_Parser:
 	def doWrite(self, path, args):
 		if path[0] == "":
 			self.saveFile()
+			return "true"
 		elif path[0] == "quorum":
 			if path[1] == "expected_votes":
 				quorum_options["expected_votes"] = args
@@ -655,21 +673,6 @@ class OpenAISConf_Parser:
 								return "true"
 							except ValueError:
 								return "false"
-						elif path[3] == "member":
-							member_addr_set = []
-							ring_address = "ring%d_addr" % ring_num
-							for member_address in args.strip().split(" "):
-								colon_pos = member_address.find(":")
-								if (colon_pos > -1):
-									member_addr_set.append({ring_address:member_address[:colon_pos],"nodeid":member_address[colon_pos+1:]})
-								else:
-									member_addr_set.append({ring_address:member_address})
-							#if ring_num=1,this is interface1. This means I already has interface0, so keep the previous nodelist options
-							if (ring_num):
-								nodelist_options["node"] += member_addr_set
-							else:
-								nodelist_options["node"] = member_addr_set
-							return "true"
 						else:
 							return "false"
 					else:
@@ -678,6 +681,37 @@ class OpenAISConf_Parser:
 					return "false"
 			else:
 				return "false"
+		elif path[0] == "nodelist":
+			if len(path[0]) == 1:
+				return "nil"
+			elif len(path) == 2:
+				if path[1] == 'node':
+					member_addr_set = []
+					# emtry string 's split will cause a [''] not []
+					if args == "":
+						nodelist_options["node"] = member_addr_set
+						return "nil"
+					for member_address in args.strip().split(" "):
+						colon_pos = member_address.find(":")
+						if (colon_pos > -1):
+							tmpid = member_address[colon_pos+1:]
+							semicolon_pos = member_address[:colon_pos].find(";")
+							if (semicolon_pos > -1):
+								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:colon_pos],"nodeid":member_address[colon_pos+1:]})
+							else:
+								member_addr_set.append({"ring0_addr":member_address[:colon_pos],"nodeid":member_address[colon_pos+1:]})
+						else:
+							semicolon_pos = member_address[:colon_pos].find(";")
+							if (semicolon_pos > -1):
+								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:]})
+							else:
+								member_addr_set.append({"ring0_addr":member_address})
+					nodelist_options["node"] = member_addr_set
+					return "true"
+				else:
+					return "nil"
+			else:
+				return "nil"
 		else:
 			return "false"
 		return "false"
@@ -698,6 +732,7 @@ class SCR_Agent:
 		
 		#y2debug ("newline: %s" % scr_command);
 		
+		# eg. Read(.totem.interface.interface0.binnetaddr,"args")  Write(.)
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
 		r = p.match(scr_command)
 		if (r):
