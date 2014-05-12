@@ -94,7 +94,7 @@ module Yast
       deep_copy(ret)
     end
 
-    def addr_input_dialog(value,autoid,dual)
+    def addr_input_dialog(value, autoid, dual)
       ret = nil
 
       value.default=""
@@ -135,14 +135,14 @@ module Yast
 
       ret = UI.UserInput
       if ret == :ok
-        if ( UI.QueryWidget(:mynodeid, :Value) != "" ) and ( UI.QueryWidget(:addr2, :Value) != "" )
-          ret = {:addr1=>UI.QueryWidget(:addr1, :Value), :addr2=>UI.QueryWidget(:addr2, :Value), :nodeid=>UI.QueryWidget(:mynodeid, :Value)}
-        elsif ( UI.QueryWidget(:mynodeid, :Value) == "" ) and ( UI.QueryWidget(:addr2, :Value) != "" )
-          ret = {:addr1=>UI.QueryWidget(:addr1, :Value), :addr2=>UI.QueryWidget(:addr2, :Value)}
-        elsif ( UI.QueryWidget(:mynodeid, :Value) != "" ) and ( UI.QueryWidget(:addr2, :Value) == "" )
-          ret = {:addr1=>UI.QueryWidget(:addr1, :Value), :nodeid=>UI.QueryWidget(:mynodeid, :Value)}
+        if ( UI.QueryWidget(:mynodeid, :Value) != "" ) && ( UI.QueryWidget(:addr2, :Value) != "" )
+          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :addr2 => UI.QueryWidget(:addr2, :Value), :nodeid => UI.QueryWidget(:mynodeid, :Value)}
+        elsif ( UI.QueryWidget(:mynodeid, :Value) == "" ) && ( UI.QueryWidget(:addr2, :Value) != "" )
+          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :addr2 => UI.QueryWidget(:addr2, :Value)}
+        elsif ( UI.QueryWidget(:mynodeid, :Value) != "" ) && ( UI.QueryWidget(:addr2, :Value) == "" )
+          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :nodeid => UI.QueryWidget(:mynodeid, :Value)}
         else
-          ret = {:addr1=>UI.QueryWidget(:addr1, :Value)}
+          ret = {:addr1 => UI.QueryWidget(:addr1, :Value)}
         end
       end
       UI.CloseDialog
@@ -440,7 +440,7 @@ module Yast
 
       ip_table = VBox(
         Left(Label(_("Member Address:"))),
-        Table(Id(:memberaddr), Header("IP","Redundant IP","nodeid"),[]),
+        Table(Id(:memberaddr), Header("IP", "Redundant IP", "nodeid"), []),
         Right(HBox(
           PushButton(Id(:memberaddr_add), "Add"),
           PushButton(Id(:memberaddr_del), "Del"),
@@ -449,7 +449,7 @@ module Yast
 
       contents = VBox(
         transport,
-        HBox(HWeight(1,VBox(iface)),HWeight(1,VBox(riface))),
+        HBox(HWeight(1, VBox(iface)), HWeight(1, VBox(riface))),
         ip_table,
         HBox(nid),
       )

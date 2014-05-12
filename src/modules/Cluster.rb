@@ -584,7 +584,7 @@ module Yast
           )
         )
       end
-      # is that necessary? since enable pacemaker will triger corosync/csync2?
+      # is that necessary? since enable pacemaker will trigger corosync/csync2?
       # FIXME if not necessary
       if @global_startopenais == true
         SCR.Execute(path(".target.bash_output"), "systemctl enable corosync.service")
