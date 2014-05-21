@@ -901,13 +901,16 @@ module Yast
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
-          Report.Error(Service.Error) if !Service.Start("pacemaker")
+          # BNC#872651 , add more info about error message
+          errormsg = "See 'journalctl -xn' for details"
+          Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
           next
         end
 
         if ret == "stop_now"
+          errormsg = "See 'journalctl -xn' for details"
           # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
-          Report.Error(Service.Error) if !Service.Stop("pacemaker")
+          Report.Error(Service.Error + errormsg) if !Service.Stop("pacemaker")
           next
         end
 
