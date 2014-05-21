@@ -879,6 +879,7 @@ module Yast
       my_SetContents("service", contents)
 
       event = {}
+      errormsg = "See 'journalctl -xn' for details."
       CWMFirewallInterfaces.OpenFirewallInit(firewall_widget, "")
       while true
         UpdateServiceStatus()
@@ -902,13 +903,11 @@ module Yast
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
           # BNC#872651 , add more info about error message
-          errormsg = "See 'journalctl -xn' for details"
           Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
           next
         end
 
         if ret == "stop_now"
-          errormsg = "See 'journalctl -xn' for details"
           # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
           Report.Error(Service.Error + errormsg) if !Service.Stop("pacemaker")
           next
