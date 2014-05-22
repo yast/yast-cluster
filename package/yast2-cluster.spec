@@ -18,15 +18,16 @@
 
 Name:           yast2-cluster
 %define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
-Version:        3.1.3
+Version:        3.1.4
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.fwd
 
-Requires:       yast2
 BuildRequires:  perl-XML-Writer
+BuildRequires:  ruby
+BuildRequires:  rubygem-racc
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools >= 3.1.10
@@ -34,6 +35,7 @@ BuildRequires:  yast2-testsuite
 
 BuildArch:      noarch
 
+Requires:       yast2
 Requires:       yast2-ruby-bindings >= 1.0.0
 
 Summary:        Configuration of cluster
