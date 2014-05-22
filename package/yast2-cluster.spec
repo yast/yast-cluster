@@ -1,7 +1,7 @@
 #
 # spec file for package yast2-cluster
 #
-# Copyright (c) 2013 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2014 SUSE LINUX Products GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -18,24 +18,29 @@
 
 Name:           yast2-cluster
 %define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
-Version:        3.1.2
+Version:        3.1.4
 Release:        0
-License:	GPL-2.0
-Group:		System/YaST
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.fwd
 
-Requires:	yast2
-BuildRequires:	perl-XML-Writer update-desktop-files yast2 yast2-testsuite
+BuildRequires:  perl-XML-Writer
+BuildRequires:  ruby
+BuildRequires:  rubygem-racc
+BuildRequires:  update-desktop-files
+BuildRequires:  yast2
 BuildRequires:  yast2-devtools >= 3.1.10
+BuildRequires:  yast2-testsuite
 
-BuildArchitectures:	noarch
+BuildArch:      noarch
 
+Requires:       yast2
 Requires:       yast2-ruby-bindings >= 1.0.0
 
-Summary:	Configuration of cluster
+Summary:        Configuration of cluster
+License:        GPL-2.0
+Group:          System/YaST
 
 %description
 -
@@ -52,8 +57,6 @@ Summary:	Configuration of cluster
 mkdir -p $RPM_BUILD_ROOT/%{_fwdefdir}
 install -m 644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster
 
-
-
 %files
 %defattr(-,root,root)
 %dir %{yast_yncludedir}/cluster
@@ -66,3 +69,5 @@ install -m 644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
 %config %{_fwdefdir}/cluster
+
+%changelog
