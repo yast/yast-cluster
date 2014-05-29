@@ -1,4 +1,4 @@
-# encoding: utf-8
+#encoding: utf-8
 
 # ------------------------------------------------------------------------------
 # Copyright (c) 2006 Novell, Inc. All Rights Reserved.
@@ -159,6 +159,12 @@ module Yast
         return false
       end
 
+      if UI.QueryWidget(Id(:cluster_name), :Value) == ""
+        Popup.Message("The cluster name has to be fulfilled")
+        UI.SetFocus(:cluster_name)
+        return false
+      end
+
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         i = 0
         Builtins.foreach(Cluster.memberaddr) do |value|
@@ -175,6 +181,13 @@ module Yast
           return false
         end
       else
+        #BNC#880242, expected_votes must have value when "udp"
+        if UI.QueryWidget(Id(:expected_votes), :Value) == ""
+          Popup.Message("The expected votes has to be fulfilled when udp")
+          UI.SetFocus(:expected_votes)
+          return false
+        end
+
         if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
           Popup.Message("The Multicast Address has to be fulfilled")
           UI.SetFocus(:mcastaddr1)
@@ -226,8 +239,6 @@ module Yast
           return false
         end
       end
-
-      votes = UI.QueryWidget(Id(:expected_votes), :Value)
 
       true
     end
