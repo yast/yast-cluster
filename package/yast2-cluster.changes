@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu May 29 08:57:49 UTC 2014 - nwang@suse.com
+
+- BNC#880483. Click edit button when member list is empty
+  will crash the application.
+
+-------------------------------------------------------------------
 Thu May 29 05:31:12 UTC 2014 - nwang@suse.com
 
 - BNC#880242. expected votes must have value when Transport 

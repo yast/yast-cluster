@@ -571,10 +571,10 @@ module Yast
           current = 0
           str = ""
 
-          current = Convert.to_integer(
-            UI.QueryWidget(:memberaddr, :CurrentItem)
-          )
-          ret = addr_input_dialog(Cluster.memberaddr[current] || "" ,UI.QueryWidget(Id(:autoid), :Value, ), UI.QueryWidget(Id(:enable2), :Value))
+          # The value will be nil if the list is empty, however nil.to_i is 0
+          current = UI.QueryWidget(:memberaddr, :CurrentItem).to_i
+
+          ret = addr_input_dialog(Cluster.memberaddr[current] || {} ,UI.QueryWidget(Id(:autoid), :Value ), UI.QueryWidget(Id(:enable2), :Value))
           next if ret == :cancel
           Cluster.memberaddr[current]= ret
         end
@@ -584,6 +584,7 @@ module Yast
           current = Convert.to_integer(
             UI.QueryWidget(:memberaddr, :CurrentItem)
           )
+          # Notice, current could be "nil" if the list is empty.
           Cluster.memberaddr = Builtins.remove(Cluster.memberaddr, current)
         end
 
