@@ -69,6 +69,7 @@ module Yast
       @threads = ""
       @cluster_name = ""
       @expected_votes = ""
+      @config_format = ""
 
       @bindnetaddr1 = ""
       @mcastaddr1 = ""
@@ -165,6 +166,7 @@ module Yast
 
       @expected_votes = SCR.Read(path(".openais.quorum.expected_votes")).to_s
 
+      @config_format = SCR.Read(path(".openais.totem.interface.member.memberaddr")).to_s
 
       @transport = SCR.Read(path(".openais.totem.transport"))
       @transport = "udp" if @transport == nil
@@ -735,6 +737,7 @@ module Yast
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :expected_votes, :type => "string"
+    publish :variable => :config_format, :type => "string"
     publish :variable => :mcastport1, :type => "string"
     publish :variable => :enable2, :type => "boolean"
     publish :variable => :bindnetaddr2, :type => "string"

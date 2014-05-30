@@ -18,7 +18,7 @@
 
 Name:           yast2-cluster
 %define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
-Version:        3.1.7
+Version:        3.1.8
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build

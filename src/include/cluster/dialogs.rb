@@ -531,6 +531,12 @@ module Yast
         UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
       end
 
+      # BNC#879596, check the corosync.conf format
+      if Cluster.config_format == "old"
+        Popup.Message(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings.")
+        Cluster.config_format = "showed"
+      end
+
       transport_switch
 
       nil
