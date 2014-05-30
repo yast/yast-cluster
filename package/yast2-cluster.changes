@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri May 30 13:39:43 UTC 2014 - nwang@suse.com
+
+- BNC#879596. Detect corosync.conf format. Notice user when using
+  old format configuration.
+- Version 3.1.8
+
+-------------------------------------------------------------------
 Fri May 30 06:12:00 UTC 2014 - nwang@suse.com
 
 - BNC#880491. Check nodeid behavior when auto node id is disabled.

@@ -130,6 +130,11 @@ node_option_table = {
 		"nodeid":{"doc":"required in ipv6, optional in ipv4","type":"string"},
 }
 
+#BNC-879596. Obsolete, just use to detect the file format is SLE11SP3 or SLE12
+old_memberlist_table = {
+		"memberaddr":{"doc":"obsolete! Only use to detect old(SLE11SP3) format.", "type":"string", "default_value":"0"},
+}
+
 logging_option_table = {
 	"debug":{"doc":"Whether or not turning on the debug information in the log", "default_value":"off",
 		 "suggested_value":"off"},
@@ -266,7 +271,7 @@ def print_totem_options(f):
 			for inf in totem_options["interface"]:
 				f.write("\tinterface {\n")
 				for k in inf.keys():
-					if inf[k] == "":
+					if inf[k] == "" or k == "oldlist":
 						continue;
 					else:
 						f.write("\t\t#%s\n" % (interface_option_table[k]["doc"]))
@@ -335,6 +340,10 @@ def opt_parser(file, options):
 				members = result.get("node", [])
 				members.append(opt_parser(file, node_option_table))
 				result["node"] = members
+			elif i.lstrip().split(" ")[0] == "member":
+				oldmembers = result.get("oldlist", [])
+				oldmembers.append(opt_parser(file, old_memberlist_table))
+				result["oldlist"] = oldmembers
 			else:
 				#y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
 				while (i[-1] != "}"):
@@ -423,6 +432,13 @@ def del_interface(k):
 			del totem_options["interface"][i]
 			break
 		
+# obsolete setting. BNC-879596, pop up a message if config file is in old format.
+def check_conf_format():
+	for x in range(len(totem_options["interface"])):
+		if totem_options["interface"][x].has_key("oldlist"):
+			return "old"
+	return "new"
+
 def load_ais_conf(filename):
 	try:
 		f = open(filename, "r")
@@ -543,6 +559,8 @@ class OpenAISConf_Parser:
 								return '"%d"' % i.get("mcastport", 5405)
 							else:
 								return "nil"
+					elif path[2] == "member":
+						return '"%s"' % check_conf_format()
 					else:
 						return "nil"
 				else:
