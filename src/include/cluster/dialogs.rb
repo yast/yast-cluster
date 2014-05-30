@@ -25,6 +25,8 @@
 # Authors:	Cong Meng <cmeng@novell.com>
 #
 # $Id: wizards.ycp 27914 2006-02-13 14:32:08Z locilka $
+require 'set'
+
 module Yast
   module ClusterDialogsInclude
     def initialize_cluster_dialogs(include_target)
@@ -123,8 +125,6 @@ module Yast
         )
       )
 
-
-
       if (autoid)
         UI.ChangeWidget(:mynodeid, :Enabled, false)
       end
@@ -149,6 +149,40 @@ module Yast
       deep_copy(ret)
     end
 
+    def ValidNodeID
+      if Cluster.memberaddr.size <= 0
+         return true
+      end
+
+      i = 0
+      # Set need to require 'set'
+      idset = Set[]
+
+      Builtins.foreach(Cluster.memberaddr) do |value|
+        if  value[:nodeid].to_i <= 0
+          Popup.Message("Node ID has to be fulfilled with a positive integer")
+          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+          i = 0
+          raise Break
+        end
+
+        if idset.include?(value[:nodeid].to_i)
+          Popup.Message("Node ID must be unique")
+          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+          i = 0
+          raise Break
+        end
+
+        idset << value[:nodeid].to_i
+        i = Ops.add(i, 1)
+      end
+
+      if i == 0
+        return false
+      end
+
+      true
+    end
  
     # BNC#871970, change member address struct
     def ValidateCommunication
@@ -237,6 +271,14 @@ module Yast
           UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
           UI.SetFocus(Id(:rrpmode))
           return false
+        end
+      end
+
+      if !UI.QueryWidget(Id(:autoid), :Value ) && ( UI.QueryWidget(Id(:transport), :Value) == "udpu" )
+        ret = ValidNodeID()
+        if !ret
+           UI.SetFocus(Id(:memberaddr))
+           return false
         end
       end
 
@@ -571,10 +613,10 @@ module Yast
           current = 0
           str = ""
 
-          current = Convert.to_integer(
-            UI.QueryWidget(:memberaddr, :CurrentItem)
-          )
-          ret = addr_input_dialog(Cluster.memberaddr[current] || "" ,UI.QueryWidget(Id(:autoid), :Value, ), UI.QueryWidget(Id(:enable2), :Value))
+          # The value will be nil if the list is empty, however nil.to_i is 0
+          current = UI.QueryWidget(:memberaddr, :CurrentItem).to_i
+
+          ret = addr_input_dialog(Cluster.memberaddr[current] || {} ,UI.QueryWidget(Id(:autoid), :Value ), UI.QueryWidget(Id(:enable2), :Value))
           next if ret == :cancel
           Cluster.memberaddr[current]= ret
         end
@@ -584,6 +626,7 @@ module Yast
           current = Convert.to_integer(
             UI.QueryWidget(:memberaddr, :CurrentItem)
           )
+          # Notice, current could be "nil" if the list is empty.
           Cluster.memberaddr = Builtins.remove(Cluster.memberaddr, current)
         end
 
