@@ -69,6 +69,7 @@ module Yast
       @threads = ""
       @cluster_name = ""
       @expected_votes = ""
+      @two_node = ""
       @config_format = ""
 
       @bindnetaddr1 = ""
@@ -294,6 +295,14 @@ module Yast
         )
         SCR.Write(path(".openais.nodelist.node"), "")
       end
+
+      # BNC#883235. Enable "two_node" when using two node cluster
+      if (@expected_votes == "2") or (@transport == "udpu" && @memberaddr.size == 2)
+        # Set "1" to enable two_node mode when two nodes, otherwise is "0".
+        @two_node = "1"
+      end
+      SCR.Write(path(".openais.quorum.two_node"), @two_node)
+
       SCR.Write(
         path(".openais.totem.interface.interface0.bindnetaddr"),
         @bindnetaddr1
@@ -614,6 +623,7 @@ module Yast
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
       @expected_votes = settings["expected_votes"] || ""
+      @two_node = settings["two_node"] || ""
       @mcastport2 = Ops.get_string(settings, "mcastport1", "")
       @enable2 = Ops.get_boolean(settings, "enable2", false)
       @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
@@ -646,6 +656,7 @@ module Yast
       Ops.set(result, "mcastaddr1", @mcastaddr1)
       result["cluster_name"] = @cluster_name
       result["expected_votes"] = @expected_votes
+      result["two_node"] = @two_node
       Ops.set(result, "mcastport1", @mcastport1)
       Ops.set(result, "enable2", @enable2)
       Ops.set(result, "bindnetaddr2", @bindnetaddr2)
@@ -737,6 +748,7 @@ module Yast
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :expected_votes, :type => "string"
+    publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"
     publish :variable => :mcastport1, :type => "string"
     publish :variable => :enable2, :type => "boolean"

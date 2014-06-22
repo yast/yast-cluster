@@ -505,6 +505,8 @@ class OpenAISConf_Parser:
 		elif path[0] == "quorum" and len(path) >= 2:
 			if path[1] == "expected_votes":
 				return '"%s"' % quorum_options.get("expected_votes", "")
+			if path[1] == "two_node":
+				return '"%s"' % quorum_options.get("two_node", "")
 			else:
 				return ""
 		elif path[0] == "totem":
@@ -613,6 +615,11 @@ class OpenAISConf_Parser:
 			if path[1] == "expected_votes":
 				quorum_options["expected_votes"] = args
 				return "true"
+			elif path[1] == "two_node":
+				quorum_options["two_node"] = args
+				return "true"
+			else:
+				return "false"
 		elif path[0] == "totem":
 			if len(path) == 2:
 				if path[1] == "autoid":

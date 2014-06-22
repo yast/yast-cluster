@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Sun Jun 22 07:08:43 UTC 2014 - nwang@suse.com
+
+- BNC#883235. Auot enable "two_node" when using two node cluster.
+- Version 3.1.9
+
+-------------------------------------------------------------------
 Fri May 30 13:39:43 UTC 2014 - nwang@suse.com
 
 - BNC#879596. Detect corosync.conf format. Notice user when using
