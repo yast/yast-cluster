@@ -217,7 +217,7 @@ module Yast
       else
         #BNC#880242, expected_votes must have value when "udp"
         if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message("The expected votes has to be fulfilled when udp")
+          Popup.Message("The Expected Votes has to be fulfilled when udp is configured")
           UI.SetFocus(:expected_votes)
           return false
         end
@@ -478,7 +478,7 @@ module Yast
       nid = VBox(
         HBox(
           Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"))),
-          Left(InputField(Id(:expected_votes),Opt(:hstretch), _("expected votes:"),"")),
+          Left(InputField(Id(:expected_votes),Opt(:hstretch), _("Expected Votes:"),"")),
           ComboBox(
             Id(:rrpmode),
             Opt(:hstretch),
@@ -735,7 +735,7 @@ module Yast
             VSpacing(1),
             Label(
               _(
-                "For newly created cluster, push the button below to generate /etc/corosync/authkey."
+                "For a newly created cluster, push the button below to generate /etc/corosync/authkey."
               )
             ),
             Label(
