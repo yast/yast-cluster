@@ -735,7 +735,7 @@ module Yast
             VSpacing(1),
             Label(
               _(
-                "For newly created cluster, push the button below to generate /etc/corosync/authkey."
+                "For a newly created cluster, push the button below to generate /etc/corosync/authkey."
               )
             ),
             Label(
