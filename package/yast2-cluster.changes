@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Tue Jul  1 06:53:46 UTC 2014 - nwang@suse.com
+
+- BNC#883228 and BNC#885113. Fix various issues with YaST
+  Cluster help and the finish progress message.
+- Version 3.1.10
+
+-------------------------------------------------------------------
 Sun Jun 22 07:08:43 UTC 2014 - nwang@suse.com
 
 - BNC#883235. Auot enable "two_node" when using two node cluster.

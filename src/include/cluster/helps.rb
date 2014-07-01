@@ -38,7 +38,9 @@ module Yast
             "<p><b><big>Port</big></b><br>This  specifies  the UDP port number.  It is possible to use the same multicast address on a network with  the  openais  services configured for different UDP ports.<br></p>\n" +
             "<p><b><big>Member Address</big></b><br>This list specifies all the nodes in the cluster by IP address. This could be configurable when using udpu <br></p>\n" +
             "<p><b><big>Node ID</big></b><br>This  configuration  option  is  optional  when  using  IPv4 and required when using IPv6.  This is a 32 bit value specifying the node identifier delivered to the cluster membership service.  If this is not specified with IPv4, the node id will be  determined from  the  32  bit  IP address the system to which the system is bound with ring identifier of 0.  The node identifier  value  of zero is reserved and should not be used.<br></p>\n" +
-            "<p><b><big>rrp_mode</big></b><br>This specifies the mode of redundant ring, which  may  be  none, active,  or  passive.   Active replication offers slightly lower latency from transmit to delivery in faulty network environments but  with less performance.  Passive replication may nearly double the speed of the totem  protocol  if  the  protocol  doesn't become  cpu bound.  The final option is none, in which case only one network interface will be used to operate the  totem  protocol.  If  only one interface directive is specified, none is automatically chosen.  If multiple interface directives  are  specified, only active or passive may be chosen.<br></p>\n"
+            "<p><b><big>rrp_mode</big></b><br>This specifies the mode of redundant ring, which  may  be  none, active,  or  passive.   Active replication offers slightly lower latency from transmit to delivery in faulty network environments but  with less performance.  Passive replication may nearly double the speed of the totem  protocol  if  the  protocol  doesn't become  cpu bound.  The final option is none, in which case only one network interface will be used to operate the  totem  protocol.  If  only one interface directive is specified, none is automatically chosen.  If multiple interface directives  are  specified, only active or passive may be chosen.<br></p>\n" +
+            "<p><b><big>Expected votes</big></b><br>Expect vote number for voting quorum.  Will be automatically calculated when the nodelist {} section is present in corosync.conf or can be specified in the quorum {} section.<br></p>\n" +
+            "<p><b><big>Auto Generate Node ID</big></b><br>Nodeid is required when using IPv6. Auto node ID enabled will generate nodeid automatically.<br></p>\n"
         ),
         "security"      => _(
           "\n" +
@@ -47,7 +49,8 @@ module Yast
         ),
         "service"       => _(
           "\n" +
-            "\t\t\t<p><b><big>Booting</big></b><br>Starting openais service during boot or not</p>\n" +
+            "\t\t\t<p><b><big>Booting</big></b><br>Starting corosync service during boot or not</p>\n" +
+            "\t\t\t<p><b><big>Firewall Settings</big></b><br>Enable the port when Firewall is enabled</p>\n" +
             "\t\t\t"
         ),
         "csync2"        => _(
