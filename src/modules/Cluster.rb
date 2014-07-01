@@ -490,6 +490,7 @@ module Yast
       Builtins.sleep(sl)
 
       return false if Abort()
+      Progress.Finish
       @modified = false
       true
     end
@@ -504,7 +505,6 @@ module Yast
       steps = 2
 
       sl = 500
-      Builtins.sleep(sl)
 
       # TODO FIXME Names of real stages
       # We do not set help text here, because it was set outside
@@ -605,6 +605,7 @@ module Yast
       end
 
       return false if Abort()
+      Progress.Finish
       true
     end
 
