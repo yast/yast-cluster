@@ -112,7 +112,7 @@ module Yast
             HSpacing(1),
             MinWidth(40, InputField(Id(:addr2), _("Redundant IP Address"), value[:addr2])),
             HSpacing(1),
-            MinWidth(20, InputField(Id(:mynodeid), _("nodeid") , value[:nodeid]))
+            MinWidth(20, InputField(Id(:mynodeid), _("Node ID") , value[:nodeid]))
             ),
             VSpacing(1),
             Right(
@@ -160,14 +160,14 @@ module Yast
 
       Builtins.foreach(Cluster.memberaddr) do |value|
         if  value[:nodeid].to_i <= 0
-          Popup.Message("Node ID has to be fulfilled with a positive integer")
+          Popup.Message(_("Node ID has to be fulfilled with a positive integer"))
           UI.ChangeWidget(:memberaddr, :CurrentItem, i)
           i = 0
           raise Break
         end
 
         if idset.include?(value[:nodeid].to_i)
-          Popup.Message("Node ID must be unique")
+          Popup.Message(_("Node ID must be unique"))
           UI.ChangeWidget(:memberaddr, :CurrentItem, i)
           i = 0
           raise Break
@@ -188,13 +188,13 @@ module Yast
     def ValidateCommunication
       i = 0
       if IP.Check(Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))) == false
-        Popup.Message("The Bind Network Address has to be fulfilled")
+        Popup.Message(_("The Bind Network Address has to be fulfilled"))
         UI.SetFocus(:bindnetaddr1)
         return false
       end
 
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
-        Popup.Message("The cluster name has to be fulfilled")
+        Popup.Message(_("The cluster name has to be fulfilled"))
         UI.SetFocus(:cluster_name)
         return false
       end
@@ -211,19 +211,19 @@ module Yast
         end
         if i == 0
           UI.SetFocus(:memberaddr)
-          Popup.Message("The Member Address has to be fulfilled")
+          Popup.Message(_("The Member Address has to be fulfilled"))
           return false
         end
       else
         #BNC#880242, expected_votes must have value when "udp"
         if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message("The Expected Votes has to be fulfilled when udp is configured")
+          Popup.Message(_("The Expected Votes has to be fulfilled when udp is configured"))
           UI.SetFocus(:expected_votes)
           return false
         end
 
         if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
-          Popup.Message("The Multicast Address has to be fulfilled")
+          Popup.Message(_("The Multicast Address has to be fulfilled"))
           UI.SetFocus(:mcastaddr1)
           return false
         end
@@ -233,7 +233,7 @@ module Yast
           Convert.to_string(UI.QueryWidget(Id(:mcastport1), :Value)),
           "^[0-9]+$"
         )
-        Popup.Message("The Multicast port must be a positive integer")
+        Popup.Message(_("The Multicast port must be a positive integer"))
         UI.SetFocus(Id(:mcastport1))
         return false
       end
@@ -242,7 +242,7 @@ module Yast
         if IP.Check(
             Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
           ) == false
-          Popup.Message("The Bind Network Address has to be fulfilled")
+          Popup.Message(_("The Bind Network Address has to be fulfilled"))
           UI.SetFocus(:bindnetaddr2)
           return false
         end
@@ -251,7 +251,7 @@ module Yast
           if IP.Check(
               Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
             ) == false
-            Popup.Message("The Multicast Address has to be fulfilled")
+            Popup.Message(_("The Multicast Address has to be fulfilled"))
             UI.SetFocus(:mcastaddr2)
             return false
           end
@@ -261,13 +261,13 @@ module Yast
             Convert.to_string(UI.QueryWidget(Id(:mcastport2), :Value)),
             "^[0-9]+$"
           )
-          Popup.Message("The Multicast port must be a positive integer")
+          Popup.Message(_("The Multicast port must be a positive integer"))
           UI.SetFocus(Id(:mcastport2))
           return false
         end
 
         if UI.QueryWidget(Id(:rrpmode), :Value) == "none"
-          Popup.Message("Only passive or active can be chosen if multiple interface used. Set to passive.")
+          Popup.Message(_("Only passive or active can be chosen if multiple interface used. Set to passive."))
           UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
           UI.SetFocus(Id(:rrpmode))
           return false
@@ -493,7 +493,7 @@ module Yast
 
       ip_table = VBox(
         Left(Label(_("Member Address:"))),
-        Table(Id(:memberaddr), Header("IP", "Redundant IP", "nodeid"), []),
+        Table(Id(:memberaddr), Header(_("IP"), _("Redundant IP"), _("Node ID")), []),
         Right(HBox(
           PushButton(Id(:memberaddr_add), "Add"),
           PushButton(Id(:memberaddr_del), "Del"),
@@ -533,7 +533,7 @@ module Yast
 
       # BNC#879596, check the corosync.conf format
       if Cluster.config_format == "old"
-        Popup.Message(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings.")
+        Popup.Message(_(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings."))
         Cluster.config_format = "showed"
       end
 
@@ -684,13 +684,13 @@ module Yast
         thr = Convert.to_string(UI.QueryWidget(Id(:threads), :Value))
         s = Builtins.regexpmatch(thr, "^[0-9]+$")
         if !s
-          Popup.Message("Number of threads must be integer")
+          Popup.Message(_("Number of threads must be integer"))
           UI.SetFocus(Id(:threads))
           ret = false
         end
         i = Builtins.tointeger(thr)
         if i == 0
-          Popup.Message("Number of threads must larger then 0")
+          Popup.Message(_("Number of threads must larger then 0"))
           UI.SetFocus(Id(:threads))
           ret = false
         end
@@ -767,9 +767,9 @@ module Yast
             )
           )
           if Ops.get_integer(result, "exit", -1) != 0
-            Popup.Message("Failed to create /etc/corosync/authkey")
+            Popup.Message(_("Failed to create /etc/corosync/authkey"))
           else
-            Popup.Message("Create /etc/corosync/authkey succeeded")
+            Popup.Message(_("Create /etc/corosync/authkey succeeded"))
           end
           next
         end
@@ -1457,7 +1457,7 @@ module Yast
       if IP.Check(
           Convert.to_string(UI.QueryWidget(Id(:conntrack_addr), :Value))
         ) == false
-        Popup.Message("The Multicast Address has to be fulfilled")
+        Popup.Message(_("The Multicast Address has to be fulfilled"))
         UI.SetFocus(:conntrack_addr)
         return false
       end
@@ -1465,7 +1465,7 @@ module Yast
           Convert.to_string(UI.QueryWidget(Id(:conntrack_group), :Value)),
           "^[0-9]+$"
         )
-        Popup.Message("The Group Number must be a positive integer")
+        Popup.Message(_("The Group Number must be a positive integer"))
         UI.SetFocus(Id(:conntrack_group))
         return false
       end

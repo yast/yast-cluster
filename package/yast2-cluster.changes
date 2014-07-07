@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Jul  7 07:47:28 UTC 2014 - nwang@suse.com
+
+- BNC#885319. Change text nodeid to Node ID. Change string
+  to translation.
+- Version 3.1.11
+
+-------------------------------------------------------------------
 Tue Jul  1 06:53:46 UTC 2014 - nwang@suse.com
 
 - BNC#883228 and BNC#885113. Fix various issues with YaST
