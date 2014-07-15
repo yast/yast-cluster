@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Jul 15 10:17:03 UTC 2014 - nwang@suse.com
+
+- BNC#885018. Change "two_node" to "0" when using default value.
+- Version 3.1.12
+
+-------------------------------------------------------------------
 Mon Jul  7 07:47:28 UTC 2014 - nwang@suse.com
 
 - BNC#885319. Change text nodeid to Node ID. Change string

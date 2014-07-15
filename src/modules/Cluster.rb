@@ -69,7 +69,7 @@ module Yast
       @threads = ""
       @cluster_name = ""
       @expected_votes = ""
-      @two_node = ""
+      @two_node = "0"
       @config_format = ""
 
       @bindnetaddr1 = ""

@@ -158,7 +158,7 @@ logger_subsys_option_table = {
 quorum_option_table = {
 		"provider":{"doc":"Enable and configure quorum subsystem","type":"string", "default_value":"corosync_votequorum","suggested_value":"corosync_votequorum"},
 		"expected_votes":{"doc":"votequorum requires an expected_votes value to function","default_value":""},
-		"two_node":{"doc":"Enables two node cluster operations"},
+		"two_node":{"doc":"Enables two node cluster operations", "type":"int", "default_value":0},
 		"wait_for_all":{"doc":"Enables Wait For All (WFA) feature", "type":"int", "default_value":0},
 		"last_man_standing":{"doc":"Enables Last Man Standing (LMS) feature (default: 0)", "type":"int","default_value":0},
 		"last_man_standing_window":{"type":"int","default_value":10000},
