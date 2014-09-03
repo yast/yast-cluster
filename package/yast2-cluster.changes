@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Sep  3 02:45:51 UTC 2014 - nwang@suse.com
+
+- BNC#787196. Change wrong unit names like mb to Mb, ghz to GHz.
+- Version 3.1.13 
+
+-------------------------------------------------------------------
 Tue Jul 15 10:17:03 UTC 2014 - nwang@suse.com
 
 - BNC#885018. Change "two_node" to "0" when using default value.
