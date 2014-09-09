@@ -892,14 +892,14 @@ module Yast
                   RadioButton(
                     Id("on"),
                     Opt(:notify),
-                    _("On -- Start pacemaker at booting")
+                    _("On -- Start pacemaker during boot")
                   )
                 ),
                 Left(
                   RadioButton(
                     Id("off"),
                     Opt(:notify),
-                    _("Off -- Start pacemaker manually only")
+                    _("Off -- Start pacemaker manually")
                   )
                 )
               )

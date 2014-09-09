@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Sep  9 02:39:15 UTC 2014 - nwang@suse.com
+
+- BNC#807780. Change word of UI from at booting to during boot.
+- Version 3.1.14
+
+-------------------------------------------------------------------
 Wed Sep  3 02:45:51 UTC 2014 - nwang@suse.com
 
 - BNC#787196. Change wrong unit names like mb to Mb, ghz to GHz.
