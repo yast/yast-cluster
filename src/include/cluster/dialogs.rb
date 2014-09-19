@@ -437,7 +437,10 @@ module Yast
         Id(:transport),
         Opt(:hstretch, :notify),
         _("Transport:"),
-        ["udp", "udpu"]
+        [
+        Item(Id("udp"),"Multicast"),
+        Item(Id("udpu"),"Unicast")
+        ]
       )
 
       iface = Frame(

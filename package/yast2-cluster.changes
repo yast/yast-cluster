@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Sep 19 07:28:14 UTC 2014 - nwang@suse.com
+
+- BNC#716109. Change UI udp to multicast, udpu to unicast.
+- Version 3.1.15
+
+-------------------------------------------------------------------
 Tue Sep  9 02:39:15 UTC 2014 - nwang@suse.com
 
 - BNC#807780. Change word of UI from at booting to during boot.
