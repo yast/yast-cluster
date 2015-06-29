@@ -64,8 +64,6 @@ totem_option_table = {
 	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
 		    "type":"select[none,active,passive]", "default_value":"none"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
-	"threads":{"doc":"How many threads should be used to encypt and sending message. Only have meanings when secauth is turned on",
-		   "type":"int", "default_value":0},
 	"vsftype":{"doc":"The virtual synchrony filter type used to indentify a primary component. Change with care.",
 		   "default_value":"ykd",
 		   "suggested_value":"none"},
@@ -470,7 +468,7 @@ class OpenAISConf_Parser:
 			return '["quorum", "totem", "nodelist"]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
-				return '["crypto_cipher","crypto_hash","secauth", "autoid", "threads", "rrpmode", "transport", "interface", "cluster_name"]'
+				return '["crypto_cipher","crypto_hash","secauth", "autoid", "rrpmode", "transport", "interface", "cluster_name"]'
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
@@ -521,8 +519,6 @@ class OpenAISConf_Parser:
 						if i.has_key('nodeid'):
 							return '"no"'
 					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
-				elif path[1] == "threads":
-					return '"%d"' % totem_options.get("threads", 0)
 				elif path[1] == "rrpmode":
 					return '"%s"' % totem_options.get("rrp_mode", "none")
 				elif path[1] == "transport":
@@ -628,16 +624,6 @@ class OpenAISConf_Parser:
 				elif path[1] == "secauth":
 					totem_options["secauth"] = args
 					return "true"
-				elif path[1] == "threads":
-					if args == "":
-						if totem_options.get("threads", None) != None:
-							del totem_options["threads"]
-						return "true"
-					try:
-						totem_options["threads"] = int(args)
-						return "true"
-					except ValueError:
-						return "false"
 				elif path[1] == "rrpmode":
 					totem_options["rrp_mode"] = args
 					return "true"
