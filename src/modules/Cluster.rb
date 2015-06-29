@@ -66,7 +66,6 @@ module Yast
 
       # Settings: Define all variables needed for configuration of cluster
       @secauth = false
-      @threads = ""
       @cluster_name = ""
       @expected_votes = ""
       @two_node = "0"
@@ -160,8 +159,6 @@ module Yast
       else
         @secauth = false
       end
-
-      @threads = Convert.to_string(SCR.Read(path(".openais.totem.threads")))
 
       @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
 
@@ -270,10 +267,8 @@ module Yast
 
       if @secauth == true
         SCR.Write(path(".openais.totem.secauth"), "on")
-        SCR.Write(path(".openais.totem.threads"), @threads)
       else
         SCR.Write(path(".openais.totem.secauth"), "off")
-        SCR.Write(path(".openais.totem.threads"), "")
       end
 
       SCR.Write(path(".openais.totem.transport"), @transport)
@@ -617,7 +612,6 @@ module Yast
     def Import(settings)
       settings = deep_copy(settings)
       @secauth = Ops.get_boolean(settings, "secauth", false)
-      @threads = Ops.get_string(settings, "threads", "")
       @transport = Ops.get_string(settings, "transport", "udp")
       @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
       @memberaddr = Ops.get_list(settings, "memberaddr", [])
@@ -650,7 +644,6 @@ module Yast
     def Export
       result = {}
       Ops.set(result, "secauth", @secauth)
-      Ops.set(result, "threads", @threads)
       Ops.set(result, "transport", @transport)
       Ops.set(result, "bindnetaddr1", @bindnetaddr1)
       Ops.set(result, "memberaddr", @memberaddr)
@@ -744,7 +737,6 @@ module Yast
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
     publish :variable => :secauth, :type => "boolean"
-    publish :variable => :threads, :type => "string"
     publish :variable => :bindnetaddr1, :type => "string"
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"

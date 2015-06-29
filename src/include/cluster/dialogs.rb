@@ -683,34 +683,14 @@ module Yast
 
     def ValidateSecurity
       ret = true
-      if UI.QueryWidget(Id(:secauth), :Value) == true
-        thr = Convert.to_string(UI.QueryWidget(Id(:threads), :Value))
-        s = Builtins.regexpmatch(thr, "^[0-9]+$")
-        if !s
-          Popup.Message(_("Number of threads must be integer"))
-          UI.SetFocus(Id(:threads))
-          ret = false
-        end
-        i = Builtins.tointeger(thr)
-        if i == 0
-          Popup.Message(_("Number of threads must larger then 0"))
-          UI.SetFocus(Id(:threads))
-          ret = false
-        end
-      end
       ret
     end
 
     def SaveSecurityToConf
       if UI.QueryWidget(Id(:secauth), :Value) == true
         SCR.Write(path(".openais.totem.secauth"), "on")
-        SCR.Write(
-          path(".openais.totem.threads"),
-          Convert.to_string(UI.QueryWidget(Id(:threads), :Value))
-        )
       else
         SCR.Write(path(".openais.totem.secauth"), "off")
-        SCR.Write(path(".openais.totem.threads"), "")
       end
 
       nil
@@ -718,7 +698,6 @@ module Yast
 
     def SaveSecurity
       Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
-      Cluster.threads = Convert.to_string(UI.QueryWidget(Id(:threads), :Value))
 
       nil
     end
@@ -734,8 +713,6 @@ module Yast
           _("Enable Security Auth"),
           true,
           VBox(
-            InputField(Id(:threads), Opt(:hstretch), _("Threads:")),
-            VSpacing(1),
             Label(
               _(
                 "For a newly created cluster, push the button below to generate /etc/corosync/authkey."
@@ -755,8 +732,6 @@ module Yast
       my_SetContents("security", contents)
 
       UI.ChangeWidget(Id(:secauth), :Value, Cluster.secauth)
-
-      UI.ChangeWidget(Id(:threads), :Value, Cluster.threads)
 
       while true
         ret = UI.UserInput
@@ -779,20 +754,6 @@ module Yast
 
         if ret == :secauth
           if UI.QueryWidget(Id(:secauth), :Value) == true
-            thr = Convert.to_string(UI.QueryWidget(Id(:threads), :Value))
-            if thr == "" || thr == "0"
-              result = {}
-              t = 0
-              result = Convert.to_map(
-                SCR.Execute(
-                  path(".target.bash_output"),
-                  "grep processor /proc/cpuinfo | wc -l"
-                )
-              )
-              t = Builtins.tointeger(Ops.get_string(result, "stdout", ""))
-              t = 0 if t == nil
-              UI.ChangeWidget(Id(:threads), :Value, Builtins.sformat("%1", t))
-            end
             next
           end
         end

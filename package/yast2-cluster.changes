@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Mon Jun 29 07:08:17 UTC 2015 - nwang@suse.com
+
+- BNC#936352. Remove threads in security tab since it is
+  abandoned in corosync 2.0
+- Version 3.1.16
+
+-------------------------------------------------------------------
 Fri Sep 19 07:28:14 UTC 2014 - nwang@suse.com
 
 - BNC#716109. Change UI udp to multicast, udpu to unicast.
