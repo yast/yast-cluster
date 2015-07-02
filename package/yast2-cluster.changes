@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Jul  2 07:16:47 UTC 2015 - nwang@suse.com
+
+- FATE#318190. Add a warning in corosync.conf to warn users
+  manually changes may get lost when reconfigured by Yast.
+- Version 3.1.17
+
+-------------------------------------------------------------------
 Mon Jun 29 07:08:17 UTC 2015 - nwang@suse.com
 
 - BNC#936352. Remove threads in security tab since it is
