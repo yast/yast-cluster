@@ -217,7 +217,7 @@ module Yast
       else
         #BNC#880242, expected_votes must have value when "udp"
         if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message(_("The Expected Votes has to be fulfilled when udp is configured"))
+          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
           UI.SetFocus(:expected_votes)
           return false
         end
