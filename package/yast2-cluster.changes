@@ -1,7 +1,14 @@
 -------------------------------------------------------------------
+Wed Jul 29 02:11:00 UTC 2015 - nwang@suse.com
+
+- BSC#939429. Fix for crash when fail to get empty mask of
+  tun device.
+- Version 3.1.19
+
+-------------------------------------------------------------------
 Mon Jul 20 06:51:20 UTC 2015 - nwang@suse.com
 
-- BSC#938325. Modify the not clear help and warning. 
+- BSC#938325. Modify the not clear help and warning.
 - Version 3.1.18
 
 -------------------------------------------------------------------

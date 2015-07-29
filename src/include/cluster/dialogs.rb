@@ -375,7 +375,7 @@ module Yast
       IP.ToString(
         Ops.bitwise_and(
           IP.ToInteger(ip),
-          Ops.shift_left(4294967295, Ops.subtract(32, Builtins.tointeger(mask)))
+          Ops.shift_left(4294967295, Ops.subtract(32, mask.to_i))
         )
       )
     end
