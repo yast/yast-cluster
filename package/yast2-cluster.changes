@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Jul 29 02:11:00 UTC 2015 - nwang@suse.com
+
+- BSC#939429. Fix for crash when fail to get empty mask of
+  tun device.
+- Version 3.1.19
+
+-------------------------------------------------------------------
 Mon Jun 29 07:08:17 UTC 2015 - nwang@suse.com
 
 - BNC#936352. Remove threads in security tab since it is
