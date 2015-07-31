@@ -38,6 +38,7 @@ module Yast
       Yast.import "IP"
       Yast.import "Popup"
       Yast.import "Service"
+      Yast.import "SystemdSocket"
       Yast.import "Report"
       Yast.import "CWMFirewallInterfaces"
       Yast.import "SuSEFirewall"
@@ -64,6 +65,7 @@ module Yast
       ]
 
       @csync2_port = "30865"
+      @csync2_package = "csync2"
 
       # This is the list of usable interface for conntrackd
       @usable_interface = []
@@ -1025,25 +1027,16 @@ module Yast
     # return 2 if csync2 is OFF or csync2 is blocked by firewall
     # return 3 if csync2 is ON
     def csync2_status
-      ret = nil
+      csync2_socket = nil
+      csync2_socket = SystemdSocket.find(@csync2_package)
 
-      ret = Convert.to_map(
-        SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2")
-      )
-      Builtins.y2milestone("chkconfig csync2 = %1", ret)
-      if Builtins.issubstring(
-          Ops.get_string(ret, "stderr", ""),
-          "command not found"
-        ) == true
+      if !csync2_socket
+        y2error("csync2.socket not found.")
         return 1
       end
-      if Builtins.issubstring(
-          Ops.get_string(ret, "stderr", ""),
-          "unknown service"
-        ) == true
-        return 1
-      end
-      if Builtins.issubstring(Ops.get_string(ret, "stdout", ""), "off") == true
+
+      if !csync2_socket.enabled?
+        y2debug("csync2.socket is disabled.")
         return 2
       end
       #check the firewall whether csync2 port was blocked.
@@ -1056,14 +1049,19 @@ module Yast
       3
     end
 
-    def try_restart_xinetd
-      r = Service.RunInitScript("xinetd", "restart")
-      Builtins.y2debug("try_restart_xinetd return %1", r)
-      r
-    end
-
     def csync2_turn_off
-      SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2 off")
+      csync2_socket = nil
+      csync2_socket = SystemdSocket.find(@csync2_package)
+
+      if !csync2_socket
+        y2error("csync2.socket is missing.")
+        return nil
+      end
+
+      csync2_socket.stop
+      csync2_socket.disable
+      y2debug("Stop and disable csync2.socket.")
+
       tcp_ports = []
       tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
       pos = nil
@@ -1076,13 +1074,21 @@ module Yast
         { "tcp_ports" => tcp_ports }
       )
 
-      try_restart_xinetd
-
       nil
     end
 
     def csync2_turn_on
-      SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig csync2 on")
+      csync2_socket = nil
+      csync2_socket = SystemdSocket.find(@csync2_package)
+
+      if !csync2_socket
+        y2error("csync2.socket is missing.")
+        return nil
+      end
+
+      csync2_socket.start
+      csync2_socket.enable
+      y2debug("Start and enable csync2.socket.")
 
       tcp_ports = []
       tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
@@ -1093,9 +1099,6 @@ module Yast
         "service:cluster",
         { "tcp_ports" => tcp_ports }
       )
-
-      SCR.Execute(path(".target.bash_output"), "/sbin/chkconfig xinetd on")
-      try_restart_xinetd
 
       nil
     end
