@@ -58,7 +58,7 @@ module Yast
         "/etc/ha.d/ldirectord.cf",
         "/etc/ctdb/nodes",
         "/etc/samba/smb.conf",
-        "/etc/booth/booth.conf",
+        "/etc/booth",
         "/etc/sysconfig/sbd",
         "/etc/csync2/csync2.cfg",
         "/etc/csync2/key_hagroup"

@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Aug 13 08:14:22 UTC 2015 - nwang@suse.com
+
+- FATE#319318. Add directory /etc/booth to csync2 suggest list.
+- Version 3.1.21
+
+-------------------------------------------------------------------
 Fri Jul 31 08:49:27 UTC 2015 - nwang@suse.com
 
 - BSC#939497. Using systemd csync2.socket instead of xinetd.
