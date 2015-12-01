@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Dec  1 09:21:16 UTC 2015 - nwang@suse.com
+
+- BSC#957305. Change required package from hawk to hawk2.
+- Version 3.1.22
+
+-------------------------------------------------------------------
 Thu Aug 13 08:14:22 UTC 2015 - nwang@suse.com
 
 - FATE#319318. Add directory /etc/booth to csync2 suggest list.

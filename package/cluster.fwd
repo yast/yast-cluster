@@ -4,7 +4,7 @@
 # space separated list of allowed TCP ports
 # 30865 for csync2
 # 5560 for mgmtd
-# 7630 for hawk
+# 7630 for hawk or hawk2
 # 21064 for dlm
 TCP="30865 5560 7630 21064"
 

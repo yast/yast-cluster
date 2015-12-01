@@ -427,7 +427,7 @@ module Yast
         "pacemaker",
         "csync2",
         "conntrack-tools",
-        "hawk",
+        "hawk2",
         "crmsh"
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
