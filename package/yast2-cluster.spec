@@ -16,12 +16,14 @@
 #
 
 
+%define _fwdefdir %{_sysconfdir}/sysconfig/SuSEfirewall2.d/services
 Name:           yast2-cluster
-%define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
 Version:        3.1.22
 Release:        0
+Summary:        Configuration of cluster
+License:        GPL-2.0
+Group:          System/YaST
 
-BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.fwd
 
@@ -30,15 +32,16 @@ BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools >= 3.1.10
 BuildRequires:  yast2-testsuite
-
-BuildArch:      noarch
-
+Requires:       pacemaker
 Requires:       yast2
 Requires:       yast2-ruby-bindings >= 1.0.0
+Recommends:     conntrack-tools
+Recommends:     crmsh
+Recommends:     csync2
+Recommends:     hawk2
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+BuildArch:      noarch
 
-Summary:        Configuration of cluster
-License:        GPL-2.0
-Group:          System/YaST
 
 %description
 -

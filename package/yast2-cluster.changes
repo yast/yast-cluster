@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Dec 18 07:58:17 UTC 2015 - nwang@suse.com
+
+- BSC#957305. Add requires and recommends to spec.
+
+-------------------------------------------------------------------
 Tue Dec  1 09:21:16 UTC 2015 - nwang@suse.com
 
 - BSC#957305. Change required package from hawk to hawk2.
