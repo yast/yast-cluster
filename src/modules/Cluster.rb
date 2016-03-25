@@ -67,6 +67,7 @@ module Yast
       # Settings: Define all variables needed for configuration of cluster
       @secauth = false
       @cluster_name = ""
+      @ip_version = ""
       @expected_votes = ""
       @two_node = "0"
       @config_format = ""
@@ -162,6 +163,8 @@ module Yast
 
       @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
 
+      @ip_version = SCR.Read(path(".openais.totem.ip_version"))
+
       @expected_votes = SCR.Read(path(".openais.quorum.expected_votes")).to_s
 
       @config_format = SCR.Read(path(".openais.totem.interface.member.memberaddr")).to_s
@@ -179,7 +182,7 @@ module Yast
             # 123.3.21.44;156.32.123.9"
             address = SCR.Read(path(".openais.nodelist.node")).split(" ")
             address.each do |addr|
-              p = addr.split(":")
+              p = addr.split("-")
               if p[1] != nil
                 q = p[0].split(";")
                 if q[1] != nil
@@ -253,9 +256,9 @@ module Yast
         address_string << i[:addr1]
         if i[:addr2]
           address_string << ";#{i[:addr2]}"
-          address_string << ":#{i[:nodeid]}" if i [:nodeid]
+          address_string << "-#{i[:nodeid]}" if i [:nodeid]
         else 
-          address_string << ":#{i[:nodeid]}" if i[:nodeid]
+          address_string << "-#{i[:nodeid]}" if i[:nodeid]
         end
         address_string << " "
       end
@@ -273,6 +276,7 @@ module Yast
 
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
+      SCR.Write(path(".openais.totem.ip_version"), @ip_version)
       SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
   
       # BNC#871970, only write member address when interface0  
@@ -617,6 +621,7 @@ module Yast
       @memberaddr = Ops.get_list(settings, "memberaddr", [])
       @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
+      @ip_version  = settings["ip_version"] || "ipv4"
       @expected_votes = settings["expected_votes"] || ""
       @two_node = settings["two_node"] || ""
       @mcastport2 = Ops.get_string(settings, "mcastport1", "")
@@ -649,6 +654,7 @@ module Yast
       Ops.set(result, "memberaddr", @memberaddr)
       Ops.set(result, "mcastaddr1", @mcastaddr1)
       result["cluster_name"] = @cluster_name
+      result["ip_version"] = @ip_version
       result["expected_votes"] = @expected_votes
       result["two_node"] = @two_node
       Ops.set(result, "mcastport1", @mcastport1)
@@ -740,6 +746,7 @@ module Yast
     publish :variable => :bindnetaddr1, :type => "string"
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"
+    publish :variable => :ip_version, :type => "string"
     publish :variable => :expected_votes, :type => "string"
     publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"

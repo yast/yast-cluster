@@ -107,6 +107,7 @@ totem_option_table = {
 					"type":"int", "default_value":10},
 	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
 	"transport":{"doc":"Transport protocol", "type":"select[udp,udpu]","default_value":"udp"},
+	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv4,ipv6]","default_value":"ipv4"},
 }
 
 
@@ -352,7 +353,11 @@ def opt_parser(file, options):
 				i = get_next_line(file)
 			continue
 		
-		opt = i.split(":")
+		tmp_opt = i.split(":")
+		# In case string like IPv6 have ":" in value
+		opt = [tmp_opt[0], ":".join(tmp_opt[1:])]
+		#opt = i.split(":")
+
 		try:
 			doc = options[opt[0].strip()]["doc"]
 		except KeyError:
@@ -420,7 +425,7 @@ def generateMemberString():
 				member_str = member_str + ";" + address2
 			nodeid = item.get("nodeid", None)
 			if nodeid:
-				member_str = member_str + ":" + nodeid
+				member_str = member_str + "-" + nodeid
 			member_str = member_str + " "
 	return '"%s"' % member_str.strip()
 
@@ -468,7 +473,7 @@ class OpenAISConf_Parser:
 			return '["quorum", "totem", "nodelist"]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
-				return '["crypto_cipher","crypto_hash","secauth", "autoid", "rrpmode", "transport", "interface", "cluster_name"]'
+				return '["crypto_cipher","crypto_hash","secauth", "autoid", "rrpmode", "transport", "interface", "cluster_name", "ip_version"]'
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
@@ -525,6 +530,8 @@ class OpenAISConf_Parser:
 					return '"%s"' % totem_options.get("transport", "udp")
 				elif path[1] == "cluster_name":
 					return '"%s"' % totem_options.get("cluster_name", "cluster")
+				elif path[1] == "ip_version":
+					return '"%s"' % totem_options.get("ip_version", "ipv4")
 				else:
 					return "nil"
 			elif len(path) == 4:
@@ -635,6 +642,9 @@ class OpenAISConf_Parser:
 				elif path[1] == "cluster_name":
 					totem_options["cluster_name"] = args
 					return "true"
+				elif path[1] == "ip_version":
+					totem_options["ip_version"] = args
+					return "true"
 				else:
 					return "false"
 			elif len(path) == 3:
@@ -705,16 +715,16 @@ class OpenAISConf_Parser:
 						nodelist_options["node"] = member_addr_set
 						return "nil"
 					for member_address in args.strip().split(" "):
-						colon_pos = member_address.find(":")
-						if (colon_pos > -1):
-							tmpid = member_address[colon_pos+1:]
-							semicolon_pos = member_address[:colon_pos].find(";")
+						dash_pos = member_address.find("-")
+						if (dash_pos > -1):
+							tmpid = member_address[dash_pos+1:]
+							semicolon_pos = member_address[:dash_pos].find(";")
 							if (semicolon_pos > -1):
-								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:colon_pos],"nodeid":member_address[colon_pos+1:]})
+								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:dash_pos],"nodeid":member_address[dash_pos+1:]})
 							else:
-								member_addr_set.append({"ring0_addr":member_address[:colon_pos],"nodeid":member_address[colon_pos+1:]})
+								member_addr_set.append({"ring0_addr":member_address[:dash_pos],"nodeid":member_address[dash_pos+1:]})
 						else:
-							semicolon_pos = member_address[:colon_pos].find(";")
+							semicolon_pos = member_address[:dash_pos].find(";")
 							if (semicolon_pos > -1):
 								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:]})
 							else:

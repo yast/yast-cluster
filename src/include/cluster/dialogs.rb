@@ -592,9 +592,11 @@ module Yast
           netaddr = Convert.to_string(UI.QueryWidget(Id(ret), :Value))
           ip6 = IP.Check6(netaddr)
           if ip6
+            Cluster.ip_version = "ipv6"
             UI.ChangeWidget(Id(:autoid), :Value, false)
             UI.ChangeWidget(Id(:autoid), :Enabled, false)
           else
+            Cluster.ip_version = "ipv4"
             UI.ChangeWidget(Id(:autoid), :Enabled, true)
           end
           next

@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Mar 25 08:25:25 UTC 2016 - nwang@suse.com
+
+- bsc#971961, fix error when using ipv6.
+- Add totem.ip_version for ipv6 support.
+- Version 3.1.23
+
+-------------------------------------------------------------------
 Tue Dec  1 09:21:16 UTC 2015 - nwang@suse.com
 
 - BSC#957305. Change required package from hawk to hawk2.
