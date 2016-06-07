@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Jun  7 10:16:17 UTC 2016 - igonzalezsosa@suse.com
+
+- Stop generating autodocs (fate#320356)
+- Version 3.1.24
+
+-------------------------------------------------------------------
 Fri Mar 25 08:25:25 UTC 2016 - nwang@suse.com
 
 - bsc#971961, fix error when using ipv6.
