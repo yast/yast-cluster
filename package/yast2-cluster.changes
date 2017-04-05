@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Apr  5 05:20:44 UTC 2017 - nwang@suse.com
+
+- bsc#1032419, remove bind address for unicast.
+- Version 3.2.0
+
+-------------------------------------------------------------------
 Tue Jun  7 10:16:17 UTC 2016 - igonzalezsosa@suse.com
 
 - Stop generating autodocs (fate#320356)
