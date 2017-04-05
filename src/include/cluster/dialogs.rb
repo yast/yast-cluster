@@ -399,6 +399,9 @@ module Yast
 
       UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2)
 
+      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1)
+      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2)
+
       nil
     end
 
@@ -459,7 +462,7 @@ module Yast
             Opt(:hstretch, :notify),
             _("Multicast Address:")
           ),
-          InputField(Id(:mcastport1), Opt(:hstretch), _("Multicast Port:")),
+          InputField(Id(:mcastport1), Opt(:hstretch), _("Port:")),
         )
       )
 
@@ -476,7 +479,7 @@ module Yast
             existing_ips
           ),
           InputField(Id(:mcastaddr2), Opt(:hstretch), _("Multicast Address:")),
-          InputField(Id(:mcastport2), Opt(:hstretch), _("Multicast Port:")),
+          InputField(Id(:mcastport2), Opt(:hstretch), _("Port:")),
         )
       )
 
