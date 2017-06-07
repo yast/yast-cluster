@@ -3,6 +3,7 @@ package/*.tar.bz2
 /doc
 /Makefile
 /Makefile.am
+/Makefile.am.common
 /Makefile.in
 /aclocal.m4
 /agents/Makefile
