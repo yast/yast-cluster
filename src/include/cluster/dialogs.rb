@@ -189,11 +189,6 @@ module Yast
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
-      if IP.Check(Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))) == false
-        Popup.Message(_("The Bind Network Address has to be fulfilled"))
-        UI.SetFocus(:bindnetaddr1)
-        return false
-      end
 
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
         Popup.Message(_("The cluster name has to be fulfilled"))
@@ -224,6 +219,12 @@ module Yast
           return false
         end
 
+        if IP.Check(Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))) == false
+          Popup.Message(_("The Bind Network Address has to be fulfilled"))
+          UI.SetFocus(:bindnetaddr1)
+          return false
+        end
+
         if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
           Popup.Message(_("The Multicast Address has to be fulfilled"))
           UI.SetFocus(:mcastaddr1)
@@ -241,15 +242,15 @@ module Yast
       end
 
       if UI.QueryWidget(Id(:enable2), :Value)
-        if IP.Check(
-            Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
-          ) == false
-          Popup.Message(_("The Bind Network Address has to be fulfilled"))
-          UI.SetFocus(:bindnetaddr2)
-          return false
-        end
-
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
+          if IP.Check(
+              Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
+            ) == false
+            Popup.Message(_("The Bind Network Address has to be fulfilled"))
+            UI.SetFocus(:bindnetaddr2)
+            return false
+          end
+
           if IP.Check(
               Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
             ) == false
@@ -553,7 +554,6 @@ module Yast
 
     def fill_memberaddr_entries
       i = 0
-      ret = 0
       current = 0
       items = []
 
@@ -627,7 +627,6 @@ module Yast
 
         if ret == :memberaddr_edit
           current = 0
-          str = ""
 
           # The value will be nil if the list is empty, however nil.to_i is 0
           current = UI.QueryWidget(:memberaddr, :CurrentItem).to_i
@@ -1191,7 +1190,6 @@ module Yast
 
         if ret == :host_edit
           current = 0
-          str = ""
 
           current = Convert.to_integer(UI.QueryWidget(:host_box, :CurrentItem))
           ret = text_input_dialog(
