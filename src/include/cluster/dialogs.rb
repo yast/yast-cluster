@@ -554,7 +554,6 @@ module Yast
 
     def fill_memberaddr_entries
       i = 0
-      ret = 0
       current = 0
       items = []
 
@@ -628,7 +627,6 @@ module Yast
 
         if ret == :memberaddr_edit
           current = 0
-          str = ""
 
           # The value will be nil if the list is empty, however nil.to_i is 0
           current = UI.QueryWidget(:memberaddr, :CurrentItem).to_i
@@ -1192,7 +1190,6 @@ module Yast
 
         if ret == :host_edit
           current = 0
-          str = ""
 
           current = Convert.to_integer(UI.QueryWidget(:host_box, :CurrentItem))
           ret = text_input_dialog(
