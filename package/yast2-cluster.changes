@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Oct 27 08:35:58 UTC 2017 - nwang@suse.com
+
+- bsc#1065393, remove checking bind address when unicast.
+- Version 4.0.0
+
+-------------------------------------------------------------------
 Wed Apr  5 05:20:44 UTC 2017 - nwang@suse.com
 
 - bsc#1032419, remove bind address for unicast.
