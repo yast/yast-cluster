@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Dec  1 06:08:41 UTC 2017 - nwang@suse.com
+
+- fate#323526, support python3.
+- Version 4.0.1
+
+-------------------------------------------------------------------
 Fri Oct 27 08:35:58 UTC 2017 - nwang@suse.com
 
 - bsc#1065393, remove checking bind address when unicast.
