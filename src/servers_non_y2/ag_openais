@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf8 -*-
 
 #
@@ -179,7 +179,7 @@ def strip_comments_and_pending_space(line):
 	return line.split('#')[0].rstrip().lstrip()
 
 def get_next_line(ff):
-	l = ff.next()
+	l = next(ff)
 	return strip_comments_and_pending_space(l)
 
 
@@ -235,7 +235,7 @@ def print_nodelist_options(f):
 	for node in nodelist:
 		f.write("\tnode {\n")
 		# Sort the keys like ring0 and ring1
-		klist=node.keys()
+		klist=list(node.keys())
 		klist.sort()
 		for key in klist:
 			if node[key] == "":
@@ -417,7 +417,7 @@ def generateMemberString():
 	member_str = ""
 
 	for item in  nodelist_options.get("node"):
-		if item.has_key("ring0_addr"):
+		if "ring0_addr" in item:
 			address1 = item.get("ring0_addr", None)
 			member_str += address1
 			address2 = item.get("ring1_addr", None)
@@ -438,7 +438,7 @@ def del_interface(k):
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
 	for x in range(len(totem_options["interface"])):
-		if totem_options["interface"][x].has_key("oldlist"):
+		if "oldlist" in totem_options["interface"][x]:
 			return "old"
 	return "new"
 
@@ -461,7 +461,7 @@ def load_ais_conf(filename):
 			pass
 
 
-class OpenAISConf_Parser:
+class OpenAISConf_Parser(object):
 	def __init__(self):
 		load_ais_conf("/etc/corosync/corosync.conf")
     
@@ -521,7 +521,7 @@ class OpenAISConf_Parser:
 				elif path[1] == "autoid":
 					#FIXME, check nodelist has nodeid
 					for i in nodelist_options.get('node'):
-						if i.has_key('nodeid'):
+						if 'nodeid' in i:
 							return '"no"'
 					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
 				elif path[1] == "rrpmode":
@@ -738,7 +738,7 @@ class OpenAISConf_Parser:
 		else:
 			return "false"
 		return "false"
-class SCR_Agent:
+class SCR_Agent(object):
 	def __init__(self):
 		self.command = ""
 		self.path = ""
@@ -801,20 +801,20 @@ def main_entry():
 		#y2debug("Command %s %s" % (scr_agent.command,scr_agent.path));
 		
 		if (scr_agent.command == 'Dir' ):
-			print openais_agent.doList(scr_agent.path)
+			print(openais_agent.doList(scr_agent.path))
 
 		elif (scr_agent.command == 'Read'):
-			print openais_agent.doRead(scr_agent.path)
+			print(openais_agent.doRead(scr_agent.path))
 
 		elif (scr_agent.command == 'Write'):
-			print openais_agent.doWrite(scr_agent.path, scr_agent.args)
+			print(openais_agent.doWrite(scr_agent.path, scr_agent.args))
 
 		elif (scr_agent.command == 'result'):
 			break
 
 		else:
 			#y2error ("Unknown command: %s" % scr_agent.command)
-			print "nil\n"
+			print("nil\n")
 		try:
 			sys.stdout.flush()
 		except:
