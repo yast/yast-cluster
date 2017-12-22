@@ -39,16 +39,17 @@ module Yast
       Yast.import "SuSEFirewall"
       Yast.import "SuSEFirewallServices"
 
-      @DIALOG = ["communication", "security", "csync2", "conntrack", "service"]
+      @DIALOG = ["communication", "corosyncqdevice", "security", "csync2", "conntrack", "service"]
 
       @PARENT = {}
 
       @NAME = {
-        "communication" => _("Communication Channels"),
-        "security"      => _("Security"),
-        "service"       => _("Service"),
-        "csync2"        => _("Configure Csync2"),
-        "conntrack"     => _("Configure conntrackd")
+        "communication"    => _("Communication Channels"),
+        "corosyncqdevice"  => _("Corosync Qdevice"),
+        "security"         => _("Security"),
+        "service"          => _("Service"),
+        "csync2"           => _("Configure Csync2"),
+        "conntrack"        => _("Configure conntrackd")
       }
     end
 

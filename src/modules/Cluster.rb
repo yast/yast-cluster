@@ -322,7 +322,9 @@ module Yast
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".openais.totem.ip_version"), @ip_version)
-      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
+      if @expected_votes != ""
+        SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
+      end
   
       # BNC#871970, only write member address when interface0  
       if @transport == "udpu"
@@ -595,13 +597,21 @@ module Yast
         udp_ports = Builtins.add(udp_ports, @mcastport2)
       end
 
-      temp_tcp_ports = ["21064", "7630"]
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      tcp_ports = Convert.convert(
-        Builtins.union(tcp_ports, temp_tcp_ports),
-        :from => "list",
-        :to   => "list <string>"
-      )
+      # 30865 for csync2
+      # 5560 for mgmtd
+      # 7630 for hawk or hawk2
+      # 21064 for dlm
+      # 5403 for corosync qdevice(default)
+      tcp_ports = ["30865", "5560", "21064", "7630"]
+      if @corosync_qdevice
+        tcp_ports.push(@qdevice_port)
+      end
+      #tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      #tcp_ports = Convert.convert(
+      #  Builtins.union(tcp_ports, temp_tcp_ports),
+      #  :from => "list",
+      #  :to   => "list <string>"
+      #)
 
       SuSEFirewallServices.SetNeededPortsAndProtocols(
         "service:cluster",
