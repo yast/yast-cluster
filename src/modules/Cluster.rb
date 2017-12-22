@@ -98,6 +98,17 @@ module Yast
       # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
       @memberaddr = []
 
+      @corosync_qdevice = false
+
+      @qdevice_model = "net"
+      @qdevice_votes = ""
+
+      @qdevice_host = ""
+      @qdevice_port = "5403"
+      @qdevice_tls = "off"
+      @qdevice_algorithm = "ffsplit"
+      @qdevice_tie_breaker = "lowest"
+
       @csync2_host = []
       @csync2_include = []
     end
@@ -149,6 +160,25 @@ module Yast
     def SetAbortFunction(function)
       function = deep_copy(function)
       @AbortFunction = deep_copy(function)
+
+      nil
+    end
+
+    def LoadCorosyncQdeviceConfig
+      if SCR.Read(path(".openais.quorum.device"))
+        @corosync_qdevice = true
+      end
+
+      if @corosync_qdevice
+        @qdevice_model = SCR.Read(path(".openais.quorum.device.model"))
+        @qdevice_votes = SCR.Read(path(".openais.quorum.device.votes")).to_s
+
+        @qdevice_host = SCR.Read(path(".openais.quorum.device.net.host"))
+        @qdevice_port = SCR.Read(path(".openais.quorum.device.net.port")).to_s
+        @qdevice_tls = SCR.Read(path(".openais.quorum.device.net.tls"))
+        @qdevice_algorithm = SCR.Read(path(".openais.quorum.device.net.algorithm"))
+        @qdevice_tie_breaker = SCR.Read(path(".openais.quorum.device.net.tie_breaker"))
+      end
 
       nil
     end
@@ -245,6 +275,8 @@ module Yast
         @rrpmode = "passive" if @rrpmode != "passive" && @rrpmode != "active"
       end
 
+      LoadCorosyncQdeviceConfig()
+
       nil
     end
 
@@ -264,6 +296,19 @@ module Yast
       end
 
       return address_string
+    end
+
+    def SaveCorosyncQdeviceConfig
+      SCR.Write(path(".openais.quorum.device.model"), @qdevice_model)
+      SCR.Write(path(".openais.quorum.device.votes"), @qdevice_votes)
+
+      SCR.Write(path(".openais.quorum.device.net.host"), @qdevice_host)
+      SCR.Write(path(".openais.quorum.device.net.port"), @qdevice_port)
+      SCR.Write(path(".openais.quorum.device.net.tls"), @qdevice_tls)
+      SCR.Write(path(".openais.quorum.device.net.algorithm"), @qdevice_algorithm)
+      SCR.Write(path(".openais.quorum.device.net.tie_breaker"), @qdevice_tie_breaker)
+
+      nil
     end
 
     def SaveClusterConfig
@@ -339,6 +384,13 @@ module Yast
         SCR.Write(path(".openais.totem.autoid"), "no")
       end
       SCR.Write(path(".openais.totem.rrpmode"), @rrpmode)
+
+      if @corosync_qdevice
+        SaveCorosyncQdeviceConfig()
+      else
+        SCR.Write(path(".openais.quorum.device"), "")
+      end
+
       SCR.Write(path(".openais"), "")
 
       nil
@@ -740,6 +792,7 @@ module Yast
     publish :function => :SetProposalValid, :type => "void (boolean)"
     publish :function => :WriteOnly, :type => "boolean ()"
     publish :function => :LoadClusterConfig, :type => "boolean ()"
+    publish :function => :LoadCorosyncQdeviceConfig, :type => "boolean ()"
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
     publish :variable => :secauth, :type => "boolean"
@@ -748,6 +801,14 @@ module Yast
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :ip_version, :type => "string"
     publish :variable => :expected_votes, :type => "string"
+    publish :variable => :corosync_qdevice, :type => "boolean"
+    publish :variable => :qdevice_model, :type => "string"
+    publish :variable => :qdevice_votes, :type => "string"
+    publish :variable => :qdevice_host, :type => "string"
+    publish :variable => :qdevice_port, :type => "string"
+    publish :variable => :qdevice_tls, :type => "string"
+    publish :variable => :qdevice_algorithm, :type => "string"
+    publish :variable => :qdevice_tie_breaker, :type => "string"
     publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"
     publish :variable => :mcastport1, :type => "string"
@@ -765,6 +826,7 @@ module Yast
     publish :variable => :transport, :type => "string"
     publish :variable => :memberaddr, :type => "list <string>"
     publish :function => :SaveClusterConfig, :type => "void ()"
+    publish :function => :SaveCorosyncQdeviceConfig, :type => "void ()"
     publish :variable => :csync2_host, :type => "list <string>"
     publish :variable => :csync2_include, :type => "list <string>"
     publish :function => :load_csync2_conf, :type => "void ()"
