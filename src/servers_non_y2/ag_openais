@@ -5,7 +5,7 @@
 # Authors:	Xinwei Hu <xwhu@suse.de>
 #		Lukas Ocilka <locilka@suse.cz>
 #
-# File:		ag_multipath
+# File:		ag_openais
 #
 # License:
 #
@@ -36,6 +36,7 @@ textdomain("openais")
 import copy
 import sys
 
+debug = False
 
 #the option table is used to parse and write suggested_value if no options are read
 
@@ -165,14 +166,33 @@ quorum_option_table = {
 		"allow_downscale":{"doc":"Enables allow downscale (AD) feature","type":"int", "default_value":0},
 		}
 
+quorum_qdevice_option_table = {
+		"model":{"doc":"Specifies the model to be used, currently only (net) is supported.","type":"string","default_value":"net","suggested_value":"net"},
+		"timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function.","type":"int","default_value":10000,"suggested_value":10000},
+		"sync_timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function during a sync phase.","type":"int","default_value":30000,"suggested_value":30000},
+		"votes":{"doc":"The number of votes provided to the cluster by qdevice. Default is sum(votes_per_node) - 1.","type":"int","default_value":0}
+		}
+
+quorum_qdevice_net_option_table = {
+		"host":{"doc":"Specifies the IP address or host name of the qnetd server to be used, is required.","type":"string","default_value":"0"},
+		"port":{"doc":"Specifies TCP port of qnetd server.","default_value":5403, "type":"int","suggested_value":5403},
+		"tls":{"doc":"Specifies if tls should be used, only off is supported by yast.","default_value":"off", "type":"string","suggested_value":"off"},
+		"algorithm":{"doc":"Decision algorithm. Can be one of the ffsplit or lms.","default_value":"ffsplit", "type":"string","suggested_value":"ffsplit"},
+		"tie_breaker":{"doc":"Used as a fallback if qdevice has to decide between two or more equal partitions.","default_value":"lowest", "type":"string","suggested_value":"lowest"},
+		"connect_timeout":{"doc":"Timeout when corosync-qdevice is trying to connect to corosync-qnetd host. Default is (0.8 * quorum.sync_timeout).","type":"int","default_value":0},
+		"force_ip_version":{"doc":"Can be one of 0|4|6 and forces the software to use the given IP version.", "default_value":0, "type":"int","suggested_value":0}
+		}
+
 qb_option_table = { "ipc_type":{"doc":"This specifies type of IPC to use",
 		    "type":"string", "default_value":"native"}
 		  }
 
-totem_options = {"interface":[]}
-logging_options = {"logger_subsys":[]}
+# Using [] instead of {} is because some sections like nodelist have many nodes
+totem_options = {}
+logging_options = {}
+quorum_qdevice_options={}
 quorum_options={}
-nodelist_options={"node":[]}
+nodelist_options={}
 qb_options={}
 
 def strip_comments_and_pending_space(line):
@@ -183,7 +203,7 @@ def get_next_line(ff):
 	return strip_comments_and_pending_space(l)
 
 
-def fulfill_default_logging_options ():
+def fulfill_suggested_logging_options ():
 	for opt in logging_option_table.keys():
 		if opt == "logger": continue
 		sv = logging_option_table[opt].get("suggested_value", None)
@@ -208,11 +228,46 @@ def fulfill_suggested_quorum_options():
 		if v == None and sv != None:
 			quorum_options[opt] = sv
 
+def fulfill_suggested_quorum_qdevice_options():
+	'''
+		This function only be used when having quorum qdevice
+	'''
+	# must have 'model' in 'device'
+	for opt in ['model']:
+		sv = quorum_qdevice_option_table[opt].get("suggested_value", None)
+		v = quorum_qdevice_options.get(opt, None)
+		if v == None and sv != None:
+			quorum_qdevice_options[opt] = sv
+
+	# must have 'host', 'tls', 'algorithm', 'tie_breaker' in 'net'
+	for opt in ['host', 'tls', 'algorithm', 'tie_breaker']:
+		sv = quorum_qdevice_net_option_table[opt].get("suggested_value", None)
+		v = quorum_qdevice_options["net"].get(opt, None)
+		if v == None and sv != None:
+			quorum_qdevice_options["net"][opt] = sv
+
+def print_quorum_qdevice_net_options(f, indent):
+	'''
+		indent means the level of sub-directive
+	'''
+	f.write("\t"*indent+"net {\n")
+	for l in quorum_qdevice_options["net"].keys():
+		f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_net_option_table[l]["doc"]))
+		f.write("\t"*(indent+1)+"%s:\t%s\n\n" % (l, quorum_qdevice_options["net"][l]))
+	f.write("\t"*indent+"}\n")
+
 def print_quorum_options(f):
-	f.write("quorum {\n");
+	f.write("quorum {\n")
 	for key in quorum_options.keys():
-		if quorum_options[key] == "":
-			continue
+		if key == "device" and is_quorum_qdevice_configured():
+			f.write("\tdevice {\n")
+			for l in quorum_options["device"].keys():
+				if l == "net":
+					print_quorum_qdevice_net_options(f, 2)
+				else:
+					f.write("\t\t#%s\n" % (quorum_qdevice_option_table[l]["doc"]))
+					f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
+			f.write("\t}\n")
 		else:
 			f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
 			f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
@@ -221,7 +276,7 @@ def print_quorum_options(f):
 def print_qb_options(f):
 	if(len(qb_options) == 0):
 		return
-	f.write("qb {\n");
+	f.write("qb {\n")
 	for key in qb_options.keys():
 		f.write("\t#%s\n" % (qb_option_table[key]["doc"]))
 		f.write("\t%s:\t%s\n\n" % (key, qb_options[key]))
@@ -231,7 +286,7 @@ def print_nodelist_options(f):
 	nodelist = nodelist_options["node"]
 	if len(nodelist) ==  0:
 		return
-	f.write("nodelist {\n");
+	f.write("nodelist {\n")
 	for node in nodelist:
 		f.write("\tnode {\n")
 		# Sort the keys like ring0 and ring1
@@ -245,6 +300,11 @@ def print_nodelist_options(f):
 		f.write("\t}\n")
 	f.write("}\n")
 
+def is_quorum_qdevice_configured():
+	if ("device" not in quorum_options) or (len(quorum_qdevice_options) == 0):
+		return False
+	else:
+		return True
 			
 def print_logging_options(f):
 	f.write("logging {\n")
@@ -256,22 +316,20 @@ def print_logging_options(f):
 					f.write("\t\t#%s\n\n" % (logger_subsys_option_table[l]["doc"]))
 					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
 				f.write("\t}\n")
-			continue
-		f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
+		else:
+			f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
+			f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
 	f.write("}\n")
 
 def print_totem_options(f):
-
 	f.write("totem {\n")
-	transport_protocol = totem_options.get("transport", "udp")
 	for key in totem_options.keys():
 		if key == "interface":
 			for inf in totem_options["interface"]:
 				f.write("\tinterface {\n")
 				for k in inf.keys():
 					if inf[k] == "" or k == "oldlist":
-						continue;
+						continue
 					else:
 						f.write("\t\t#%s\n" % (interface_option_table[k]["doc"]))
 						f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
@@ -298,7 +356,7 @@ def file_parser(file):
 	global nodelist_options
 	global qb_options
 	global quorum_options
-	
+
 	for l in file:
 		i = strip_comments_and_pending_space(l)
 		if i == "":
@@ -307,19 +365,29 @@ def file_parser(file):
 		if i[-1] == "{":
 			i = i[:-1].rsplit()[0]
 			if i == "totem":
-				totem_options = opt_parser(file, totem_option_table)
+				totem_options = opt_parser(file, totem_option_table, "totem")
 			elif i == "logging":
-				logging_options = opt_parser(file, logging_option_table)
+				logging_options = opt_parser(file, logging_option_table, "logging")
 			elif i == "nodelist":
-				nodelist_options = opt_parser(file, {})
+				nodelist_options = opt_parser(file, {}, "nodelist")
 			elif i == "quorum":
-				quorum_options = opt_parser(file, quorum_option_table)
+				quorum_options = opt_parser(file, quorum_option_table, "quorum")
 			elif i == "qb":
-				qb_options = opt_parser(file, qb_option_table)
+				qb_options = opt_parser(file, qb_option_table, "qb")
 			else:
 				pass
+
+	if debug:
+		print("Reading from /etc/corosync/corosync.conf:")
+		print(totem_options)
+		print(logging_options)
+		print(nodelist_options)
+		print(qb_options)
+		print(quorum_options)
 	
-def opt_parser(file, options):
+def opt_parser(file, options, parent):
+	global quorum_qdevice_options
+
 	result = {}
 	i = ""
 	while (i == ""):
@@ -327,21 +395,29 @@ def opt_parser(file, options):
 
 	while (i[-1] != "}"):
 		if (i[-1] == "{"):
-			if i.lstrip().split(" ")[0] == "interface":
+			if i.lstrip().split(" ")[0] == "interface" and parent == "totem":
 				infs = result.get("interface", [])
-				infs.append(opt_parser(file, interface_option_table))
+				infs.append(opt_parser(file, interface_option_table, "interface"))
 				result["interface"] = infs
-			elif i.lstrip().split(" ")[0] == "logger_subsys":
+			elif i.lstrip().split(" ")[0] == "logger_subsys" and parent == "logging":
 				logs = result.get("logger_subsys", [])
-				logs.append(opt_parser(file, logger_subsys_option_table))
+				logs.append(opt_parser(file, logger_subsys_option_table, "logger_subsys"))
 				result["logger_subsys"] = logs
-			elif i.lstrip().split(" ")[0] == "node":
+			elif i.lstrip().split(" ")[0] == "node" and parent == "nodelist":
 				members = result.get("node", [])
-				members.append(opt_parser(file, node_option_table))
+				members.append(opt_parser(file, node_option_table, "node"))
 				result["node"] = members
-			elif i.lstrip().split(" ")[0] == "member":
+			elif i.lstrip().split(" ")[0] == "device" and parent == "quorum":
+				dev = result.get("device", {})
+				quorum_qdevice_options = opt_parser(file, quorum_qdevice_option_table, "qdevice")
+				result["device"] = quorum_qdevice_options
+			elif i.lstrip().split(" ")[0] == "net" and parent == "qdevice":
+				net = result.get("net", {})
+				result["net"] = opt_parser(file, quorum_qdevice_net_option_table, "net")
+			# member of interface is removed in the latest version
+			elif i.lstrip().split(" ")[0] == "member" and parent == "interface":
 				oldmembers = result.get("oldlist", [])
-				oldmembers.append(opt_parser(file, old_memberlist_table))
+				oldmembers.append(opt_parser(file, old_memberlist_table, "oldlist"))
 				result["oldlist"] = oldmembers
 			else:
 				#y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
@@ -416,7 +492,7 @@ def get_interface(i):
 def generateMemberString():
 	member_str = ""
 
-	for item in  nodelist_options.get("node"):
+	for item in nodelist_options.get("node"):
 		if "ring0_addr" in item:
 			address1 = item.get("ring0_addr", None)
 			member_str += address1
@@ -468,8 +544,10 @@ class OpenAISConf_Parser(object):
 	def doList(self, path):
 		#remove the leading dot
 		path_arr = path
+		if len(path_arr) == 0:
+			return '["allconfs"]'
 	
-		if path_arr[0] == '':
+		if path_arr[0] == 'allconfs' and len(path_arr) == 1:
 			return '["quorum", "totem", "nodelist"]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
@@ -499,6 +577,15 @@ class OpenAISConf_Parser(object):
 		elif path_arr[0] == 'nodelist':
 			if len(path_arr) == 1:
 				return '["node"]'
+		elif path_arr[0] == 'quorum':
+			if len(path_arr) == 1:
+				return '["provider", "device", "expected_votes", "two_node"]'
+			elif len(path_arr) == 2 and path_arr[1] == "device":
+				return '["model", "timeout", "sync_timeout", "net", "votes"]'
+			elif len(path_arr) == 3 and path_arr[2] == "net":
+				return '["host", "port", "tls", "algorithm", "tie_breaker", "connect_timeout", "force_ip_version"]'
+			else:
+				return '[]'
 		else:
 			return 'nil\n'
 	
@@ -506,12 +593,25 @@ class OpenAISConf_Parser(object):
 		if path[0] == "":
 			return "nil\n"
 		elif path[0] == "quorum" and len(path) >= 2:
-			if path[1] == "expected_votes":
-				return '"%s"' % quorum_options.get("expected_votes", "")
-			if path[1] == "two_node":
-				return '"%s"' % quorum_options.get("two_node", "")
+			if len(path) == 2 and path[1] in quorum_option_table.keys():
+				return '"%s"' % quorum_options.get(path[1],
+					quorum_option_table[path[1]]["default_value"])
+			elif len(path) == 2 and path[1] == "device":
+				if is_quorum_qdevice_configured():
+					return "true"
+				else:
+					return "nil"
+			elif is_quorum_qdevice_configured() and len(path) == 3 and \
+				path[1] == "device" and path[2] in quorum_qdevice_option_table.keys():
+				return '"%s"' % quorum_options["device"].get(path[2],
+					quorum_qdevice_option_table[path[2]]["default_value"])
+			elif is_quorum_qdevice_configured() and len(path) == 4 and \
+				path[1] == "device" and path[2] == "net" and \
+				path[3] in quorum_qdevice_net_option_table.keys():
+				return '"%s"' % quorum_qdevice_options["net"].get(path[3],
+					quorum_qdevice_net_option_table[path[3]]["default_value"])
 			else:
-				return ""
+				return "nil"
 		elif path[0] == "totem":
 			if len(path) == 1:
 				return "nil"
@@ -588,9 +688,12 @@ class OpenAISConf_Parser(object):
 
 	def saveFile(self):
 
-		fulfill_default_logging_options()
+        # Only fulfill the must option
+		fulfill_suggested_logging_options()
 		fulfill_suggested_totem_options()
 		fulfill_suggested_quorum_options()
+		if is_quorum_qdevice_configured():
+			fulfill_suggested_quorum_qdevice_options()
 
 		f = open("/etc/corosync/corosync.conf.YaST2", "w")
 		f.write("# /etc/corosync/corosync.conf file autogenerated by YaST2.\n")
@@ -613,15 +716,32 @@ class OpenAISConf_Parser(object):
 		pass
 
 	def doWrite(self, path, args):
+		global quorum_options
+		global quorum_qdevice_options
+
 		if path[0] == "":
 			self.saveFile()
 			return "true"
 		elif path[0] == "quorum":
-			if path[1] == "expected_votes":
-				quorum_options["expected_votes"] = args
+			if len(path) == 2 and path[1] in quorum_option_table.keys():
+				quorum_options[path[1]] = args
 				return "true"
-			elif path[1] == "two_node":
-				quorum_options["two_node"] = args
+			elif len(path) == 2 and path[1] == "device" and args == "":
+				del(quorum_options["device"])
+				quorum_qdevice_options = {}
+				return "true"
+			elif len(path) == 3 and path[1] == "device" and \
+				path[2] in quorum_qdevice_option_table.keys():
+				if "device" not in quorum_options:
+					quorum_options["device"] = quorum_qdevice_options
+				quorum_qdevice_options[path[2]] = args
+				return "true"
+			elif len(path) == 4 and path[1] == "device" and \
+				path[2] == "net" and path[3] in quorum_qdevice_net_option_table.keys():
+				if "net" not in quorum_qdevice_options:
+					quorum_qdevice_options["net"] = {}
+					quorum_options["device"] = quorum_qdevice_options
+				quorum_qdevice_options["net"][path[3]] = args
 				return "true"
 			else:
 				return "false"
@@ -750,10 +870,10 @@ class SCR_Agent(object):
 		self.args = ""
 		self.path = ""
 			
-		#y2debug ("waiting for a command");
+		#y2debug ("waiting for a command")
 		scr_command = sys.stdin.readline().strip()
 		
-		#y2debug ("newline: %s" % scr_command);
+		#y2debug ("newline: %s" % scr_command)
 		
 		# eg. Read(.totem.interface.interface0.binnetaddr,"args")  Write(.)
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
@@ -798,7 +918,10 @@ def main_entry():
 	while True:
 		scr_agent.SCR_Command ()
 
-		#y2debug("Command %s %s" % (scr_agent.command,scr_agent.path));
+		#y2debug("Command %s %s: %s" % (scr_agent.command,scr_agent.path,scr_agent.args))
+		if debug:
+			print("Command %s %s: %s" % (scr_agent.command,
+				scr_agent.path,scr_agent.args))
 		
 		if (scr_agent.command == 'Dir' ):
 			print(openais_agent.doList(scr_agent.path))

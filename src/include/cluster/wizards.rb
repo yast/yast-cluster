@@ -40,11 +40,12 @@ module Yast
       Yast.include include_target, "cluster/common.rb"
 
       @Aliases = {
-        "communication" => lambda { CommunicationDialog() },
-        "security"      => lambda { SecurityDialog() },
-        "csync2"        => lambda { Csync2Dialog() },
-        "conntrack"     => lambda { ConntrackDialog() },
-        "service"       => lambda { ServiceDialog() }
+        "communication"    => lambda { CommunicationDialog() },
+        "corosyncqdevice"  => lambda { CorosyncQdeviceDialog() },
+        "security"         => lambda { SecurityDialog() },
+        "csync2"           => lambda { Csync2Dialog() },
+        "conntrack"        => lambda { ConntrackDialog() },
+        "service"          => lambda { ServiceDialog() }
       }
     end
 
@@ -101,13 +102,18 @@ module Yast
       sequence = {
         "ws_start"      => "communication",
         "communication" => {
+          :next  => "corosyncqdevice",
+          :back  => "communication",
+          :abort => :abort
+        },
+        "corosyncqdevice" => {
           :next  => "security",
           :back  => "communication",
           :abort => :abort
         },
         "security"      => {
           :next  => "csync2",
-          :back  => "communication",
+          :back  => "corosyncqdevice",
           :abort => :abort
         },
         "csync2"        => {

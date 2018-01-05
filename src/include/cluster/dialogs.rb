@@ -161,7 +161,7 @@ module Yast
       idset = Set[]
 
       Builtins.foreach(Cluster.memberaddr) do |value|
-        if  value[:nodeid].to_i <= 0
+        if value[:nodeid].to_i <= 0
           Popup.Message(_("Node ID has to be fulfilled with a positive integer"))
           UI.ChangeWidget(:memberaddr, :CurrentItem, i)
           i = 0
@@ -529,7 +529,7 @@ module Yast
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
       UI.ChangeWidget(Id(:expected_votes), :Value, Cluster.expected_votes)
-      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789" );
+      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789");
 
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
 
@@ -708,6 +708,205 @@ module Yast
       nil
     end
 
+    def ValidateCorosyncQdevice
+      if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
+        return true
+      end
+
+      if UI.QueryWidget(Id(:qdevice_model), :Value) != "net"
+        Popup.Message(_("The model basically defines the type of arbitrator, currently only net is support"))
+        UI.SetFocus(:qdevice_model)
+        return false
+      end
+
+      if UI.QueryWidget(Id(:qdevice_votes), :Value).to_i <= 0
+        Popup.Message(_("Qdevice votes must be a positive integer"))
+        UI.SetFocus(:qdevice_votes)
+        return false
+      end
+
+      if !IP.Check(UI.QueryWidget(Id(:qdevice_host), :Value))
+        Popup.Message(_("Qdevice host mush have a valid IP address"))
+        UI.SetFocus(:qdevice_host)
+        return false
+      end
+
+      if UI.QueryWidget(Id(:qdevice_port), :Value).to_i <= 0
+        Popup.Message(_("The corosync qdevice port must be a positive integer"))
+        UI.SetFocus(Id(:qdevice_port))
+        return false
+      end
+
+      if !["ffsplit", "lms", "test", "2nodelms"].include?(UI.QueryWidget(Id(:qdevice_algorithm), :Value))
+        Popup.Message(_("The algorithm only can be one of the ffsplit, lms, test or 2nodelms." \
+          "YaST will overwrite test and 2nodelms."))
+        UI.SetFocus(Id(:algorithm))
+        return false
+      end
+
+      if !["lowest", "highest"].include?(UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)) &&
+        (UI.QueryWidget(Id(:qdevice_tie_breaker), :Value).to_i <= 0)
+        Popup.Message(_("The tie breaker can be one of lowest, highest or a valid node id (number)"))
+        UI.SetFocus(Id(:qdevice_tie_breaker))
+        return false
+      end
+
+      true
+    end
+
+    def SaveCorosyncQdevice
+      Cluster.corosync_qdevice = Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value))
+
+      Cluster.qdevice_model = UI.QueryWidget(Id(:qdevice_model), :Value)
+      Cluster.qdevice_votes = UI.QueryWidget(Id(:qdevice_votes), :Value).to_s
+
+      Cluster.qdevice_host = UI.QueryWidget(Id(:qdevice_host), :Value)
+      Cluster.qdevice_port = UI.QueryWidget(Id(:qdevice_port), :Value).to_s
+      Cluster.qdevice_tls = UI.QueryWidget(Id(:qdevice_tls), :Value)
+      Cluster.qdevice_algorithm = UI.QueryWidget(Id(:qdevice_algorithm), :Value)
+      Cluster.qdevice_tie_breaker = UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)
+      nil
+    end
+
+    def CorosyncQdeviceLayout
+      qdevice_section = VBox(
+        HBox(
+          ComboBox(
+            Id(:qdevice_model),
+            Opt(:hstretch),
+            _("Qdevice model:"),
+            ["net"]
+          ),
+          Left(InputField(Id(:qdevice_votes),Opt(:hstretch), _("Qdevice votes:"),""))
+        )
+      )
+
+      qdevice_net_section = VBox(
+        HBox(
+          Left(InputField(Id(:qdevice_host),Opt(:hstretch), _("Qnetd server host:"),"")),
+          HSpacing(1),
+          Left(InputField(Id(:qdevice_port),Opt(:hstretch), _("Qnetd server TCP port:"),"5403"))
+        ),
+        HBox(
+          Left(ComboBox(
+            Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),
+            ["off", "on", "required"]
+          )),
+          Left(ComboBox(
+            Id(:qdevice_algorithm), Opt(:hstretch, :notify), _("Algorithm:"),
+            [
+              Item(Id("ffsplit"), "ffsplit"),
+              Item(Id("lms"), "lms")
+            ]
+          )),
+          HSpacing(1),
+          Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie breaker:"),"lowest"))
+        )
+      )
+
+      contents = VBox(
+        VSpacing(1),
+        CheckBoxFrame(
+          Id(:corosync_qdevice),
+          Opt(:hstretch, :notify),
+          _("En&able Corosync Qdevice"),
+          false,
+          VBox(
+            VSpacing(1),
+            qdevice_section,
+            VSpacing(2),
+            qdevice_net_section,
+          )
+        ),
+        VStretch()
+      )
+
+      my_SetContents("corosyncqdevice", contents)
+
+      UI.ChangeWidget(Id(:corosync_qdevice), :Value, Cluster.corosync_qdevice)
+
+      UI.ChangeWidget(Id(:qdevice_model), :Value, Cluster.qdevice_model)
+      UI.ChangeWidget(Id(:qdevice_votes), :Value, Cluster.qdevice_votes)
+      UI.ChangeWidget(Id(:qdevice_votes), :ValidChars, "0123456789");
+
+      UI.ChangeWidget(Id(:qdevice_host), :Value, Cluster.qdevice_host)
+      UI.ChangeWidget(Id(:qdevice_port), :Value, Cluster.qdevice_port)
+      UI.ChangeWidget(Id(:qdevice_tls), :Value, Cluster.qdevice_tls)
+      UI.ChangeWidget(Id(:qdevice_algorithm), :Value, Cluster.qdevice_algorithm)
+      UI.ChangeWidget(Id(:qdevice_tie_breaker), :Value, Cluster.qdevice_tie_breaker)
+
+      nil
+    end
+
+    def UpdateQdeviceVotes
+      is_ffsplit = UI.QueryWidget(Id(:qdevice_algorithm), :Value) == "ffsplit"
+
+      if is_ffsplit
+        UI.ChangeWidget(Id(:qdevice_votes), :Value, "1")
+      end
+
+      UI.ChangeWidget(Id(:qdevice_votes), :Enabled, !is_ffsplit)
+
+      nil
+    end
+
+    def CorosyncQdeviceDialog
+      ret = nil
+
+      CorosyncQdeviceLayout()
+
+      while true
+        UpdateQdeviceVotes()
+
+        ret = UI.UserInput
+
+        if ret == :corosync_qdevice
+          if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
+            next
+          end
+        end
+
+        if ret == :next || ret == :back
+          val = ValidateCorosyncQdevice()
+          if val == true
+            SaveCorosyncQdevice()
+            break
+          else
+            ret = nil
+            next
+          end
+        end
+
+        if ret == :abort || ret == :cancel
+          if ReallyAbort()
+            return deep_copy(ret)
+          else
+            next
+          end
+        end
+
+        if ret == :wizardTree
+          ret = Convert.to_string(UI.QueryWidget(Id(:wizardTree), :CurrentItem))
+        end
+
+        if Builtins.contains(@DIALOG, Convert.to_string(ret))
+          ret = Builtins.symbolof(Builtins.toterm(ret))
+          val = ValidateCorosyncQdevice()
+          if val == true
+            SaveCorosyncQdevice()
+            break
+          else
+            ret = nil
+            Wizard.SelectTreeItem("corosyncqdevice")
+            next
+          end
+        end
+
+        Builtins.y2error("unexpected retcode: %1", ret)
+      end
+      deep_copy(ret)
+    end
+
     def SecurityDialog
       ret = nil
 
@@ -808,7 +1007,6 @@ module Yast
     def ValidateService
       true
     end
-
 
     def UpdateServiceStatus
       ret = 0
