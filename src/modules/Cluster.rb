@@ -347,6 +347,11 @@ module Yast
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end
+
+      if @corosync_qdevice
+        # two_node can not be used with qdevice
+        @two_node = "0"
+      end
       SCR.Write(path(".openais.quorum.two_node"), @two_node)
 
       SCR.Write(
