@@ -26,6 +26,7 @@
 #
 # $Id: wizards.ycp 27914 2006-02-13 14:32:08Z locilka $
 require 'set'
+require "y2firewall/firewalld"
 
 module Yast
   module ClusterDialogsInclude
@@ -41,8 +42,6 @@ module Yast
       Yast.import "SystemdSocket"
       Yast.import "Report"
       Yast.import "CWMFirewallInterfaces"
-      Yast.import "SuSEFirewall"
-      Yast.import "SuSEFirewallServices"
 
       Yast.include include_target, "cluster/helps.rb"
       Yast.include include_target, "cluster/common.rb"
@@ -1036,9 +1035,9 @@ module Yast
 
       firewall_widget = CWMFirewallInterfaces.CreateOpenFirewallWidget(
         {
-          #servie:cluster is the  name of /etc/sysconfig/SuSEfirewall2.d/services/cluster
+          # cluster is the  name of /usr/lib/firewalld.d/services/cluster.xml
           "services"        => [
-            "service:cluster"
+            "cluster"
           ],
           "display_details" => true
         }
@@ -1242,8 +1241,13 @@ module Yast
         return 2
       end
       #check the firewall whether csync2 port was blocked.
-      tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      begin
+        firewalld_cluster = firewalld.find_service("cluster")
+        tcp_ports = firewalld_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::ServiceNotFound
+        tcp_ports = []
+      end
+
       pos = nil
       pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
       return 2 if pos == nil
@@ -1264,17 +1268,24 @@ module Yast
       csync2_socket.disable
       y2debug("Stop and disable csync2.socket.")
 
-      tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+      begin
+        fwd_cluster = firewalld.find_service("cluster")
+        tcp_ports = fwd_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        tcp_ports = []
+      end
+
       pos = nil
       pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
       if pos != nil
         tcp_ports = Builtins.remove(tcp_ports, Builtins.tointeger(pos))
       end
-      SuSEFirewallServices.SetNeededPortsAndProtocols(
-        "service:cluster",
-        { "tcp_ports" => tcp_ports }
-      )
+
+      begin
+        Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        y2error("Firewalld 'cluster' service is not available.")
+      end
 
       nil
     end
@@ -1293,14 +1304,23 @@ module Yast
       y2debug("Start and enable csync2.socket.")
 
       tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
+
+      begin
+        fwd_cluster = firewalld.find_service("cluster")
+        tcp_ports = fwd_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        tcp_ports = []
+      end
+
       pos = nil
       pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
       tcp_ports = Builtins.add(tcp_ports, @csync2_port) if pos == nil
-      SuSEFirewallServices.SetNeededPortsAndProtocols(
-        "service:cluster",
-        { "tcp_ports" => tcp_ports }
-      )
+      begin
+        Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        y2error("Firewalld 'cluster' service is not available.")
+      end
+
 
       nil
     end
@@ -1791,6 +1811,12 @@ module Yast
         end
       end
       deep_copy(ret)
+    end
+
+  private
+
+    def firewalld
+      Y2Firewall::Firewalld.instance
     end
   end
 end

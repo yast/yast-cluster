@@ -17,23 +17,26 @@
 
 
 Name:           yast2-cluster
-%define _fwdefdir /etc/sysconfig/SuSEfirewall2.d/services
-Version:        4.0.3
+%define _fwdefdir %{_libexecdir}/firewalld/services
+Version:        4.0.4
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
-Source1:        cluster.fwd
+Source1:        cluster.firewalld.xml
 
 BuildRequires:  perl-XML-Writer
 BuildRequires:  update-desktop-files
-BuildRequires:  yast2
+# SuSEFirewall2 replaced by Firewalld (fate#323460)
+BuildRequires:  yast2 >= 4.0.37
 BuildRequires:  yast2-devtools >= 3.1.10
 BuildRequires:  yast2-testsuite
+BuildRequires:  firewall-macros
 
 BuildArch:      noarch
 
-Requires:       yast2
+# SuSEFirewall2 replaced by Firewalld (fate#323460)
+Requires:       yast2 >= 4.0.37
 Requires:       yast2-ruby-bindings >= 1.0.0
 
 Summary:        Configuration of cluster
@@ -52,12 +55,16 @@ Group:          System/YaST
 %install
 %yast_install
 
-mkdir -p $RPM_BUILD_ROOT/%{_fwdefdir}
-install -m 644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster
+install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/suse_cluster.xml
+
+%post
+%firewalld_reload
 
 %files
 %defattr(-,root,root)
 %dir %{yast_yncludedir}/cluster
+%dir %{_libexecdir}/firewalld
+%dir %{_fwdefdir}
 %{yast_yncludedir}/cluster/*
 %{yast_clientdir}/cluster.rb
 %{yast_clientdir}/cluster_*.rb
@@ -66,6 +73,6 @@ install -m 644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster
 %{yast_scrconfdir}/*.scr
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
-%config %{_fwdefdir}/cluster
+%{_fwdefdir}/suse_cluster.xml
 
 %changelog

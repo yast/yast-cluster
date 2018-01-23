@@ -30,6 +30,7 @@
 # Input and output routines.
 #
 require "yast"
+require "y2firewall/firewalld"
 
 module Yast
   class ClusterClass < Module
@@ -41,8 +42,6 @@ module Yast
       Yast.import "Summary"
       Yast.import "Message"
       Yast.import "PackageSystem"
-      Yast.import "SuSEFirewall"
-      Yast.import "SuSEFirewallServices"
 
 
       @csync2_key_file = "/etc/csync2/key_hagroup"
@@ -325,7 +324,7 @@ module Yast
       if @expected_votes != ""
         SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
       end
-  
+
       # BNC#871970, only write member address when interface0  
       if @transport == "udpu"
 
@@ -470,7 +469,7 @@ module Yast
           # Progress stage 2/3
           _("Read the previous settings"),
           # Progress stage 3/3
-          _("Read SuSEFirewall Settings")
+          _("Read Firewall Settings")
         ],
         [
           # Progress step 1/3
@@ -478,7 +477,7 @@ module Yast
           # Progress step 2/3
           _("Reading the previous settings..."),
           # Progress step 3/3
-          _("Reading SuSEFirewall settings..."),
+          _("Reading Firewall settings..."),
           # Progress finished
           _("Finished")
         ],
@@ -534,7 +533,7 @@ module Yast
       Builtins.sleep(sl)
 
       # detect devices
-      SuSEFirewall.Read
+      firewalld.read
 
       return false if Abort()
       Progress.NextStage
@@ -574,13 +573,13 @@ module Yast
           # Progress stage 1/2
           _("Write the settings"),
           # Progress stage 2/2
-          _("Save changes to SuSEFirewall")
+          _("Save firewall changes")
         ],
         [
           # Progress step 1/2
           _("Writing the settings..."),
           # Progress step 2/2
-          _("Saving changes to SuSEFirewall..."),
+          _("Saving firewall changes ..."),
           # Progress finished
           _("Finished")
         ],
@@ -595,7 +594,7 @@ module Yast
       Report.Error(_("Cannot write settings.")) if false
       Builtins.sleep(sl)
 
-      # Work with SuSEFirewall
+      # Work with firewalld
       udp_ports = []
       udp_ports = Builtins.add(udp_ports, @mcastport1) if @mcastport1 != ""
       if @enable2 && @mcastport2 != ""
@@ -618,22 +617,22 @@ module Yast
       #  :to   => "list <string>"
       #)
 
-      SuSEFirewallServices.SetNeededPortsAndProtocols(
-        "service:cluster",
-        { "tcp_ports" => tcp_ports, "udp_ports" => udp_ports }
-      )
+      begin
+        Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports, udp_ports: udp_ports)
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        y2error("Firewalld 'cluster' service is not available.")
+      end
 
       save_csync2_conf
 
       # run SuSEconfig
-      SuSEFirewall.Write
+      firewalld.write
       return false if Abort()
       Progress.NextStage
       # Error message
       Report.Error(Message.SuSEConfigFailed) if false
       Builtins.sleep(sl)
 
-      SuSEFirewall.ActivateConfiguration
       return false if Abort()
       # Progress finished
       Progress.NextStage
@@ -853,6 +852,13 @@ module Yast
     publish :function => :Summary, :type => "list ()"
     publish :function => :Overview, :type => "list ()"
     publish :function => :AutoPackages, :type => "map ()"
+
+  private
+
+    def firewalld
+      Y2Firewall::Firewalld.instance
+    end
+
   end
 
   Cluster = ClusterClass.new

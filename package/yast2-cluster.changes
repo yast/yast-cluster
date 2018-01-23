@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Jan 23 09:04:02 UTC 2018 - knut.anderssen@suse.com
+
+- SuSEFirewall2 replaced by firewalld(fate#323460)
+- Version 4.0.4
+
+-------------------------------------------------------------------
 Thu Jan 11 16:12:15 UTC 2018 - bliu@suse.com
 
 - bsc#1075507 two_node can not be enable when using qdevice
