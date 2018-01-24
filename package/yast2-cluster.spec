@@ -55,7 +55,7 @@ Group:          System/YaST
 %install
 %yast_install
 
-install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/suse_cluster.xml
+install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster.xml
 
 %post
 %firewalld_reload
@@ -73,6 +73,6 @@ install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/suse_cluster.xml
 %{yast_scrconfdir}/*.scr
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
-%{_fwdefdir}/suse_cluster.xml
+%{_fwdefdir}/cluster.xml
 
 %changelog
