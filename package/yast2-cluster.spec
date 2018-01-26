@@ -36,7 +36,7 @@ BuildRequires:  firewall-macros
 BuildArch:      noarch
 
 # SuSEFirewall2 replaced by Firewalld (fate#323460)
-Requires:       yast2 >= 4.0.37
+Requires:       yast2 >= 4.0.39
 Requires:       yast2-ruby-bindings >= 1.0.0
 
 Summary:        Configuration of cluster
