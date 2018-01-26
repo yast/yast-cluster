@@ -43,7 +43,6 @@ module Yast
       Yast.import "Message"
       Yast.import "PackageSystem"
 
-
       @csync2_key_file = "/etc/csync2/key_hagroup"
 
       # Data was modified?
@@ -596,10 +595,8 @@ module Yast
 
       # Work with firewalld
       udp_ports = []
-      udp_ports = Builtins.add(udp_ports, @mcastport1) if @mcastport1 != ""
-      if @enable2 && @mcastport2 != ""
-        udp_ports = Builtins.add(udp_ports, @mcastport2)
-      end
+      udp_ports << @mcastport1 if @mcastport1 != ""
+      udp_ports << @mcastport2 if @enable2 && @mcastport2 != ""
 
       # 30865 for csync2
       # 5560 for mgmtd
@@ -607,15 +604,7 @@ module Yast
       # 21064 for dlm
       # 5403 for corosync qdevice(default)
       tcp_ports = ["30865", "5560", "21064", "7630"]
-      if @corosync_qdevice
-        tcp_ports.push(@qdevice_port)
-      end
-      #tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      #tcp_ports = Convert.convert(
-      #  Builtins.union(tcp_ports, temp_tcp_ports),
-      #  :from => "list",
-      #  :to   => "list <string>"
-      #)
+      tcp_ports << @qdevice_port if @corosync_qdevice
 
       begin
         Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports, udp_ports: udp_ports)

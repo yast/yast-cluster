@@ -1228,7 +1228,6 @@ module Yast
     # return 2 if csync2 is OFF or csync2 is blocked by firewall
     # return 3 if csync2 is ON
     def csync2_status
-      csync2_socket = nil
       csync2_socket = SystemdSocket.find(@csync2_package)
 
       if !csync2_socket
@@ -1240,19 +1239,16 @@ module Yast
         y2debug("csync2.socket is disabled.")
         return 2
       end
+
       #check the firewall whether csync2 port was blocked.
       begin
         firewalld_cluster = firewalld.find_service("cluster")
         tcp_ports = firewalld_cluster.tcp_ports
-      rescue Y2Firewall::Firewalld::ServiceNotFound
+      rescue Y2Firewall::Firewalld::Service::NotFound
         tcp_ports = []
       end
 
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      return 2 if pos == nil
-
-      3
+      tcp_ports.include?(@csync2_port) ? 2 : 3
     end
 
     def csync2_turn_off
@@ -1275,11 +1271,7 @@ module Yast
         tcp_ports = []
       end
 
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      if pos != nil
-        tcp_ports = Builtins.remove(tcp_ports, Builtins.tointeger(pos))
-      end
+      tcp_ports.delete(@csync2_port) if tcp_ports.include?(@csync2_port)
 
       begin
         Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
@@ -1303,8 +1295,6 @@ module Yast
       csync2_socket.enable
       y2debug("Start and enable csync2.socket.")
 
-      tcp_ports = []
-
       begin
         fwd_cluster = firewalld.find_service("cluster")
         tcp_ports = fwd_cluster.tcp_ports
@@ -1312,15 +1302,13 @@ module Yast
         tcp_ports = []
       end
 
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      tcp_ports = Builtins.add(tcp_ports, @csync2_port) if pos == nil
+      tcp_ports << @csync2_port unless tcp_ports.include?(@csync2_port)
+
       begin
         Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
       rescue Y2Firewall::Firewalld::Service::NotFound
         y2error("Firewalld 'cluster' service is not available.")
       end
-
 
       nil
     end
@@ -1815,6 +1803,9 @@ module Yast
 
   private
 
+    # Convenience for returning a Y2Firewall::Firewalld singleton instance.
+    #
+    # @return [Y2Firewall::Firewalld] singleton instance
     def firewalld
       Y2Firewall::Firewalld.instance
     end
