@@ -26,6 +26,7 @@
 #
 # $Id: wizards.ycp 27914 2006-02-13 14:32:08Z locilka $
 require 'set'
+require "y2firewall/firewalld"
 
 module Yast
   module ClusterDialogsInclude
@@ -41,8 +42,6 @@ module Yast
       Yast.import "SystemdSocket"
       Yast.import "Report"
       Yast.import "CWMFirewallInterfaces"
-      Yast.import "SuSEFirewall"
-      Yast.import "SuSEFirewallServices"
 
       Yast.include include_target, "cluster/helps.rb"
       Yast.include include_target, "cluster/common.rb"
@@ -1036,9 +1035,9 @@ module Yast
 
       firewall_widget = CWMFirewallInterfaces.CreateOpenFirewallWidget(
         {
-          #servie:cluster is the  name of /etc/sysconfig/SuSEfirewall2.d/services/cluster
+          # cluster is the  name of /usr/lib/firewalld.d/services/cluster.xml
           "services"        => [
-            "service:cluster"
+            "cluster"
           ],
           "display_details" => true
         }
@@ -1229,7 +1228,6 @@ module Yast
     # return 2 if csync2 is OFF or csync2 is blocked by firewall
     # return 3 if csync2 is ON
     def csync2_status
-      csync2_socket = nil
       csync2_socket = SystemdSocket.find(@csync2_package)
 
       if !csync2_socket
@@ -1241,14 +1239,16 @@ module Yast
         y2debug("csync2.socket is disabled.")
         return 2
       end
-      #check the firewall whether csync2 port was blocked.
-      tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      return 2 if pos == nil
 
-      3
+      #check the firewall whether csync2 port was blocked.
+      begin
+        firewalld_cluster = firewalld.find_service("cluster")
+        tcp_ports = firewalld_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        tcp_ports = []
+      end
+
+      tcp_ports.include?(@csync2_port) ? 2 : 3
     end
 
     def csync2_turn_off
@@ -1264,17 +1264,20 @@ module Yast
       csync2_socket.disable
       y2debug("Stop and disable csync2.socket.")
 
-      tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      if pos != nil
-        tcp_ports = Builtins.remove(tcp_ports, Builtins.tointeger(pos))
+      begin
+        fwd_cluster = firewalld.find_service("cluster")
+        tcp_ports = fwd_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        tcp_ports = []
       end
-      SuSEFirewallServices.SetNeededPortsAndProtocols(
-        "service:cluster",
-        { "tcp_ports" => tcp_ports }
-      )
+
+      tcp_ports.delete(@csync2_port) if tcp_ports.include?(@csync2_port)
+
+      begin
+        Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        y2error("Firewalld 'cluster' service is not available.")
+      end
 
       nil
     end
@@ -1292,15 +1295,20 @@ module Yast
       csync2_socket.enable
       y2debug("Start and enable csync2.socket.")
 
-      tcp_ports = []
-      tcp_ports = SuSEFirewallServices.GetNeededTCPPorts("service:cluster")
-      pos = nil
-      pos = Builtins.find(tcp_ports) { |s| s == @csync2_port }
-      tcp_ports = Builtins.add(tcp_ports, @csync2_port) if pos == nil
-      SuSEFirewallServices.SetNeededPortsAndProtocols(
-        "service:cluster",
-        { "tcp_ports" => tcp_ports }
-      )
+      begin
+        fwd_cluster = firewalld.find_service("cluster")
+        tcp_ports = fwd_cluster.tcp_ports
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        tcp_ports = []
+      end
+
+      tcp_ports << @csync2_port unless tcp_ports.include?(@csync2_port)
+
+      begin
+        Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports)
+      rescue Y2Firewall::Firewalld::Service::NotFound
+        y2error("Firewalld 'cluster' service is not available.")
+      end
 
       nil
     end
@@ -1791,6 +1799,15 @@ module Yast
         end
       end
       deep_copy(ret)
+    end
+
+  private
+
+    # Convenience for returning a Y2Firewall::Firewalld singleton instance.
+    #
+    # @return [Y2Firewall::Firewalld] singleton instance
+    def firewalld
+      Y2Firewall::Firewalld.instance
     end
   end
 end

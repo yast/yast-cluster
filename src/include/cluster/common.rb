@@ -36,8 +36,6 @@ module Yast
       Yast.import "Popup"
       Yast.import "CWM"
       Yast.import "CWMFirewallInterfaces"
-      Yast.import "SuSEFirewall"
-      Yast.import "SuSEFirewallServices"
 
       @DIALOG = ["communication", "corosyncqdevice", "security", "csync2", "conntrack", "service"]
 
