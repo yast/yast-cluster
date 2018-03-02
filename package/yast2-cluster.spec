@@ -1,7 +1,7 @@
 #
 # spec file for package yast2-cluster
 #
-# Copyright (c) 2014 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2018 SUSE Products GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -18,7 +18,7 @@
 
 Name:           yast2-cluster
 %define _fwdefdir %{_libexecdir}/firewalld/services
-Version:        4.0.4
+Version:        4.0.5
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build

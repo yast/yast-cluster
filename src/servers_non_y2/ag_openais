@@ -188,11 +188,12 @@ qb_option_table = { "ipc_type":{"doc":"This specifies type of IPC to use",
 		  }
 
 # Using [] instead of {} is because some sections like nodelist have many nodes
-totem_options = {}
-logging_options = {}
+# Default value to avoid traceback in doRead when without corosync.conf
+totem_options = {"interface":[]}
+logging_options = {"logger_subsys":[]}
 quorum_qdevice_options={}
-quorum_options={}
-nodelist_options={}
+quorum_options={"device":quorum_qdevice_options}
+nodelist_options={"node":[]}
 qb_options={}
 
 def strip_comments_and_pending_space(line):
@@ -716,7 +717,6 @@ class OpenAISConf_Parser(object):
 		pass
 
 	def doWrite(self, path, args):
-		global quorum_options
 		global quorum_qdevice_options
 
 		if path[0] == "":
@@ -727,8 +727,11 @@ class OpenAISConf_Parser(object):
 				quorum_options[path[1]] = args
 				return "true"
 			elif len(path) == 2 and path[1] == "device" and args == "":
-				del(quorum_options["device"])
-				quorum_qdevice_options = {}
+				# May no "device" in quorum_options,
+				# cause reset in file_parser
+				if is_quorum_qdevice_configured():
+					del(quorum_options["device"])
+					quorum_qdevice_options = {}
 				return "true"
 			elif len(path) == 3 and path[1] == "device" and \
 				path[2] in quorum_qdevice_option_table.keys():
