@@ -729,7 +729,7 @@ class OpenAISConf_Parser(object):
 			elif len(path) == 2 and path[1] == "device" and args == "":
 				# May no "device" in quorum_options,
 				# cause reset in file_parser
-				if is_quorum_qdevice_configured():
+				if "device" in quorum_options:
 					del(quorum_options["device"])
 					quorum_qdevice_options = {}
 				return "true"
