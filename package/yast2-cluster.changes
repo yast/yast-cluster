@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Mar 23 09:49:15 UTC 2018 - nwang@suse.com
+
+- bsc#1086630, fix write err when upgrading without quorum section
+- Version 4.0.6
+
+-------------------------------------------------------------------
 Fri Mar  2 08:01:20 UTC 2018 - nwang@suse.com
 
 - bsc#1083439, fix traceback when starting without corosync.conf
