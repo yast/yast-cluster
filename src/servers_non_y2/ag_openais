@@ -59,7 +59,7 @@ totem_option_table = {
 		},
 	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
 			       "default_value":"yes"},
-	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"cluster"},
+	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"hacluster"},
 	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message",
 		   "default_value":"off"},
 	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
@@ -630,7 +630,7 @@ class OpenAISConf_Parser(object):
 				elif path[1] == "transport":
 					return '"%s"' % totem_options.get("transport", "udp")
 				elif path[1] == "cluster_name":
-					return '"%s"' % totem_options.get("cluster_name", "cluster")
+					return '"%s"' % totem_options.get("cluster_name", "hacluster")
 				elif path[1] == "ip_version":
 					return '"%s"' % totem_options.get("ip_version", "ipv4")
 				else:
