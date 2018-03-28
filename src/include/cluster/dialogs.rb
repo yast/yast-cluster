@@ -485,7 +485,7 @@ module Yast
 
       nid = VBox(
         HBox(
-          Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"))),
+          Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"),"hacluster")),
           Left(InputField(Id(:expected_votes),Opt(:hstretch), _("Expected Votes:"),"")),
           ComboBox(
             Id(:rrpmode),
