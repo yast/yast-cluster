@@ -15,6 +15,7 @@ X-SuSE-YaST-Geometry=
 X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=cluster
 X-SuSE-YaST-AutoInstClonable=true
+X-SuSE-YaST-Keywords=high,availability
 
 Icon=yast-heartbeat
 Exec=xdg-su -c "/sbin/yast2 cluster"
