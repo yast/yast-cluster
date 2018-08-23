@@ -17,31 +17,31 @@
 
 
 Name:           yast2-cluster
-%define _fwdefdir %{_libexecdir}/firewalld/services
-Version:        4.0.8
+Version:        4.1.0
 Release:        0
 
+BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.firewalld.xml
 
+# Yast2::Systemd::Socket
+BuildRequires:  yast2 >= 4.1.3
+Requires:       yast2 >= 4.1.3
+
 BuildRequires:  perl-XML-Writer
 BuildRequires:  update-desktop-files
-# SuSEFirewall2 replaced by Firewalld (fate#323460)
-BuildRequires:  yast2 >= 4.0.39
 BuildRequires:  yast2-devtools >= 3.1.10
 BuildRequires:  yast2-testsuite
 BuildRequires:  firewall-macros
 
-BuildArch:      noarch
-
-# SuSEFirewall2 replaced by Firewalld (fate#323460)
-Requires:       yast2 >= 4.0.39
 Requires:       yast2-ruby-bindings >= 1.0.0
 
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
 Group:          System/YaST
+
+%define _fwdefdir %{_libexecdir}/firewalld/services
 
 %description
 -

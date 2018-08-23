@@ -27,6 +27,7 @@
 # $Id: wizards.ycp 27914 2006-02-13 14:32:08Z locilka $
 require 'set'
 require "y2firewall/firewalld"
+require "yast2/systemd/socket"
 
 module Yast
   module ClusterDialogsInclude
@@ -39,7 +40,6 @@ module Yast
       Yast.import "IP"
       Yast.import "Popup"
       Yast.import "Service"
-      Yast.import "SystemdSocket"
       Yast.import "Report"
       Yast.import "CWMFirewallInterfaces"
 
@@ -101,7 +101,7 @@ module Yast
       ret = nil
 
       value.default=""
- 
+
       # BNC#871970, change member address struct
       UI.OpenDialog(
         MarginBox(
@@ -184,7 +184,7 @@ module Yast
 
       true
     end
- 
+
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
@@ -1228,7 +1228,7 @@ module Yast
     # return 2 if csync2 is OFF or csync2 is blocked by firewall
     # return 3 if csync2 is ON
     def csync2_status
-      csync2_socket = SystemdSocket.find(@csync2_package)
+      csync2_socket = Yast2::Systemd::Socket.find(@csync2_package)
 
       if !csync2_socket
         y2error("csync2.socket not found.")
@@ -1253,7 +1253,7 @@ module Yast
 
     def csync2_turn_off
       csync2_socket = nil
-      csync2_socket = SystemdSocket.find(@csync2_package)
+      csync2_socket = Yast2::Systemd::Socket.find(@csync2_package)
 
       if !csync2_socket
         y2error("csync2.socket is missing.")
@@ -1284,7 +1284,7 @@ module Yast
 
     def csync2_turn_on
       csync2_socket = nil
-      csync2_socket = SystemdSocket.find(@csync2_package)
+      csync2_socket = Yast2::Systemd::Socket.find(@csync2_package)
 
       if !csync2_socket
         y2error("csync2.socket is missing.")
