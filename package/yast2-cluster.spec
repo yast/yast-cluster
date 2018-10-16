@@ -74,5 +74,6 @@ install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster.xml
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
 %{_fwdefdir}/cluster.xml
+%license COPYING
 
 %changelog
