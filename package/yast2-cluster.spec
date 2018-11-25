@@ -17,7 +17,7 @@
 
 
 Name:           yast2-cluster
-Version:        4.1.0
+Version:        4.1.1
 Release:        0
 
 BuildArch:      noarch
@@ -74,6 +74,7 @@ install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster.xml
 %{yast_agentdir}/ag_openais
 %doc %{yast_docdir}
 %{_fwdefdir}/cluster.xml
+%{_datadir}/icons/*
 %license COPYING
 
 %changelog
