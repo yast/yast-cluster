@@ -273,6 +273,8 @@ module Yast
           UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
           UI.SetFocus(Id(:rrpmode))
           return false
+        elsif UI.QueryWidget(Id(:rrpmode), :Value) == "active"
+          Popup.Message(_("rrp mode active is deprecated, better use passive."))
         end
       end
 
