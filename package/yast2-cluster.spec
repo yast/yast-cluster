@@ -1,7 +1,7 @@
 #
 # spec file for package yast2-cluster
 #
-# Copyright (c) 2018 SUSE LINUX GmbH, Nuernberg, Germany.
+# Copyright (c) 2019 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -36,6 +36,7 @@ BuildRequires:  yast2-testsuite
 BuildRequires:  firewall-macros
 
 Requires:       yast2-ruby-bindings >= 1.0.0
+Requires:       sharutils
 
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
