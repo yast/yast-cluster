@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Tue Apr 23 15:50:05 UTC 2019 - Stefan Weiberg <sweiberg@suse.com>
+
+- bsc#1132881, uuencode can't be executed if sharutils are not
+  installed:
+
+  added sharutils to the package requirements
+
+-------------------------------------------------------------------
 Wed Jun 27 17:23:09 CEST 2018 - schubi@suse.de
 
 - Added additional searchkeys to desktop file (fate#321043).
