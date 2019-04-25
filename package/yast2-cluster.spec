@@ -36,7 +36,6 @@ BuildRequires:  yast2-testsuite
 BuildRequires:  firewall-macros
 
 Requires:       yast2-ruby-bindings >= 1.0.0
-Requires:       sharutils
 
 Summary:        Configuration of cluster
 License:        GPL-2.0-only

@@ -31,6 +31,7 @@
 #
 require "yast"
 require "y2firewall/firewalld"
+require "base64"
 
 module Yast
   class ClusterClass < Module
@@ -628,26 +629,12 @@ module Yast
       Builtins.sleep(sl)
 
       if @corokey != ""
-        out = Convert.to_map(
-          SCR.Execute(
-            path(".target.bash_output"),
-            Ops.add(
-              Ops.add("echo '", @corokey),
-              "' | uudecode -o /etc/corosync/authkey"
-            )
-          )
-        )
+        file = File.open("/etc/corosync/authkey", "w")
+        file.write(Base64.decode64(@corokey))
       end
       if @csync2key != ""
-        out = Convert.to_map(
-          SCR.Execute(
-            path(".target.bash_output"),
-            Ops.add(
-              Ops.add(Ops.add("echo '", @csync2key), "' | uudecode -o "),
-              @csync2_key_file
-            )
-          )
-        )
+        file = File.open(@csync2_key_file, "w")
+        file.write(Base64.decode64(@csync2key))
       end
       # is that necessary? since enable pacemaker will trigger corosync/csync2?
       # FIXME if not necessary
@@ -722,22 +709,12 @@ module Yast
       Ops.set(result, "csync2_host", @csync2_host)
       Ops.set(result, "csync2_include", @csync2_include)
       if SCR.Read(path(".target.size"), "/etc/corosync/authkey") != -1
-        out = Convert.to_map(
-          SCR.Execute(
-            path(".target.bash_output"),
-            "uuencode -m /etc/corosync/authkey /dev/stdout"
-          )
-        )
-        Ops.set(result, "corokey", Ops.get_string(out, "stdout", ""))
+        data = File.read("/etc/corosync/authkey")
+        Ops.set(result, "corokey", Base64.encode64(data))
       end
-      if SCR.Read(path(".target.size"), "/etc/csync2/key_hagroup") != -1
-        out = Convert.to_map(
-          SCR.Execute(
-            path(".target.bash_output"),
-            Ops.add(Ops.add("uuencode -m ", @csync2_key_file), " /dev/stdout ")
-          )
-        )
-        Ops.set(result, "csync2key", Ops.get_string(out, "stdout", ""))
+      if SCR.Read(path(".target.size"), @csync2_key_file) != -1
+        data = File.read(@csync2_key_file)
+        Ops.set(result, "csync2key", Base64.encode64(data))
       end
       deep_copy(result)
     end
