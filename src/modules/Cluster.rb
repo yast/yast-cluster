@@ -629,12 +629,20 @@ module Yast
       Builtins.sleep(sl)
 
       if @corokey != ""
-        file = File.open("/etc/corosync/authkey", "w")
-        file.write(Base64.decode64(@corokey))
+        if system("which 'uudecode'>/dev/null 2>&1")
+          cmd = "echo '" + @corokey + "' | uudecode -o /etc/corosync/authkey"
+          %x[ #{cmd} ]
+        else
+          File.write("/etc/corosync/authkey", Base64.decode64(@corokey))
+        end
       end
       if @csync2key != ""
-        file = File.open(@csync2_key_file, "w")
-        file.write(Base64.decode64(@csync2key))
+        if system("which 'uudecode'>/dev/null 2>&1")
+          cmd = "echo '" + @csync2key + "' | uudecode -o " + @csync2_key_file
+          %x[ #{cmd} ]
+        else
+          File.write(@csync2_key_file, Base64.decode64(@csync2key))
+        end
       end
       # is that necessary? since enable pacemaker will trigger corosync/csync2?
       # FIXME if not necessary
@@ -708,13 +716,24 @@ module Yast
       Ops.set(result, "rrpmode", @rrpmode)
       Ops.set(result, "csync2_host", @csync2_host)
       Ops.set(result, "csync2_include", @csync2_include)
-      if SCR.Read(path(".target.size"), "/etc/corosync/authkey") != -1
-        data = File.read("/etc/corosync/authkey")
-        Ops.set(result, "corokey", Base64.encode64(data))
+      if File.exist?("/etc/corosync/authkey")
+        if system("which 'uuencode'>/dev/null 2>&1")
+          data = %x[ #{'uuencode -m /etc/corosync/authkey /dev/stdout'} ]
+          Ops.set(result, "corokey", data)
+        else
+          data = File.read("/etc/corosync/authkey")
+          Ops.set(result, "corokey", Base64.encode64(data))
+        end
       end
-      if SCR.Read(path(".target.size"), @csync2_key_file) != -1
-        data = File.read(@csync2_key_file)
-        Ops.set(result, "csync2key", Base64.encode64(data))
+
+      if File.exist?(@csync2_key_file)
+        if system("which 'uuencode'>/dev/null 2>&1")
+          data = %x[ #{'uuencode -m ' + @csync2_key_file + ' /dev/stdout'} ]
+          Ops.set(result, "csync2key", data)
+        else
+          data = File.read(@csync2_key_file)
+          Ops.set(result, "csync2key", Base64.encode64(data))
+        end
       end
       deep_copy(result)
     end
