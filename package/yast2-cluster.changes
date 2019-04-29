@@ -1,4 +1,18 @@
 -------------------------------------------------------------------
+Thu Apr 25 07:00:13 UTC 2019 - nick wang <nwang@suse.com>
+
+- bsc#1132881, using ruby base64 to replace uuencode/uudecode
+  Remove the requirement of sharutils
+
+-------------------------------------------------------------------
+Tue Apr 23 15:50:05 UTC 2019 - Stefan Weiberg <sweiberg@suse.com>
+
+- bsc#1132881, uuencode can't be executed if sharutils are not
+  installed:
+
+  added sharutils to the package requirements
+
+-------------------------------------------------------------------
 Wed Apr 17 05:19:04 UTC 2019 - nick wang <nwang@suse.com>
 
 - Warn rrp_mode active is deprecated (bsc#1132640)
