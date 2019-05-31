@@ -12,23 +12,24 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
-# Please submit bugfixes or comments via http://bugs.opensuse.org/
+# Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
+%define _fwdefdir %{_libexecdir}/firewalld/services
 
 Name:           yast2-cluster
 Version:        4.1.2
 Release:        0
+Summary:        Configuration of cluster
+License:        GPL-2.0-only
+Group:          System/YaST
+Url:            https://github.com/yast/yast-cluster
 
-BuildArch:      noarch
-BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.firewalld.xml
 
 # Yast2::Systemd::Socket
 BuildRequires:  yast2 >= 4.1.3
-Requires:       yast2 >= 4.1.3
-
 BuildRequires:  perl-XML-Writer
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2-devtools >= 3.1.10
@@ -36,43 +37,39 @@ BuildRequires:  yast2-testsuite
 BuildRequires:  firewall-macros
 
 Requires:       yast2-ruby-bindings >= 1.0.0
+Requires:       yast2 >= 4.1.3
 
-Summary:        Configuration of cluster
-License:        GPL-2.0-only
-Group:          System/YaST
-
-%define _fwdefdir %{_libexecdir}/firewalld/services
+BuildArch:      noarch
 
 %description
 -
 
 %prep
-%setup -n %{name}-%{version}
+%setup -q
 
 %build
 %yast_build
 
 %install
 %yast_install
+%yast_metainfo
 
-install -D -m 0644 %{S:1} $RPM_BUILD_ROOT/%{_fwdefdir}/cluster.xml
+install -D -m 0644 %{S:1} %{buildroot}%{_fwdefdir}/cluster.xml
 
 %post
 %firewalld_reload
 
 %files
-%defattr(-,root,root)
-%dir %{yast_yncludedir}/cluster
+%{yast_yncludedir}
+%{yast_clientdir}
+%{yast_moduledir}
+%{yast_desktopdir}
+%{yast_metainfodir}
+%{yast_scrconfdir}
+%{yast_agentdir
+%doc %{yast_docdir}
 %dir %{_libexecdir}/firewalld
 %dir %{_fwdefdir}
-%{yast_yncludedir}/cluster/*
-%{yast_clientdir}/cluster.rb
-%{yast_clientdir}/cluster_*.rb
-%{yast_moduledir}/Cluster.*
-%{yast_desktopdir}/cluster.desktop
-%{yast_scrconfdir}/*.scr
-%{yast_agentdir}/ag_openais
-%doc %{yast_docdir}
 %{_fwdefdir}/cluster.xml
 %{yast_icondir}
 %license COPYING
