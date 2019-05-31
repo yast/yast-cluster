@@ -66,7 +66,7 @@ install -D -m 0644 %{S:1} %{buildroot}%{_fwdefdir}/cluster.xml
 %{yast_desktopdir}
 %{yast_metainfodir}
 %{yast_scrconfdir}
-%{yast_agentdir
+%{yast_agentdir}
 %doc %{yast_docdir}
 %dir %{_libexecdir}/firewalld
 %dir %{_fwdefdir}
