@@ -27,7 +27,7 @@ agent_SCRIPTS = \
   servers_non_y2/ag_openais
 
 desktop_DATA = \
-  desktop/cluster.desktop
+  desktop/org.openSUSE.YaST.Cluster.desktop
 
 symbolicdir = @icondir@/hicolor/symbolic/apps
 symbolic_DATA = \
