@@ -20,5 +20,6 @@ X-SuSE-YaST-Keywords=high,availability
 Icon=yast-heartbeat
 Exec=xdg-su -c "/sbin/yast2 cluster"
 
-Name=Cluster
-GenericName=Configure Cluster
+Name=YaST Cluster
+GenericName=Cluster
+Comment=Configure Cluster
