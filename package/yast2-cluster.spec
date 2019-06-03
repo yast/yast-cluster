@@ -32,7 +32,7 @@ Source1:        cluster.firewalld.xml
 BuildRequires:  yast2 >= 4.1.3
 BuildRequires:  perl-XML-Writer
 BuildRequires:  update-desktop-files
-BuildRequires:  yast2-devtools >= 3.1.10
+BuildRequires:  yast2-devtools >= 4.2.2
 BuildRequires:  yast2-testsuite
 BuildRequires:  firewall-macros
 
