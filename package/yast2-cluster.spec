@@ -70,6 +70,7 @@ install -D -m 0644 %{S:1} %{buildroot}%{_fwdefdir}/cluster.xml
 %dir %{_fwdefdir}
 %{_fwdefdir}/cluster.xml
 %{yast_icondir}
+%doc %{yast_docdir}
 %license COPYING
 
 %changelog
