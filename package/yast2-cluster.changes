@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Mon Aug  5 06:23:32 UTC 2019 - nick wang <nwang@suse.com>
+
+- bsc#1144200, stop corosync instead of pacemaker.
+  The patch in corosync(bsc#872651) is dropped in bsc#1144200,
+  change back to stop corosync.
+- 4.2.1
+
+-------------------------------------------------------------------
 Fri May 31 12:27:33 UTC 2019 - Stasiek Michalski <hellcp@mailbox.org>
 
 - Add metainfo (fate#319035)
