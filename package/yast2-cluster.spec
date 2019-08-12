@@ -48,7 +48,6 @@ BuildArch:      noarch
 %setup -q
 
 %build
-%yast_build
 
 %install
 %yast_install
@@ -67,11 +66,11 @@ install -D -m 0644 %{S:1} %{buildroot}%{_fwdefdir}/cluster.xml
 %{yast_metainfodir}
 %{yast_scrconfdir}
 %{yast_agentdir}
-%doc %{yast_docdir}
 %dir %{_libexecdir}/firewalld
 %dir %{_fwdefdir}
 %{_fwdefdir}/cluster.xml
 %{yast_icondir}
+%doc %{yast_docdir}
 %license COPYING
 
 %changelog
