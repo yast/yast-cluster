@@ -1138,7 +1138,8 @@ module Yast
 
         if ret == "stop_now"
           # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
-          Report.Error(Service.Error + errormsg) if !Service.Stop("pacemaker")
+          # In bnc#1144200, the patch is dropped in corosync, so stop pacemaker not working
+          Report.Error(Service.Error + errormsg) if !Service.Stop("corosync")
           next
         end
 
