@@ -489,7 +489,8 @@ module Yast
         "csync2",
         "conntrack-tools",
         "hawk2",
-        "crmsh"
+        "crmsh",
+        "corosync-qdevice"
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
       if ret == false
