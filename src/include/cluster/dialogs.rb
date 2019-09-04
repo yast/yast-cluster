@@ -725,7 +725,7 @@ module Yast
       end
 
       if !IP.Check(UI.QueryWidget(Id(:qdevice_host), :Value))
-        Popup.Message(_("Qdevice host mush have a valid IP address"))
+        Popup.Message(_("Qdevice host must have a valid IP address"))
         UI.SetFocus(:qdevice_host)
         return false
       end
