@@ -70,6 +70,12 @@ module Yast
       @usable_interface = []
     end
 
+    # IP check between address and IP Version
+    def ip_matching_check(ip_address, ip_version)
+      return (ip_version.to_s == "ipv4" && IP.Check4(ip_address.to_s)) ||
+        (ip_version.to_s == "ipv6" && IP.Check6(ip_address.to_s))
+    end
+
     # return `cancel or a string
     def text_input_dialog(title, value)
       ret = nil
@@ -188,6 +194,7 @@ module Yast
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
+      ip_version = UI.QueryWidget(Id(:ip_version), :Value)
 
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
         Popup.Message(_("The cluster name has to be fulfilled"))
@@ -198,16 +205,17 @@ module Yast
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         i = 0
         Builtins.foreach(Cluster.memberaddr) do |value|
-          if  !IP.Check(value[:addr1]) || ( UI.QueryWidget(Id(:enable2), :Value) && !IP.Check(value[:addr2]) )
+          if !ip_matching_check(value[:addr1], ip_version) ||
+              (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
             UI.ChangeWidget(:memberaddr, :CurrentItem, i)
             i = 0
             raise Break
           end
-          i = Ops.add(i, 1)
+          i += 1
         end
         if i == 0
           UI.SetFocus(:memberaddr)
-          Popup.Message(_("The Member Address has to be fulfilled"))
+          Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
           return false
         end
       else
@@ -218,14 +226,14 @@ module Yast
           return false
         end
 
-        if IP.Check(Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))) == false
-          Popup.Message(_("The Bind Network Address has to be fulfilled"))
+        if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr1), :Value), ip_version)
+          Popup.Message(_("IP Version doesn't match with Bind Network Address in Channel"))
           UI.SetFocus(:bindnetaddr1)
           return false
         end
 
-        if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
-          Popup.Message(_("The Multicast Address has to be fulfilled"))
+        if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr1), :Value), ip_version)
+          Popup.Message(_("IP Version doesn't match with Multicast Address in Channel"))
           UI.SetFocus(:mcastaddr1)
           return false
         end
@@ -242,18 +250,14 @@ module Yast
 
       if UI.QueryWidget(Id(:enable2), :Value)
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
-          if IP.Check(
-              Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
-            ) == false
-            Popup.Message(_("The Bind Network Address has to be fulfilled"))
+          if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr2), :Value), ip_version)
+            Popup.Message(_("IP Version doesn't match with Bind Network Address in Redundant Channel"))
             UI.SetFocus(:bindnetaddr2)
             return false
           end
 
-          if IP.Check(
-              Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
-            ) == false
-            Popup.Message(_("The Multicast Address has to be fulfilled"))
+          if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr2), :Value), ip_version)
+            Popup.Message(_("IP Version doesn't match with Multicast Address in Redundant Channel"))
             UI.SetFocus(:mcastaddr2)
             return false
           end
@@ -359,6 +363,7 @@ module Yast
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
       )
+      Cluster.ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
 
       #BNC#871970, clear second IP when redundant channel is disabled
       if !UI.QueryWidget(Id(:enable2), :Value)
@@ -402,6 +407,14 @@ module Yast
       UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1)
       UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2)
 
+      ip = UI.QueryWidget(Id(:ip_version), :Value).to_s
+      if ip == "ipv6"
+        UI.ChangeWidget(Id(:autoid), :Value, false)
+        UI.ChangeWidget(Id(:autoid), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:autoid), :Enabled, true)
+      end
+
       nil
     end
 
@@ -438,14 +451,27 @@ module Yast
         end
       end
 
-      transport = ComboBox(
-        Id(:transport),
-        Opt(:hstretch, :notify),
-        _("Transport:"),
-        [
-        Item(Id("udp"),"Multicast"),
-        Item(Id("udpu"),"Unicast")
-        ]
+      hid = VBox(
+        HBox(
+          ComboBox(
+            Id(:transport),
+            Opt(:hstretch, :notify),
+            _("Transport:"),
+            [
+            Item(Id("udp"), "Multicast"),
+            Item(Id("udpu"), "Unicast")
+            ]
+          ),
+          ComboBox(
+            Id(:ip_version),
+            Opt(:hstretch, :notify),
+            _("IP Version:"),
+            [
+              Item(Id("ipv4"), "IPv4"),
+              Item(Id("ipv6"), "IPv6")
+            ]
+          )
+        )
       )
 
       iface = Frame(
@@ -509,7 +535,7 @@ module Yast
         ))
 
       contents = VBox(
-        transport,
+        HBox(hid),
         HBox(HWeight(1, VBox(iface)), HWeight(1, VBox(riface))),
         ip_table,
         HBox(nid),
@@ -528,9 +554,10 @@ module Yast
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
       UI.ChangeWidget(Id(:expected_votes), :Value, Cluster.expected_votes)
-      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789");
+      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789")
 
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
+      UI.ChangeWidget(Id(:ip_version), :Value, Cluster.ip_version)
 
       UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
       if "none" == Cluster.rrpmode
@@ -587,22 +614,6 @@ module Yast
         transport_switch
 
         ret = UI.UserInput
-
-        if ret == :bindnetaddr1 || ret == :bindnetaddr2 || ret == :mcastaddr1 ||
-            ret == :mcastaddr2
-          ip6 = false
-          netaddr = Convert.to_string(UI.QueryWidget(Id(ret), :Value))
-          ip6 = IP.Check6(netaddr)
-          if ip6
-            Cluster.ip_version = "ipv6"
-            UI.ChangeWidget(Id(:autoid), :Value, false)
-            UI.ChangeWidget(Id(:autoid), :Enabled, false)
-          else
-            Cluster.ip_version = "ipv4"
-            UI.ChangeWidget(Id(:autoid), :Enabled, true)
-          end
-          next
-        end
 
         if ret == :enable2
           if UI.QueryWidget(Id(:enable2), :Value)

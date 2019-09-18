@@ -332,12 +332,17 @@ module Yast
           generateMemberString(@memberaddr)
         )
         SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
+        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
       else
         SCR.Write(
           path(".openais.totem.interface.interface0.mcastaddr"),
           @mcastaddr1
         )
         SCR.Write(path(".openais.nodelist.node"), "")
+        SCR.Write(
+          path(".openais.totem.interface.interface0.bindnetaddr"),
+          @bindnetaddr1
+        )
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
@@ -352,10 +357,6 @@ module Yast
       end
       SCR.Write(path(".openais.quorum.two_node"), @two_node)
 
-      SCR.Write(
-        path(".openais.totem.interface.interface0.bindnetaddr"),
-        @bindnetaddr1
-      )
       SCR.Write(
         path(".openais.totem.interface.interface0.mcastport"),
         @mcastport1

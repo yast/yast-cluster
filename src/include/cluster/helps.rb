@@ -33,6 +33,7 @@ module Yast
       # All helps are here
       @HELPS = {
         "communication" => _(
+          "<p><b><big>IP Version</big></b><br>Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6. Default (if unspecified) is ipv4.<br></p>\n" +
           "<p><b><big>Bind Network Address</big></b><br>This  specifies  the  address which the openais executive should bind.  This address should always end in  zero.   If  the  totem traffic  should  be routed over 192.168.5.92, set bindnetaddr to 192.168.5.0.<br>This may also be an IPV6 address, in which case IPV6  networking will  be used.  In this case, the full address must be specified and there is no automatic selection  of  the  network  interface within a specific subnet as with IPv4. If IPv6 networking is used, the nodeid field must be specified.<br></p>\n" +
             "<p><b><big>Multicast Address</big></b><br>This is the multicast address used by  openais  executive.   The default  should work for most networks, but the network administrator should be queried  about  a  multicast  address  to  use.  Avoid 224.x.x.x because this is a \"config\" multicast address.<br>This  may  also be an IPV6 multicast address, in which case IPV6 networking will be used.  If IPv6 networking is used, the nodeid field must be specified.</p>\n" +
             "<p><b><big>Port</big></b><br>This  specifies  the UDP port number.  It is possible to use the same multicast address on a network with  the  openais  services configured for different UDP ports.<br></p>\n" +
