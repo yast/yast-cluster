@@ -95,6 +95,7 @@ module Yast
       # {:addr1=>"10.16.35.104",:nodeid=>"4" },
       # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
       @memberaddr = []
+      @address = []
 
       @corosync_qdevice = false
 
@@ -199,17 +200,17 @@ module Yast
 
       @transport = SCR.Read(path(".openais.totem.transport"))
       @transport = "udp" if @transport == nil
+      @address = SCR.Read(path(".openais.nodelist.node")).split(" ")
 
       interfaces = SCR.Dir(path(".openais.totem.interface"))
       Builtins.foreach(interfaces) do |interface|
         if interface == "interface0"
-          if @transport == "udpu"
+          if @address != []
             # BNC#871970, change member addresses to nodelist structure
             # memberaddr of udpu only read in interface0
             # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
             # 123.3.21.44;156.32.123.9"
-            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
-            address.each do |addr|
+            @address.each do |addr|
               p = addr.split("-")
               if p[1] != nil
                 q = p[0].split(";")
@@ -325,7 +326,7 @@ module Yast
       end
 
       # BNC#871970, only write member address when interface0  
-      if @transport == "udpu"
+      if @memberaddr != []
 
         SCR.Write(
           path(".openais.nodelist.node"),

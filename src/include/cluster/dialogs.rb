@@ -202,23 +202,7 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
-        i = 0
-        Builtins.foreach(Cluster.memberaddr) do |value|
-          if !ip_matching_check(value[:addr1], ip_version) ||
-              (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
-            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
-            i = 0
-            raise Break
-          end
-          i += 1
-        end
-        if i == 0
-          UI.SetFocus(:memberaddr)
-          Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
-          return false
-        end
-      else
+      if UI.QueryWidget(Id(:transport), :Value) == "udp"
         #BNC#880242, expected_votes must have value when "udp"
         if UI.QueryWidget(Id(:expected_votes), :Value) == ""
           Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
@@ -280,12 +264,36 @@ module Yast
         end
       end
 
-      if !UI.QueryWidget(Id(:autoid), :Value ) && ( UI.QueryWidget(Id(:transport), :Value) == "udpu" )
+        Builtins.foreach(Cluster.memberaddr) do |value|
+          if !ip_matching_check(value[:addr1], ip_version) ||
+              (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
+            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+            i = 0
+            raise Break
+          end
+          i += 1
+        end
+        if i == 0
+          if !(UI.QueryWidget(Id(:transport), :Value) == "udp" && ip_version.to_s == "ipv4")
+            UI.SetFocus(:memberaddr)
+            Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
+            return false
+          end
+        end
+
+      if !UI.QueryWidget(Id(:autoid), :Value )
         ret = ValidNodeID()
         if !ret
            UI.SetFocus(Id(:memberaddr))
            return false
         end
+      end
+
+      # nodelist is required in ipv6, so ignore ip version
+      if !UI.QueryWidget(Id(:autoid), :Value) && Cluster.memberaddr.size <= 0
+        UI.SetFocus(:nodeid)
+        Popup.Message(_("Auto Generate Node ID has to be selected"))
+        return false
       end
 
       true
@@ -397,10 +405,6 @@ module Yast
       enable2 = udp && enable2
 
       UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1)
-      UI.ChangeWidget(Id(:memberaddr), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_add), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_del), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_edit), :Enabled, !enable1)
 
       UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2)
 
@@ -759,6 +763,10 @@ module Yast
         Popup.Message(_("The tie breaker can be one of lowest, highest or a valid node id (number)"))
         UI.SetFocus(Id(:qdevice_tie_breaker))
         return false
+      end
+
+      if Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value)) && Cluster.memberaddr.size <= 0
+        Popup.Message(_("Member Address is required when enable corosync qdevice"))
       end
 
       true
