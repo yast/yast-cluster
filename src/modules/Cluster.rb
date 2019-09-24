@@ -228,8 +228,9 @@ module Yast
                 end
               end
             end  # end address.each 
+          end
 
-          else
+          if @transport == "udp"
             @mcastaddr1 = Convert.to_string(
               SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
             )
@@ -321,9 +322,7 @@ module Yast
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".openais.totem.ip_version"), @ip_version)
-      if @expected_votes != ""
-        SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
-      end
+      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
 
       # BNC#871970, only write member address when interface0  
       if @memberaddr != []
@@ -332,22 +331,25 @@ module Yast
           path(".openais.nodelist.node"),
           generateMemberString(@memberaddr)
         )
-        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
-        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
       else
+        SCR.Write(path(".openais.nodelist.node"), "")
+      end
+      if @transport == "udp"
         SCR.Write(
           path(".openais.totem.interface.interface0.mcastaddr"),
           @mcastaddr1
         )
-        SCR.Write(path(".openais.nodelist.node"), "")
         SCR.Write(
           path(".openais.totem.interface.interface0.bindnetaddr"),
           @bindnetaddr1
         )
+      else
+        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
+        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if (@expected_votes == "2") or (@transport == "udpu" && @memberaddr.size == 2)
+      if (@expected_votes == "2") or (@memberaddr.size == 2)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end

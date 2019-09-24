@@ -170,7 +170,7 @@ quorum_qdevice_option_table = {
 		"model":{"doc":"Specifies the model to be used, currently only (net) is supported.","type":"string","default_value":"net","suggested_value":"net"},
 		"timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function.","type":"int","default_value":10000,"suggested_value":10000},
 		"sync_timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function during a sync phase.","type":"int","default_value":30000,"suggested_value":30000},
-		"votes":{"doc":"The number of votes provided to the cluster by qdevice. Default is sum(votes_per_node) - 1.","type":"int","default_value":0}
+		"votes":{"doc":"The number of votes provided to the cluster by qdevice. Default is sum(votes_per_node) - 1.","type":"int","default_value":1}
 		}
 
 quorum_qdevice_net_option_table = {
@@ -270,8 +270,9 @@ def print_quorum_options(f):
 					f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
 			f.write("\t}\n")
 		else:
-			f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
-			f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
+			if quorum_options[key] != "":
+				f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
+				f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
 	f.write("}\n")
 
 def print_qb_options(f):

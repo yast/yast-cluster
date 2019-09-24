@@ -203,12 +203,6 @@ module Yast
       end
 
       if UI.QueryWidget(Id(:transport), :Value) == "udp"
-        #BNC#880242, expected_votes must have value when "udp"
-        if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
-          UI.SetFocus(:expected_votes)
-          return false
-        end
 
         if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr1), :Value), ip_version)
           Popup.Message(_("IP Version doesn't match with Bind Network Address in Channel"))
@@ -220,6 +214,15 @@ module Yast
           Popup.Message(_("IP Version doesn't match with Multicast Address in Channel"))
           UI.SetFocus(:mcastaddr1)
           return false
+        end
+
+        if Cluster.memberaddr.size <= 0
+        #BNC#880242, expected_votes must have value when "udp" without nodelist
+          if UI.QueryWidget(Id(:expected_votes), :Value) == ""
+            Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured without nodelist"))
+            UI.SetFocus(:expected_votes)
+            return false
+          end
         end
       end
 
@@ -393,6 +396,15 @@ module Yast
           Ops.shift_left(4294967295, Ops.subtract(32, mask.to_i))
         )
       )
+    end
+
+    def expectedvotes_switch
+      if Cluster.memberaddr.size <= 0
+        UI.ChangeWidget(Id(:expected_votes), :Enabled, true)
+      else
+        UI.ChangeWidget(Id(:expected_votes), :Value, "")
+        UI.ChangeWidget(Id(:expected_votes), :Enabled, false)
+      end
     end
 
 
@@ -616,6 +628,7 @@ module Yast
       while true
         fill_memberaddr_entries
         transport_switch
+        expectedvotes_switch
 
         ret = UI.UserInput
 
@@ -733,12 +746,6 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:qdevice_votes), :Value).to_i <= 0
-        Popup.Message(_("Qdevice votes must be a positive integer"))
-        UI.SetFocus(:qdevice_votes)
-        return false
-      end
-
       if !IP.Check(UI.QueryWidget(Id(:qdevice_host), :Value))
         Popup.Message(_("Qdevice host mush have a valid IP address"))
         UI.SetFocus(:qdevice_host)
@@ -748,13 +755,6 @@ module Yast
       if UI.QueryWidget(Id(:qdevice_port), :Value).to_i <= 0
         Popup.Message(_("The corosync qdevice port must be a positive integer"))
         UI.SetFocus(Id(:qdevice_port))
-        return false
-      end
-
-      if !["ffsplit", "lms", "test", "2nodelms"].include?(UI.QueryWidget(Id(:qdevice_algorithm), :Value))
-        Popup.Message(_("The algorithm only can be one of the ffsplit, lms, test or 2nodelms." \
-          "YaST will overwrite test and 2nodelms."))
-        UI.SetFocus(Id(:algorithm))
         return false
       end
 
@@ -776,8 +776,6 @@ module Yast
       Cluster.corosync_qdevice = Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value))
 
       Cluster.qdevice_model = UI.QueryWidget(Id(:qdevice_model), :Value)
-      Cluster.qdevice_votes = UI.QueryWidget(Id(:qdevice_votes), :Value).to_s
-
       Cluster.qdevice_host = UI.QueryWidget(Id(:qdevice_host), :Value)
       Cluster.qdevice_port = UI.QueryWidget(Id(:qdevice_port), :Value).to_s
       Cluster.qdevice_tls = UI.QueryWidget(Id(:qdevice_tls), :Value)
@@ -788,15 +786,12 @@ module Yast
 
     def CorosyncQdeviceLayout
       qdevice_section = VBox(
-        HBox(
-          ComboBox(
-            Id(:qdevice_model),
-            Opt(:hstretch),
-            _("Qdevice model:"),
-            ["net"]
-          ),
-          Left(InputField(Id(:qdevice_votes),Opt(:hstretch), _("Qdevice votes:"),""))
-        )
+        Left(ComboBox(
+          Id(:qdevice_model),
+          Opt(:hstretch),
+          _("Qdevice model:"),
+          ["net"]
+        ))
       )
 
       qdevice_net_section = VBox(
@@ -810,13 +805,7 @@ module Yast
             Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),
             ["off", "on", "required"]
           )),
-          Left(ComboBox(
-            Id(:qdevice_algorithm), Opt(:hstretch, :notify), _("Algorithm:"),
-            [
-              Item(Id("ffsplit"), "ffsplit"),
-              Item(Id("lms"), "lms")
-            ]
-          )),
+          Left(InputField(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),"ffsplit")),
           HSpacing(1),
           Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie breaker:"),"lowest"))
         )
@@ -830,9 +819,7 @@ module Yast
           _("En&able Corosync Qdevice"),
           false,
           VBox(
-            VSpacing(1),
             qdevice_section,
-            VSpacing(2),
             qdevice_net_section,
           )
         ),
@@ -844,13 +831,12 @@ module Yast
       UI.ChangeWidget(Id(:corosync_qdevice), :Value, Cluster.corosync_qdevice)
 
       UI.ChangeWidget(Id(:qdevice_model), :Value, Cluster.qdevice_model)
-      UI.ChangeWidget(Id(:qdevice_votes), :Value, Cluster.qdevice_votes)
-      UI.ChangeWidget(Id(:qdevice_votes), :ValidChars, "0123456789");
 
       UI.ChangeWidget(Id(:qdevice_host), :Value, Cluster.qdevice_host)
       UI.ChangeWidget(Id(:qdevice_port), :Value, Cluster.qdevice_port)
       UI.ChangeWidget(Id(:qdevice_tls), :Value, Cluster.qdevice_tls)
       UI.ChangeWidget(Id(:qdevice_algorithm), :Value, Cluster.qdevice_algorithm)
+      UI.ChangeWidget(Id(:qdevice_algorithm), :Enabled, false)
       UI.ChangeWidget(Id(:qdevice_tie_breaker), :Value, Cluster.qdevice_tie_breaker)
 
       nil
@@ -874,7 +860,6 @@ module Yast
       CorosyncQdeviceLayout()
 
       while true
-        UpdateQdeviceVotes()
 
         ret = UI.UserInput
 
