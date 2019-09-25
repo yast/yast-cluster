@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Sep 25 07:06:51 UTC 2019 - nick wang <nwang@suse.com>
+
+- bsc#1151687, update the open ports to support pacemaker-remote,
+  booth and corosync-qnetd.
+- Version 4.0.9
+
+-------------------------------------------------------------------
 Tue Apr 23 15:50:05 UTC 2019 - Stefan Weiberg <sweiberg@suse.com>
 
 - bsc#1132881, uuencode can't be executed if sharutils are not
