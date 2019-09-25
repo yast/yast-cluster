@@ -836,7 +836,10 @@ module Yast
       UI.ChangeWidget(Id(:qdevice_port), :Value, Cluster.qdevice_port)
       UI.ChangeWidget(Id(:qdevice_tls), :Value, Cluster.qdevice_tls)
       UI.ChangeWidget(Id(:qdevice_algorithm), :Value, Cluster.qdevice_algorithm)
-      UI.ChangeWidget(Id(:qdevice_algorithm), :Enabled, false)
+      # As for now, ffsplit is only can be configuried withing Yast (sync with crmsh)
+      if UI.QueryWidget(Id(:qdevice_algorithm), :Value) == "ffsplit"
+        Cluster.qdevice_votes = "1"
+      end
       UI.ChangeWidget(Id(:qdevice_tie_breaker), :Value, Cluster.qdevice_tie_breaker)
 
       nil
@@ -1012,22 +1015,33 @@ module Yast
     end
 
     def UpdateServiceStatus
-      ret = 0
-      ret = Service.Status("pacemaker")
-      if ret == 0
+      ret_pacemaker = 0
+      ret_qdevice = 0
+      ret_pacemaker = Service.Status("pacemaker")
+      if Cluster.corosync_qdevice
+        ret_qdevice = Service.Status("corosync-qdevice")
+      end
+      if ret_pacemaker == 0 && ret_qdevice == 0
         UI.ChangeWidget(Id(:status), :Value, _("Running"))
+        UI.ChangeWidget(Id("start_now"), :Enabled, false)
+        UI.ChangeWidget(Id("stop_now"), :Enabled, true)
       else
         UI.ChangeWidget(Id(:status), :Value, _("Not running"))
+        UI.ChangeWidget(Id("start_now"), :Enabled, true)
+        UI.ChangeWidget(Id("stop_now"), :Enabled, false)
       end
-      UI.ChangeWidget(Id("start_now"), :Enabled, ret != 0)
-      UI.ChangeWidget(Id("stop_now"), :Enabled, ret == 0)
-
-      if not Service.Enabled("pacemaker")
-        UI.ChangeWidget(Id("off"), :Value, true)
-        UI.ChangeWidget(Id("on"), :Value, false)
+      ret_qdevice_booting = true
+      if Cluster.corosync_qdevice
+        ret_qdevice_booting = Service.Enabled("corosync-qdevice")
+      end
+      if Service.Enabled("pacemaker") && ret_qdevice_booting
+        UI.ChangeWidget(Id(:status_booting), :Value, _("Enabling"))
+        UI.ChangeWidget(Id("on"), :Enabled, false)
+        UI.ChangeWidget(Id("off"), :Enabled, true)
       else
-        UI.ChangeWidget(Id("on"), :Value, true)
-        UI.ChangeWidget(Id("off"), :Value, false)
+        UI.ChangeWidget(Id(:status_booting), :Value, _("Disabling"))
+        UI.ChangeWidget(Id("on"), :Enabled, true)
+        UI.ChangeWidget(Id("off"), :Enabled, false)
       end
 
       nil
@@ -1053,37 +1067,38 @@ module Yast
       contents = VBox(
         VSpacing(1),
         Frame(
-          _("Booting"),
-          RadioButtonGroup(
-            Id("bootcorosync"),
-            HBox(
-              HSpacing(1),
-              VBox(
-                Left(
-                  RadioButton(
-                    Id("on"),
-                    Opt(:notify),
-                    _("On -- Start pacemaker during boot")
-                  )
-                ),
-                Left(
-                  RadioButton(
-                    Id("off"),
-                    Opt(:notify),
-                    _("Off -- Start pacemaker manually")
+          _("Cluster start at booting time enable/disable"),
+          Left(
+            VBox(
+              Left(
+                HBox(
+                  HSpacing(1),
+                  Label(_("Current Status: ")),
+                  Label(Id(:status_booting), _("Enabling")),
+                  ReplacePoint(Id("status_rp"), Empty())
+                )
+              ),
+              Left(
+                HBox(
+                  HSpacing(1),
+                  HBox(
+                    PushButton(Id("on"), _("Enable cluster")),
+                    PushButton(Id("off"), _("Disable cluster"))
                   )
                 )
               )
             )
           )
         ),
+
         VSpacing(1),
         Frame(
-          _("Switch On and Off"),
+          _("Cluster start/stop now"),
           Left(
             VBox(
               Left(
                 HBox(
+                  HSpacing(1),
                   Label(_("Current Status: ")),
                   Label(Id(:status), _("Running")),
                   ReplacePoint(Id("status_rp"), Empty())
@@ -1093,8 +1108,8 @@ module Yast
                 HBox(
                   HSpacing(1),
                   HBox(
-                    PushButton(Id("start_now"), _("Start pacemaker Now")),
-                    PushButton(Id("stop_now"), _("Stop pacemaker Now"))
+                    PushButton(Id("start_now"), _("Start cluster Now")),
+                    PushButton(Id("stop_now"), _("Stop cluster Now"))
                   )
                 )
               )
@@ -1120,21 +1135,31 @@ module Yast
 
         if ret == "on"
           Service.Enable("pacemaker")
+          if Cluster.corosync_qdevice
+            Service.Enable("corosync-qdevice")
+          end
           next
         end
 
         if ret == "off"
           Service.Disable("pacemaker")
+          if Cluster.corosync_qdevice
+            Service.Disable("corosync-qdevice")
+          end
           next
         end
 
         # pacemaker will start corosync automatically.
-        # BNC#872651 is fixed, so stop pacemaker could stop corosync at the same time.
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
           # BNC#872651 , add more info about error message
-          Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
+          if !Cluster.corosync_qdevice
+            Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
+          else
+            Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
+            Report.Error(Service.Error + errormsg) if !Service.Start("corosync-qdevice")
+          end
           next
         end
 

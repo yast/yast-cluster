@@ -58,7 +58,8 @@ module Yast
         ),
         "service"       => _(
           "\n" +
-            "\t\t\t<p><b><big>Booting</big></b><br>Starting corosync service during boot or not</p>\n" +
+            "\t\t\t<p><b><big>Cluster start at booting time enable/disable</big></b><br>Start or not start the whole cluster at booting time. Service include: pacemaker, corosync, corosync-qdevice(If enabled corosyncqdevice).</p>\n" +
+            "\t\t\t<p><b><big>Cluster start/stop now</big></b><br>Start or stop the whole cluster right now. Service include: pacemaker, corosync, corosync-qdevice(If enabled corosyncqdevice).</p>\n" +
             "\t\t\t<p><b><big>Firewall Settings</big></b><br>Enable the port when Firewall is enabled</p>\n" +
             "\t\t\t"
         ),
