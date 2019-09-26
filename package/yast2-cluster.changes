@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Sep 25 06:08:12 UTC 2019 - nick wang <nwang@suse.com>
+
+- bsc#1151687, update the open ports to support pacemaker-remote,
+  booth, corosync-qnetd.
+- Version 3.4.1
+
+-------------------------------------------------------------------
 Mon Jan 14 07:41:14 UTC 2019 - nwang@suse.com
 
 - bsc#1120815, support use hostname in ring address.
