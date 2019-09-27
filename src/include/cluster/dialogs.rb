@@ -199,7 +199,8 @@ module Yast
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         i = 0
         Builtins.foreach(Cluster.memberaddr) do |value|
-          if  !IP.Check(value[:addr1]) || ( UI.QueryWidget(Id(:enable2), :Value) && !IP.Check(value[:addr2]) )
+          if  ( UI.QueryWidget(Id(:addr1), :Value) == "" ) ||
+            ( UI.QueryWidget(Id(:enable2), :Value) && ( UI.QueryWidget(Id(:addr2), :Value) == "" ) )
             UI.ChangeWidget(:memberaddr, :CurrentItem, i)
             i = 0
             raise Break
