@@ -349,7 +349,7 @@ module Yast
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if (@expected_votes == "2") or (@memberaddr.size == 2)
+      if ((@expected_votes == "2") or (@memberaddr.size == 2)) and (!@corosync_qdevice)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end

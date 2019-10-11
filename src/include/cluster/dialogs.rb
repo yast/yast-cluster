@@ -158,7 +158,9 @@ module Yast
 
     def ValidNodeID
       if Cluster.memberaddr.size <= 0
-         return true
+        UI.SetFocus(:nodeid)
+        Popup.Message(_("Auto Generate Node ID has to be selected"))
+        return false
       end
 
       i = 0
@@ -167,7 +169,7 @@ module Yast
 
       Builtins.foreach(Cluster.memberaddr) do |value|
         if value[:nodeid].to_i <= 0
-          Popup.Message(_("Node ID has to be fulfilled with a positive integer"))
+          Popup.Message(_("Node ID has to be fulfilled with a positive integer or select Auto Generate Node ID"))
           UI.ChangeWidget(:memberaddr, :CurrentItem, i)
           i = 0
           raise Break
@@ -215,14 +217,17 @@ module Yast
           UI.SetFocus(:mcastaddr1)
           return false
         end
+      end
 
-        if Cluster.memberaddr.size <= 0
-        #BNC#880242, expected_votes must have value when "udp" without nodelist
-          if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-            Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured without nodelist"))
-            UI.SetFocus(:expected_votes)
-            return false
-          end
+      if Cluster.memberaddr.size <= 0
+        if UI.QueryWidget(Id(:transport), :Value) == "udpu" || ip_version.to_s == "ipv6"
+          Popup.Message(_("Member address is required"))
+          return false
+          #BNC#880242, expected_votes must have value when "udp" without nodelist
+        elsif UI.QueryWidget(Id(:expected_votes), :Value) == ""
+          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured without nodelist"))
+          UI.SetFocus(:expected_votes)
+          return false
         end
       end
 
@@ -267,22 +272,21 @@ module Yast
         end
       end
 
-        Builtins.foreach(Cluster.memberaddr) do |value|
-          if !ip_matching_check(value[:addr1], ip_version) ||
-              (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
-            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
-            i = 0
+      Builtins.foreach(Cluster.memberaddr) do |value|
+        if !ip_matching_check(value[:addr1], ip_version) ||
+            (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
+          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+          if Cluster.memberaddr.size <= 0 && (UI.QueryWidget(Id(:transport), :Value) == "udp" && ip_version.to_s == "ipv4")
             raise Break
-          end
-          i += 1
-        end
-        if i == 0
-          if !(UI.QueryWidget(Id(:transport), :Value) == "udp" && ip_version.to_s == "ipv4")
+          else
             UI.SetFocus(:memberaddr)
             Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
+            i = 0
             return false
           end
         end
+        i += 1
+      end
 
       if !UI.QueryWidget(Id(:autoid), :Value )
         ret = ValidNodeID()
@@ -291,14 +295,6 @@ module Yast
            return false
         end
       end
-
-      # nodelist is required in ipv6, so ignore ip version
-      if !UI.QueryWidget(Id(:autoid), :Value) && Cluster.memberaddr.size <= 0
-        UI.SetFocus(:nodeid)
-        Popup.Message(_("Auto Generate Node ID has to be selected"))
-        return false
-      end
-
       true
     end
 
@@ -399,7 +395,9 @@ module Yast
     end
 
     def expectedvotes_switch
-      if Cluster.memberaddr.size <= 0
+      if Cluster.memberaddr.size <= 0 &&
+          UI.QueryWidget(Id(:ip_version), :Value).to_s == "ipv4" &&
+          UI.QueryWidget(Id(:transport), :Value) == "udp"
         UI.ChangeWidget(Id(:expected_votes), :Enabled, true)
       else
         UI.ChangeWidget(Id(:expected_votes), :Value, "")
@@ -765,7 +763,7 @@ module Yast
         return false
       end
 
-      if Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value)) && Cluster.memberaddr.size <= 0
+      if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.memberaddr.size <= 0
         Popup.Message(_("Member Address is required when enable corosync qdevice"))
       end
 
@@ -805,7 +803,7 @@ module Yast
             Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),
             ["off", "on", "required"]
           )),
-          Left(InputField(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),"ffsplit")),
+          Left(ComboBox(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),["ffsplit"])),
           HSpacing(1),
           Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie breaker:"),"lowest"))
         )
@@ -1018,10 +1016,25 @@ module Yast
       ret_pacemaker = 0
       ret_qdevice = 0
       ret_pacemaker = Service.Status("pacemaker")
-      if Cluster.corosync_qdevice
+      if Cluster.corosync_qdevice && ret_pacemaker == 0
         ret_qdevice = Service.Status("corosync-qdevice")
+        # corosync-qdevice stop/start
+        if ret_qdevice == 0
+          UI.ChangeWidget(Id(:status_qdevice), :Value, _("Running"))
+          UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, false)
+          UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, true)
+        else
+          UI.ChangeWidget(Id(:status_qdevice), :Value, _("Not running"))
+          UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, true)
+          UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, false)
+        end
+      else
+        UI.ChangeWidget(Id(:status_qdevice), :Value, _("Not configured"))
+        UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, false)
+        UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, false)
       end
-      if ret_pacemaker == 0 && ret_qdevice == 0
+      # pacemaker&corosync stop/start
+      if ret_pacemaker == 0
         UI.ChangeWidget(Id(:status), :Value, _("Running"))
         UI.ChangeWidget(Id("start_now"), :Enabled, false)
         UI.ChangeWidget(Id("stop_now"), :Enabled, true)
@@ -1030,6 +1043,7 @@ module Yast
         UI.ChangeWidget(Id("start_now"), :Enabled, true)
         UI.ChangeWidget(Id("stop_now"), :Enabled, false)
       end
+
       ret_qdevice_booting = true
       if Cluster.corosync_qdevice
         ret_qdevice_booting = Service.Enabled("corosync-qdevice")
@@ -1093,7 +1107,7 @@ module Yast
 
         VSpacing(1),
         Frame(
-          _("Cluster start/stop now"),
+          _("Pacemaker and corosync start/stop"),
           Left(
             VBox(
               Left(
@@ -1108,8 +1122,33 @@ module Yast
                 HBox(
                   HSpacing(1),
                   HBox(
-                    PushButton(Id("start_now"), _("Start cluster Now")),
-                    PushButton(Id("stop_now"), _("Stop cluster Now"))
+                    PushButton(Id("start_now"), _("Start Now")),
+                    PushButton(Id("stop_now"), _("Stop Now"))
+                  )
+                )
+              )
+            )
+          )
+        ),
+        VSpacing(1),
+        Frame(
+          _("corosync-qdevice start/stop"),
+          Left(
+            VBox(
+              Left(
+                HBox(
+                  HSpacing(1),
+                  Label(_("Current Status: ")),
+                  Label(Id(:status_qdevice), _("Running")),
+                  ReplacePoint(Id("status_rp_qdevice"), Empty())
+                )
+              ),
+              Left(
+                HBox(
+                  HSpacing(1),
+                  HBox(
+                    PushButton(Id("start_qdevice_now"), _("Start Now")),
+                    PushButton(Id("stop_qdevice_now"), _("Stop Now"))
                   )
                 )
               )
@@ -1153,19 +1192,30 @@ module Yast
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
-          # BNC#872651 , add more info about error message
-          if !Cluster.corosync_qdevice
-            Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
-          else
-            Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
-            Report.Error(Service.Error + errormsg) if !Service.Start("corosync-qdevice")
-          end
+          # BNC#872652 , add more info about error message
+          Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
           next
         end
+        # corosync-qdevice start
+        if ret == "start_qdevice_now"
+            Cluster.save_csync2_conf
+            Cluster.SaveClusterConfig
+            # reload the corosync.conf before starting qdevice within already started corosync
+            %x(corosync-cfgtool -R)
+            sleep(1)
+            Report.Error(Service.Error + errormsg) if !Service.Start("corosync-qdevice")
+            next
+        end
 
+        # pacemaker&corosync stop
         if ret == "stop_now"
           # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
           Report.Error(Service.Error + errormsg) if !Service.Stop("pacemaker")
+          next
+        end
+        # corosync-qdevice stop
+        if ret == "stop_qdevice_now"
+          Report.Error(Service.Error + errormsg) if !Service.Stop("corosync-qdevice")
           next
         end
 
