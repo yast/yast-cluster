@@ -65,9 +65,6 @@ totem_option_table = {
 	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
 		    "type":"select[none,active,passive]", "default_value":"none"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
-	"vsftype":{"doc":"The virtual synchrony filter type used to indentify a primary component. Change with care.",
-		   "default_value":"ykd",
-		   "suggested_value":"none"},
 	"token":{"doc":"Timeout for a token lost. in ms",
 		 "type":"int", "default_value":1000,
 		 "suggested_value":5000},
@@ -315,7 +312,7 @@ def print_logging_options(f):
 			for log in logging_options["logger_subsys"]:
 				f.write("\tlogger_subsys {\n")
 				for l in log.keys():
-					f.write("\t\t#%s\n\n" % (logger_subsys_option_table[l]["doc"]))
+					f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
 					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
 				f.write("\t}\n")
 		else:
