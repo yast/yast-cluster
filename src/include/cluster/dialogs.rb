@@ -70,6 +70,12 @@ module Yast
       @usable_interface = []
     end
 
+    # IP check between address and IP Version
+    def ip_matching_check(ip_address, ip_version)
+      return (ip_version.to_s == "ipv4" && IP.Check4(ip_address.to_s)) ||
+        (ip_version.to_s == "ipv6" && IP.Check6(ip_address.to_s))
+    end
+
     # return `cancel or a string
     def text_input_dialog(title, value)
       ret = nil
@@ -152,7 +158,9 @@ module Yast
 
     def ValidNodeID
       if Cluster.memberaddr.size <= 0
-         return true
+        UI.SetFocus(:nodeid)
+        Popup.Message(_("Auto Generate Node ID has to be selected"))
+        return false
       end
 
       i = 0
@@ -161,7 +169,7 @@ module Yast
 
       Builtins.foreach(Cluster.memberaddr) do |value|
         if value[:nodeid].to_i <= 0
-          Popup.Message(_("Node ID has to be fulfilled with a positive integer"))
+          Popup.Message(_("Node ID has to be fulfilled with a positive integer or select Auto Generate Node ID"))
           UI.ChangeWidget(:memberaddr, :CurrentItem, i)
           i = 0
           raise Break
@@ -188,6 +196,7 @@ module Yast
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
+      ip_version = UI.QueryWidget(Id(:ip_version), :Value)
 
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
         Popup.Message(_("The cluster name has to be fulfilled"))
@@ -195,38 +204,29 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
-        i = 0
-        Builtins.foreach(Cluster.memberaddr) do |value|
-          if  !IP.Check(value[:addr1]) || ( UI.QueryWidget(Id(:enable2), :Value) && !IP.Check(value[:addr2]) )
-            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
-            i = 0
-            raise Break
-          end
-          i = Ops.add(i, 1)
-        end
-        if i == 0
-          UI.SetFocus(:memberaddr)
-          Popup.Message(_("The Member Address has to be fulfilled"))
-          return false
-        end
-      else
-        #BNC#880242, expected_votes must have value when "udp"
-        if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
-          UI.SetFocus(:expected_votes)
-          return false
-        end
+      if UI.QueryWidget(Id(:transport), :Value) == "udp"
 
-        if IP.Check(Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))) == false
-          Popup.Message(_("The Bind Network Address has to be fulfilled"))
+        if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr1), :Value), ip_version)
+          Popup.Message(_("IP Version doesn't match with Bind Network Address in Channel"))
           UI.SetFocus(:bindnetaddr1)
           return false
         end
 
-        if !IP.Check(Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value)))
-          Popup.Message(_("The Multicast Address has to be fulfilled"))
+        if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr1), :Value), ip_version)
+          Popup.Message(_("IP Version doesn't match with Multicast Address in Channel"))
           UI.SetFocus(:mcastaddr1)
+          return false
+        end
+      end
+
+      if Cluster.memberaddr.size <= 0
+        if UI.QueryWidget(Id(:transport), :Value) == "udpu" || ip_version.to_s == "ipv6"
+          Popup.Message(_("Member address is required"))
+          return false
+          #BNC#880242, expected_votes must have value when "udp" without nodelist
+        elsif UI.QueryWidget(Id(:expected_votes), :Value) == ""
+          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured without nodelist"))
+          UI.SetFocus(:expected_votes)
           return false
         end
       end
@@ -242,18 +242,14 @@ module Yast
 
       if UI.QueryWidget(Id(:enable2), :Value)
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
-          if IP.Check(
-              Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
-            ) == false
-            Popup.Message(_("The Bind Network Address has to be fulfilled"))
+          if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr2), :Value), ip_version)
+            Popup.Message(_("IP Version doesn't match with Bind Network Address in Redundant Channel"))
             UI.SetFocus(:bindnetaddr2)
             return false
           end
 
-          if IP.Check(
-              Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
-            ) == false
-            Popup.Message(_("The Multicast Address has to be fulfilled"))
+          if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr2), :Value), ip_version)
+            Popup.Message(_("IP Version doesn't match with Multicast Address in Redundant Channel"))
             UI.SetFocus(:mcastaddr2)
             return false
           end
@@ -278,14 +274,29 @@ module Yast
         end
       end
 
-      if !UI.QueryWidget(Id(:autoid), :Value ) && ( UI.QueryWidget(Id(:transport), :Value) == "udpu" )
+      Builtins.foreach(Cluster.memberaddr) do |value|
+        if !ip_matching_check(value[:addr1], ip_version) ||
+            (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
+          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+          if Cluster.memberaddr.size <= 0 && (UI.QueryWidget(Id(:transport), :Value) == "udp" && ip_version.to_s == "ipv4")
+            raise Break
+          else
+            UI.SetFocus(:memberaddr)
+            Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
+            i = 0
+            return false
+          end
+        end
+        i += 1
+      end
+
+      if !UI.QueryWidget(Id(:autoid), :Value )
         ret = ValidNodeID()
         if !ret
            UI.SetFocus(Id(:memberaddr))
            return false
         end
       end
-
       true
     end
 
@@ -361,6 +372,7 @@ module Yast
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
       )
+      Cluster.ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
 
       #BNC#871970, clear second IP when redundant channel is disabled
       if !UI.QueryWidget(Id(:enable2), :Value)
@@ -384,6 +396,17 @@ module Yast
       )
     end
 
+    def expectedvotes_switch
+      if Cluster.memberaddr.size <= 0 &&
+          UI.QueryWidget(Id(:ip_version), :Value).to_s == "ipv4" &&
+          UI.QueryWidget(Id(:transport), :Value) == "udp"
+        UI.ChangeWidget(Id(:expected_votes), :Enabled, true)
+      else
+        UI.ChangeWidget(Id(:expected_votes), :Value, "")
+        UI.ChangeWidget(Id(:expected_votes), :Enabled, false)
+      end
+    end
+
 
     # BNC#871970, change member address struct to memberaddr
     def transport_switch
@@ -394,15 +417,19 @@ module Yast
       enable2 = udp && enable2
 
       UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1)
-      UI.ChangeWidget(Id(:memberaddr), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_add), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_del), :Enabled, !enable1)
-      UI.ChangeWidget(Id(:memberaddr_edit), :Enabled, !enable1)
 
       UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2)
 
       UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1)
       UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2)
+
+      ip = UI.QueryWidget(Id(:ip_version), :Value).to_s
+      if ip == "ipv6"
+        UI.ChangeWidget(Id(:autoid), :Value, false)
+        UI.ChangeWidget(Id(:autoid), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:autoid), :Enabled, true)
+      end
 
       nil
     end
@@ -440,14 +467,27 @@ module Yast
         end
       end
 
-      transport = ComboBox(
-        Id(:transport),
-        Opt(:hstretch, :notify),
-        _("Transport:"),
-        [
-        Item(Id("udp"),"Multicast"),
-        Item(Id("udpu"),"Unicast")
-        ]
+      hid = VBox(
+        HBox(
+          ComboBox(
+            Id(:transport),
+            Opt(:hstretch, :notify),
+            _("Transport:"),
+            [
+            Item(Id("udp"), "Multicast"),
+            Item(Id("udpu"), "Unicast")
+            ]
+          ),
+          ComboBox(
+            Id(:ip_version),
+            Opt(:hstretch, :notify),
+            _("IP Version:"),
+            [
+              Item(Id("ipv4"), "IPv4"),
+              Item(Id("ipv6"), "IPv6")
+            ]
+          )
+        )
       )
 
       iface = Frame(
@@ -511,7 +551,7 @@ module Yast
         ))
 
       contents = VBox(
-        transport,
+        HBox(hid),
         HBox(HWeight(1, VBox(iface)), HWeight(1, VBox(riface))),
         ip_table,
         HBox(nid),
@@ -530,9 +570,10 @@ module Yast
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
       UI.ChangeWidget(Id(:expected_votes), :Value, Cluster.expected_votes)
-      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789");
+      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789")
 
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
+      UI.ChangeWidget(Id(:ip_version), :Value, Cluster.ip_version)
 
       UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
       if "none" == Cluster.rrpmode
@@ -587,24 +628,9 @@ module Yast
       while true
         fill_memberaddr_entries
         transport_switch
+        expectedvotes_switch
 
         ret = UI.UserInput
-
-        if ret == :bindnetaddr1 || ret == :bindnetaddr2 || ret == :mcastaddr1 ||
-            ret == :mcastaddr2
-          ip6 = false
-          netaddr = Convert.to_string(UI.QueryWidget(Id(ret), :Value))
-          ip6 = IP.Check6(netaddr)
-          if ip6
-            Cluster.ip_version = "ipv6"
-            UI.ChangeWidget(Id(:autoid), :Value, false)
-            UI.ChangeWidget(Id(:autoid), :Enabled, false)
-          else
-            Cluster.ip_version = "ipv4"
-            UI.ChangeWidget(Id(:autoid), :Enabled, true)
-          end
-          next
-        end
 
         if ret == :enable2
           if UI.QueryWidget(Id(:enable2), :Value)
@@ -720,12 +746,6 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:qdevice_votes), :Value).to_i <= 0
-        Popup.Message(_("Qdevice votes must be a positive integer"))
-        UI.SetFocus(:qdevice_votes)
-        return false
-      end
-
       if !IP.Check(UI.QueryWidget(Id(:qdevice_host), :Value))
         Popup.Message(_("Qdevice host mush have a valid IP address"))
         UI.SetFocus(:qdevice_host)
@@ -738,18 +758,15 @@ module Yast
         return false
       end
 
-      if !["ffsplit", "lms", "test", "2nodelms"].include?(UI.QueryWidget(Id(:qdevice_algorithm), :Value))
-        Popup.Message(_("The algorithm only can be one of the ffsplit, lms, test or 2nodelms." \
-          "YaST will overwrite test and 2nodelms."))
-        UI.SetFocus(Id(:algorithm))
-        return false
-      end
-
       if !["lowest", "highest"].include?(UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)) &&
         (UI.QueryWidget(Id(:qdevice_tie_breaker), :Value).to_i <= 0)
         Popup.Message(_("The tie breaker can be one of lowest, highest or a valid node id (number)"))
         UI.SetFocus(Id(:qdevice_tie_breaker))
         return false
+      end
+
+      if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.memberaddr.size <= 0
+        Popup.Message(_("Member Address is required when enable corosync qdevice"))
       end
 
       true
@@ -759,8 +776,6 @@ module Yast
       Cluster.corosync_qdevice = Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value))
 
       Cluster.qdevice_model = UI.QueryWidget(Id(:qdevice_model), :Value)
-      Cluster.qdevice_votes = UI.QueryWidget(Id(:qdevice_votes), :Value).to_s
-
       Cluster.qdevice_host = UI.QueryWidget(Id(:qdevice_host), :Value)
       Cluster.qdevice_port = UI.QueryWidget(Id(:qdevice_port), :Value).to_s
       Cluster.qdevice_tls = UI.QueryWidget(Id(:qdevice_tls), :Value)
@@ -771,15 +786,12 @@ module Yast
 
     def CorosyncQdeviceLayout
       qdevice_section = VBox(
-        HBox(
-          ComboBox(
-            Id(:qdevice_model),
-            Opt(:hstretch),
-            _("Qdevice model:"),
-            ["net"]
-          ),
-          Left(InputField(Id(:qdevice_votes),Opt(:hstretch), _("Qdevice votes:"),""))
-        )
+        Left(ComboBox(
+          Id(:qdevice_model),
+          Opt(:hstretch),
+          _("Qdevice model:"),
+          ["net"]
+        ))
       )
 
       qdevice_net_section = VBox(
@@ -793,13 +805,7 @@ module Yast
             Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),
             ["off", "on", "required"]
           )),
-          Left(ComboBox(
-            Id(:qdevice_algorithm), Opt(:hstretch, :notify), _("Algorithm:"),
-            [
-              Item(Id("ffsplit"), "ffsplit"),
-              Item(Id("lms"), "lms")
-            ]
-          )),
+          Left(ComboBox(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),["ffsplit"])),
           HSpacing(1),
           Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie breaker:"),"lowest"))
         )
@@ -813,9 +819,7 @@ module Yast
           _("En&able Corosync Qdevice"),
           false,
           VBox(
-            VSpacing(1),
             qdevice_section,
-            VSpacing(2),
             qdevice_net_section,
           )
         ),
@@ -827,13 +831,15 @@ module Yast
       UI.ChangeWidget(Id(:corosync_qdevice), :Value, Cluster.corosync_qdevice)
 
       UI.ChangeWidget(Id(:qdevice_model), :Value, Cluster.qdevice_model)
-      UI.ChangeWidget(Id(:qdevice_votes), :Value, Cluster.qdevice_votes)
-      UI.ChangeWidget(Id(:qdevice_votes), :ValidChars, "0123456789");
 
       UI.ChangeWidget(Id(:qdevice_host), :Value, Cluster.qdevice_host)
       UI.ChangeWidget(Id(:qdevice_port), :Value, Cluster.qdevice_port)
       UI.ChangeWidget(Id(:qdevice_tls), :Value, Cluster.qdevice_tls)
       UI.ChangeWidget(Id(:qdevice_algorithm), :Value, Cluster.qdevice_algorithm)
+      # As for now, ffsplit is only can be configuried withing Yast (sync with crmsh)
+      if UI.QueryWidget(Id(:qdevice_algorithm), :Value) == "ffsplit"
+        Cluster.qdevice_votes = "1"
+      end
       UI.ChangeWidget(Id(:qdevice_tie_breaker), :Value, Cluster.qdevice_tie_breaker)
 
       nil
@@ -857,7 +863,6 @@ module Yast
       CorosyncQdeviceLayout()
 
       while true
-        UpdateQdeviceVotes()
 
         ret = UI.UserInput
 
@@ -1010,22 +1015,49 @@ module Yast
     end
 
     def UpdateServiceStatus
-      ret = 0
-      ret = Service.Status("pacemaker")
-      if ret == 0
+      ret_pacemaker = 0
+      ret_qdevice = 0
+      ret_pacemaker = Service.Status("pacemaker")
+      if Cluster.corosync_qdevice && ret_pacemaker == 0
+        ret_qdevice = Service.Status("corosync-qdevice")
+        # corosync-qdevice stop/start
+        if ret_qdevice == 0
+          UI.ChangeWidget(Id(:status_qdevice), :Value, _("Running"))
+          UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, false)
+          UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, true)
+        else
+          UI.ChangeWidget(Id(:status_qdevice), :Value, _("Not running"))
+          UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, true)
+          UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, false)
+        end
+      else
+        UI.ChangeWidget(Id(:status_qdevice), :Value, _("Not configured"))
+        UI.ChangeWidget(Id("start_qdevice_now"), :Enabled, false)
+        UI.ChangeWidget(Id("stop_qdevice_now"), :Enabled, false)
+      end
+      # pacemaker&corosync stop/start
+      if ret_pacemaker == 0
         UI.ChangeWidget(Id(:status), :Value, _("Running"))
+        UI.ChangeWidget(Id("start_now"), :Enabled, false)
+        UI.ChangeWidget(Id("stop_now"), :Enabled, true)
       else
         UI.ChangeWidget(Id(:status), :Value, _("Not running"))
+        UI.ChangeWidget(Id("start_now"), :Enabled, true)
+        UI.ChangeWidget(Id("stop_now"), :Enabled, false)
       end
-      UI.ChangeWidget(Id("start_now"), :Enabled, ret != 0)
-      UI.ChangeWidget(Id("stop_now"), :Enabled, ret == 0)
 
-      if not Service.Enabled("pacemaker")
-        UI.ChangeWidget(Id("off"), :Value, true)
-        UI.ChangeWidget(Id("on"), :Value, false)
+      ret_qdevice_booting = true
+      if Cluster.corosync_qdevice
+        ret_qdevice_booting = Service.Enabled("corosync-qdevice")
+      end
+      if Service.Enabled("pacemaker") && ret_qdevice_booting
+        UI.ChangeWidget(Id(:status_booting), :Value, _("Enabling"))
+        UI.ChangeWidget(Id("on"), :Enabled, false)
+        UI.ChangeWidget(Id("off"), :Enabled, true)
       else
-        UI.ChangeWidget(Id("on"), :Value, true)
-        UI.ChangeWidget(Id("off"), :Value, false)
+        UI.ChangeWidget(Id(:status_booting), :Value, _("Disabling"))
+        UI.ChangeWidget(Id("on"), :Enabled, true)
+        UI.ChangeWidget(Id("off"), :Enabled, false)
       end
 
       nil
@@ -1051,37 +1083,38 @@ module Yast
       contents = VBox(
         VSpacing(1),
         Frame(
-          _("Booting"),
-          RadioButtonGroup(
-            Id("bootcorosync"),
-            HBox(
-              HSpacing(1),
-              VBox(
-                Left(
-                  RadioButton(
-                    Id("on"),
-                    Opt(:notify),
-                    _("On -- Start pacemaker during boot")
-                  )
-                ),
-                Left(
-                  RadioButton(
-                    Id("off"),
-                    Opt(:notify),
-                    _("Off -- Start pacemaker manually")
+          _("Cluster start at booting time enable/disable"),
+          Left(
+            VBox(
+              Left(
+                HBox(
+                  HSpacing(1),
+                  Label(_("Current Status: ")),
+                  Label(Id(:status_booting), _("Enabling")),
+                  ReplacePoint(Id("status_rp"), Empty())
+                )
+              ),
+              Left(
+                HBox(
+                  HSpacing(1),
+                  HBox(
+                    PushButton(Id("on"), _("Enable cluster")),
+                    PushButton(Id("off"), _("Disable cluster"))
                   )
                 )
               )
             )
           )
         ),
+
         VSpacing(1),
         Frame(
-          _("Switch On and Off"),
+          _("Pacemaker and corosync start/stop"),
           Left(
             VBox(
               Left(
                 HBox(
+                  HSpacing(1),
                   Label(_("Current Status: ")),
                   Label(Id(:status), _("Running")),
                   ReplacePoint(Id("status_rp"), Empty())
@@ -1091,8 +1124,33 @@ module Yast
                 HBox(
                   HSpacing(1),
                   HBox(
-                    PushButton(Id("start_now"), _("Start pacemaker Now")),
-                    PushButton(Id("stop_now"), _("Stop pacemaker Now"))
+                    PushButton(Id("start_now"), _("Start Now")),
+                    PushButton(Id("stop_now"), _("Stop Now"))
+                  )
+                )
+              )
+            )
+          )
+        ),
+        VSpacing(1),
+        Frame(
+          _("corosync-qdevice start/stop"),
+          Left(
+            VBox(
+              Left(
+                HBox(
+                  HSpacing(1),
+                  Label(_("Current Status: ")),
+                  Label(Id(:status_qdevice), _("Running")),
+                  ReplacePoint(Id("status_rp_qdevice"), Empty())
+                )
+              ),
+              Left(
+                HBox(
+                  HSpacing(1),
+                  HBox(
+                    PushButton(Id("start_qdevice_now"), _("Start Now")),
+                    PushButton(Id("stop_qdevice_now"), _("Stop Now"))
                   )
                 )
               )
@@ -1118,28 +1176,49 @@ module Yast
 
         if ret == "on"
           Service.Enable("pacemaker")
+          if Cluster.corosync_qdevice
+            Service.Enable("corosync-qdevice")
+          end
           next
         end
 
         if ret == "off"
           Service.Disable("pacemaker")
+          if Cluster.corosync_qdevice
+            Service.Disable("corosync-qdevice")
+          end
           next
         end
 
         # pacemaker will start corosync automatically.
-        # BNC#872651 is fixed, so stop pacemaker could stop corosync at the same time.
         if ret == "start_now"
           Cluster.save_csync2_conf
           Cluster.SaveClusterConfig
-          # BNC#872651 , add more info about error message
+          # BNC#872652 , add more info about error message
           Report.Error(Service.Error + errormsg) if !Service.Start("pacemaker")
           next
         end
+        # corosync-qdevice start
+        if ret == "start_qdevice_now"
+            Cluster.save_csync2_conf
+            Cluster.SaveClusterConfig
+            # reload the corosync.conf before starting qdevice within already started corosync
+            %x(corosync-cfgtool -R)
+            sleep(1)
+            Report.Error(Service.Error + errormsg) if !Service.Start("corosync-qdevice")
+            next
+        end
 
+        # pacemaker&corosync stop
         if ret == "stop_now"
           # BNC#874563,stop pacemaker could stop corosync since BNC#872651 is fixed
           # In bnc#1144200, the patch is dropped in corosync, so stop pacemaker not working
           Report.Error(Service.Error + errormsg) if !Service.Stop("corosync")
+          next
+        end
+        # corosync-qdevice stop
+        if ret == "stop_qdevice_now"
+          Report.Error(Service.Error + errormsg) if !Service.Stop("corosync-qdevice")
           next
         end
 

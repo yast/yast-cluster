@@ -96,6 +96,7 @@ module Yast
       # {:addr1=>"10.16.35.104",:nodeid=>"4" },
       # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
       @memberaddr = []
+      @address = []
 
       @corosync_qdevice = false
 
@@ -200,17 +201,17 @@ module Yast
 
       @transport = SCR.Read(path(".openais.totem.transport"))
       @transport = "udp" if @transport == nil
+      @address = SCR.Read(path(".openais.nodelist.node")).split(" ")
 
       interfaces = SCR.Dir(path(".openais.totem.interface"))
       Builtins.foreach(interfaces) do |interface|
         if interface == "interface0"
-          if @transport == "udpu"
+          if @address != []
             # BNC#871970, change member addresses to nodelist structure
             # memberaddr of udpu only read in interface0
             # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
             # 123.3.21.44;156.32.123.9"
-            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
-            address.each do |addr|
+            @address.each do |addr|
               p = addr.split("-")
               if p[1] != nil
                 q = p[0].split(";")
@@ -228,8 +229,9 @@ module Yast
                 end
               end
             end  # end address.each 
+          end
 
-          else
+          if @transport == "udp"
             @mcastaddr1 = Convert.to_string(
               SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
             )
@@ -321,28 +323,34 @@ module Yast
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".openais.totem.ip_version"), @ip_version)
-      if @expected_votes != ""
-        SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
-      end
+      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
 
       # BNC#871970, only write member address when interface0  
-      if @transport == "udpu"
+      if @memberaddr != []
 
         SCR.Write(
           path(".openais.nodelist.node"),
           generateMemberString(@memberaddr)
         )
-        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
       else
+        SCR.Write(path(".openais.nodelist.node"), "")
+      end
+      if @transport == "udp"
         SCR.Write(
           path(".openais.totem.interface.interface0.mcastaddr"),
           @mcastaddr1
         )
-        SCR.Write(path(".openais.nodelist.node"), "")
+        SCR.Write(
+          path(".openais.totem.interface.interface0.bindnetaddr"),
+          @bindnetaddr1
+        )
+      else
+        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
+        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if (@expected_votes == "2") or (@transport == "udpu" && @memberaddr.size == 2)
+      if ((@expected_votes == "2") or (@memberaddr.size == 2)) and (!@corosync_qdevice)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end
@@ -353,10 +361,6 @@ module Yast
       end
       SCR.Write(path(".openais.quorum.two_node"), @two_node)
 
-      SCR.Write(
-        path(".openais.totem.interface.interface0.bindnetaddr"),
-        @bindnetaddr1
-      )
       SCR.Write(
         path(".openais.totem.interface.interface0.mcastport"),
         @mcastport1
@@ -490,7 +494,8 @@ module Yast
         "csync2",
         "conntrack-tools",
         "hawk2",
-        "crmsh"
+        "crmsh",
+        "corosync-qdevice"
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
       if ret == false
