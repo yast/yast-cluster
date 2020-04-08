@@ -809,6 +809,31 @@ module Yast
         )
       )
 
+      qdevice_heuristics_section = VBox(
+        HBox(
+          Left(ComboBox(
+            Id(:heuristics_mode), Opt(:hstretch), _("Heuristics Mode:"),
+            ["off", "on", "sync"]
+          ))
+        ),
+        HBox(
+          Left(InputField(Id(:heuristics_timeout),Opt(:hstretch), _("Heuristics Timeout(milliseconds):"),"5000")),
+          HSpacing(1),
+          Left(InputField(Id(:heuristics_sync_timeout),Opt(:hstretch), _("Heuristics Sync_timeout(milliseconds):"),"15000")),
+          HSpacing(1),
+          Left(InputField(Id(:heuristics_interval),Opt(:hstretch), _("Heuristics Interval(milliseconds):"),"30000")),
+        ),
+        VBox(
+          Left(Label(_("Heuristics Executables:"))),
+          Table(Id(:heuristics_executables), Header(_("Name"), _("Value")), []),
+          Right(HBox(
+            PushButton(Id(:executablee_add), "Add"),
+            PushButton(Id(:executable_del), "Del"),
+            PushButton(Id(:executable_edit), "Edit"))
+          )
+        )
+      )
+
       contents = VBox(
         VSpacing(1),
         CheckBoxFrame(
@@ -819,6 +844,7 @@ module Yast
           VBox(
             qdevice_section,
             qdevice_net_section,
+            qdevice_heuristics_section,
           )
         ),
         VStretch()
