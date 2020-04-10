@@ -171,9 +171,20 @@ module Yast
     end
 
     def LoadQdeviceHeuristicsExecutables
+      executables = {}
       executables_str = SCR.Read(path(".openais.quorum.device.heuristics.executables"))
 
-      executables = eval(executables_str)
+      if executables_str
+        executables_ori = eval(executables_str)
+        # with eval(), key will have extra ""
+        # {'exec_check': '/tmp/check.sh'}
+        # {:exec_check=>"/tmp/check.sh"}
+        executables_ori.each do |key, value|
+          executables[key.to_s] = value.to_s
+        end
+      end
+
+      executables
     end
 
     def LoadCorosyncQdeviceConfig
@@ -353,6 +364,8 @@ module Yast
         SCR.Write(path(".openais.quorum.device.heuristics.interval"), @heuristics_interval)
         executables_str = generateDictString(@heuristics_executables)
         SCR.Write(path(".openais.quorum.device.heuristics.executables"), executables_str)
+      else
+        SCR.Write(path(".openais.quorum.device.heuristics"), "")
       end
 
       nil
