@@ -295,7 +295,8 @@ def print_quorum_options(f):
 				if l == "net":
 					print_quorum_qdevice_net_options(f, 2)
 				elif l == "heuristics":
-					print_quorum_qdevice_heuristics_options(f, 2)
+					if is_qdevice_heuristics_enabled():
+						print_quorum_qdevice_heuristics_options(f, 2)
 				else:
 					f.write("\t\t#%s\n" % (quorum_qdevice_option_table[l]["doc"]))
 					f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
@@ -816,6 +817,14 @@ class OpenAISConf_Parser(object):
 					quorum_qdevice_options["net"] = {}
 					quorum_options["device"] = quorum_qdevice_options
 				quorum_qdevice_options["net"][path[3]] = args
+				return "true"
+			elif len(path) == 3 and path[1] == "device" and \
+				path[2] == "heuristics" and args == "":
+				# May no "device" in quorum_options,
+				# cause reset in file_parser
+				if "device" in quorum_options and "heuristics" in quorum_options["device"]:
+					del(quorum_options["device"]["heuristics"])
+					quorum_qdevice_options["heuristics"] = {}
 				return "true"
 			elif len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
 				if "heuristics" not in quorum_qdevice_options:
