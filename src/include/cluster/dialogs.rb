@@ -735,6 +735,39 @@ module Yast
       nil
     end
 
+    def heuristics_executables_input_dialog(name="", script="")
+      ret = nil
+
+      UI.OpenDialog(
+        MarginBox(
+          1,
+          1,
+          VBox(
+            HBox(
+            MinWidth(40, InputField(Id(:exec_name), _("Execute Name"), name)),
+            HSpacing(1),
+            MinWidth(100, InputField(Id(:exec_script), _("Execute Script"), script))
+            ),
+            VSpacing(1),
+            Right(
+              HBox(
+                PushButton(Id(:ok), _("OK")),
+                PushButton(Id(:cancel), _("Cancel"))
+              )
+            )
+          )
+        )
+      )
+
+      ret = UI.UserInput
+      if ret == :ok
+        ret = { UI.QueryWidget(:exec_name, :Value) => UI.QueryWidget(:exec_script, :Value) }
+      end
+      UI.CloseDialog
+
+      deep_copy(ret)
+    end
+
     def ValidateCorosyncQdevice
       if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
         return true
@@ -766,7 +799,33 @@ module Yast
       end
 
       if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.memberaddr.size <= 0
+        # Intent not return false since address is in another dialog.
         Popup.Message(_("Member Address is required when enable corosync qdevice"))
+      end
+
+      if UI.QueryWidget(Id(:heuristics_mode), :Value) != "off"
+        if UI.QueryWidget(Id(:heuristics_timeout), :Value).to_i <= 0
+          Popup.Message(_("The qdevice heuristics timeout must be a positive integer"))
+          UI.SetFocus(Id(:heuristics_timeout))
+          return false
+        end
+
+        if UI.QueryWidget(Id(:heuristics_sync_timeout), :Value).to_i <= 0
+          Popup.Message(_("The qdevice heuristics sync timeout must be a positive integer"))
+          UI.SetFocus(Id(:heuristics_sync_timeout))
+          return false
+        end
+
+        if UI.QueryWidget(Id(:heuristics_interval), :Value).to_i <= 0
+          Popup.Message(_("The qdevice heuristics interval must be a positive integer"))
+          UI.SetFocus(Id(:heuristics_interval))
+          return false
+        end
+
+        if Cluster.heuristics_executables.size <= 0
+          Popup.Message(_("The heuristics executable script must config"))
+          return false
+        end
       end
 
       true
@@ -781,6 +840,12 @@ module Yast
       Cluster.qdevice_tls = UI.QueryWidget(Id(:qdevice_tls), :Value)
       Cluster.qdevice_algorithm = UI.QueryWidget(Id(:qdevice_algorithm), :Value)
       Cluster.qdevice_tie_breaker = UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)
+
+      Cluster.heuristics_mode = UI.QueryWidget(Id(:heuristics_mode), :Value)
+      Cluster.heuristics_timeout = UI.QueryWidget(Id(:heuristics_timeout), :Value).to_i
+      Cluster.heuristics_sync_timeout = UI.QueryWidget(Id(:heuristics_sync_timeout), :Value).to_i
+      Cluster.heuristics_interval = UI.QueryWidget(Id(:heuristics_interval), :Value).to_i
+
       nil
     end
 
@@ -811,6 +876,31 @@ module Yast
         )
       )
 
+      qdevice_heuristics_section = VBox(
+        HBox(
+          Left(ComboBox(
+            Id(:heuristics_mode), Opt(:hstretch, :notify), _("Heuristics Mode:"),
+            ["off", "on", "sync"]
+          ))
+        ),
+        HBox(
+          Left(InputField(Id(:heuristics_timeout),Opt(:hstretch), _("Heuristics Timeout(milliseconds):"),"5000")),
+          HSpacing(1),
+          Left(InputField(Id(:heuristics_sync_timeout),Opt(:hstretch), _("Heuristics Sync_timeout(milliseconds):"),"15000")),
+          HSpacing(1),
+          Left(InputField(Id(:heuristics_interval),Opt(:hstretch), _("Heuristics Interval(milliseconds):"),"30000")),
+        ),
+        VBox(
+          Left(Label(_("Heuristics Executables:"))),
+          Table(Id(:heuristics_executables), Header(_("Name"), _("Value")), []),
+          Right(HBox(
+            PushButton(Id(:executable_add), "Add"),
+            PushButton(Id(:executable_del), "Del"),
+            PushButton(Id(:executable_edit), "Edit"))
+          )
+        )
+      )
+
       contents = VBox(
         VSpacing(1),
         CheckBoxFrame(
@@ -821,6 +911,7 @@ module Yast
           VBox(
             qdevice_section,
             qdevice_net_section,
+            qdevice_heuristics_section,
           )
         ),
         VStretch()
@@ -842,6 +933,11 @@ module Yast
       end
       UI.ChangeWidget(Id(:qdevice_tie_breaker), :Value, Cluster.qdevice_tie_breaker)
 
+      UI.ChangeWidget(Id(:heuristics_mode), :Value, Cluster.heuristics_mode)
+      UI.ChangeWidget(Id(:heuristics_timeout), :Value, Cluster.heuristics_timeout)
+      UI.ChangeWidget(Id(:heuristics_sync_timeout), :Value, Cluster.heuristics_sync_timeout)
+      UI.ChangeWidget(Id(:heuristics_interval), :Value, Cluster.heuristics_interval)
+
       nil
     end
 
@@ -857,12 +953,42 @@ module Yast
       nil
     end
 
+    def heuristics_switch
+      if !UI.QueryWidget(Id(:heuristics_mode), :Value) ||
+          UI.QueryWidget(Id(:heuristics_mode), :Value) == "off"
+        disable = false
+      else
+        disable = true
+      end
+
+      UI.ChangeWidget(Id(:heuristics_timeout), :Enabled, disable)
+      UI.ChangeWidget(Id(:heuristics_sync_timeout), :Enabled, disable)
+      UI.ChangeWidget(Id(:heuristics_interval), :Enabled, disable)
+      UI.ChangeWidget(Id(:heuristics_executables), :Enabled, disable)
+
+      nil
+    end
+
+    def fill_qdevice_heuristics_executables
+      items = []
+
+      Cluster.heuristics_executables.each do |name, value|
+        items.push(Item(Id(name.to_s), name.to_s, value.to_s))
+      end
+
+      UI.ChangeWidget(Id(:heuristics_executables), :Items, items)
+
+      nil
+    end
+
     def CorosyncQdeviceDialog
       ret = nil
 
       CorosyncQdeviceLayout()
 
       while true
+        fill_qdevice_heuristics_executables
+        heuristics_switch
 
         ret = UI.UserInput
 
@@ -870,6 +996,33 @@ module Yast
           if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
             next
           end
+        end
+
+        if ret == :heuristics_mode
+          next
+        end
+
+        if ret == :executable_add
+          ret = heuristics_executables_input_dialog()
+          next if ret == :cancel
+          Cluster.heuristics_executables.merge!(ret)
+          next
+        end
+
+        if ret == :executable_edit
+          exec_name = UI.QueryWidget(:heuristics_executables, :CurrentItem).to_s
+          ret = heuristics_executables_input_dialog(exec_name,
+                                                    Cluster.heuristics_executables[exec_name].to_s)
+          next if ret == :cancel
+          Cluster.heuristics_executables.delete(exec_name)
+          Cluster.heuristics_executables[ret.keys()[0]] = ret.values()[0]
+          next
+        end
+
+        if ret == :executable_del
+          exec_name = UI.QueryWidget(:heuristics_executables, :CurrentItem).to_s
+          Cluster.heuristics_executables.delete(exec_name)
+          next
         end
 
         if ret == :next || ret == :back
