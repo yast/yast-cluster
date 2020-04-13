@@ -840,9 +840,9 @@ module Yast
       Cluster.qdevice_tie_breaker = UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)
 
       Cluster.heuristics_mode = UI.QueryWidget(Id(:heuristics_mode), :Value)
-      Cluster.heuristics_timeout = UI.QueryWidget(Id(:heuristics_timeout), :Value)
-      Cluster.heuristics_sync_timeout = UI.QueryWidget(Id(:heuristics_sync_timeout), :Value)
-      Cluster.heuristics_interval = UI.QueryWidget(Id(:heuristics_interval), :Value)
+      Cluster.heuristics_timeout = UI.QueryWidget(Id(:heuristics_timeout), :Value).to_i
+      Cluster.heuristics_sync_timeout = UI.QueryWidget(Id(:heuristics_sync_timeout), :Value).to_i
+      Cluster.heuristics_interval = UI.QueryWidget(Id(:heuristics_interval), :Value).to_i
 
       nil
     end
@@ -1012,6 +1012,7 @@ module Yast
           ret = heuristics_executables_input_dialog(exec_name,
                                                     Cluster.heuristics_executables[exec_name].to_s)
           next if ret == :cancel
+          Cluster.heuristics_executables.delete(exec_name)
           Cluster.heuristics_executables[ret.keys()[0]] = ret.values()[0]
           next
         end

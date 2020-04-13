@@ -110,9 +110,9 @@ module Yast
 
       # qdevice heuristics
       @heuristics_mode = "off"
-      @heuristics_timeout = ""
-      @heuristics_sync_timeout = ""
-      @heuristics_interval = ""
+      @heuristics_timeout = "5000"
+      @heuristics_sync_timeout = "15000"
+      @heuristics_interval = "30000"
       @heuristics_executables = {}
 
       @csync2_host = []
@@ -203,10 +203,12 @@ module Yast
         @qdevice_tie_breaker = SCR.Read(path(".openais.quorum.device.net.tie_breaker"))
 
         @heuristics_mode = SCR.Read(path(".openais.quorum.device.heuristics.mode"))
-        @heuristics_timeout = SCR.Read(path(".openais.quorum.device.heuristics.timeout")).to_s
-        @heuristics_sync_timeout = SCR.Read(path(".openais.quorum.device.heuristics.sync_timeout")).to_s
-        @heuristics_interval = SCR.Read(path(".openais.quorum.device.heuristics.interval")).to_s
-        @heuristics_executables = LoadQdeviceHeuristicsExecutables()
+        if @heuristics_mode
+          @heuristics_timeout = SCR.Read(path(".openais.quorum.device.heuristics.timeout")).to_s
+          @heuristics_sync_timeout = SCR.Read(path(".openais.quorum.device.heuristics.sync_timeout")).to_s
+          @heuristics_interval = SCR.Read(path(".openais.quorum.device.heuristics.interval")).to_s
+          @heuristics_executables = LoadQdeviceHeuristicsExecutables()
+        end
       end
 
       nil
