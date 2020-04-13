@@ -108,6 +108,13 @@ module Yast
       @qdevice_algorithm = "ffsplit"
       @qdevice_tie_breaker = "lowest"
 
+      # qdevice heuristics
+      @heuristics_mode = "off"
+      @heuristics_timeout = "5000"
+      @heuristics_sync_timeout = "15000"
+      @heuristics_interval = "30000"
+      @heuristics_executables = {}
+
       @csync2_host = []
       @csync2_include = []
     end
@@ -163,6 +170,23 @@ module Yast
       nil
     end
 
+    def LoadQdeviceHeuristicsExecutables
+      executables = {}
+      executables_str = SCR.Read(path(".openais.quorum.device.heuristics.executables"))
+
+      if executables_str
+        executables_ori = eval(executables_str)
+        # with eval(), key will have extra ""
+        # {'exec_check': '/tmp/check.sh'}
+        # {:exec_check=>"/tmp/check.sh"}
+        executables_ori.each do |key, value|
+          executables[key.to_s] = value.to_s
+        end
+      end
+
+      executables
+    end
+
     def LoadCorosyncQdeviceConfig
       if SCR.Read(path(".openais.quorum.device"))
         @corosync_qdevice = true
@@ -177,6 +201,14 @@ module Yast
         @qdevice_tls = SCR.Read(path(".openais.quorum.device.net.tls"))
         @qdevice_algorithm = SCR.Read(path(".openais.quorum.device.net.algorithm"))
         @qdevice_tie_breaker = SCR.Read(path(".openais.quorum.device.net.tie_breaker"))
+
+        @heuristics_mode = SCR.Read(path(".openais.quorum.device.heuristics.mode"))
+        if @heuristics_mode
+          @heuristics_timeout = SCR.Read(path(".openais.quorum.device.heuristics.timeout")).to_s
+          @heuristics_sync_timeout = SCR.Read(path(".openais.quorum.device.heuristics.sync_timeout")).to_s
+          @heuristics_interval = SCR.Read(path(".openais.quorum.device.heuristics.interval")).to_s
+          @heuristics_executables = LoadQdeviceHeuristicsExecutables()
+        end
       end
 
       nil
@@ -298,6 +330,24 @@ module Yast
       return address_string
     end
 
+    def generateDictString(obj)
+      str = "{"
+      first = true
+
+      obj.each do |k, v|
+        if not first
+          str << ", "
+        end
+
+        str << "'" + k.to_s + "'"
+        str << ": "
+        str << "'" + v.to_s + "'"
+        first = false
+      end
+
+      str << "}"
+    end
+
     def SaveCorosyncQdeviceConfig
       SCR.Write(path(".openais.quorum.device.model"), @qdevice_model)
       SCR.Write(path(".openais.quorum.device.votes"), @qdevice_votes)
@@ -307,6 +357,18 @@ module Yast
       SCR.Write(path(".openais.quorum.device.net.tls"), @qdevice_tls)
       SCR.Write(path(".openais.quorum.device.net.algorithm"), @qdevice_algorithm)
       SCR.Write(path(".openais.quorum.device.net.tie_breaker"), @qdevice_tie_breaker)
+
+      if @heuristics_mode != "off"
+        SCR.Write(path(".openais.quorum.device.heuristics.mode"), @heuristics_mode)
+        # For @heuristics_xxx doesn't have suggested_value, skip record when empty?
+        SCR.Write(path(".openais.quorum.device.heuristics.timeout"), @heuristics_timeout)
+        SCR.Write(path(".openais.quorum.device.heuristics.sync_timeout"), @heuristics_sync_timeout)
+        SCR.Write(path(".openais.quorum.device.heuristics.interval"), @heuristics_interval)
+        executables_str = generateDictString(@heuristics_executables)
+        SCR.Write(path(".openais.quorum.device.heuristics.executables"), executables_str)
+      else
+        SCR.Write(path(".openais.quorum.device.heuristics"), "")
+      end
 
       nil
     end
@@ -691,6 +753,22 @@ module Yast
       @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
       @rrpmode = Ops.get_string(settings, "rrpmode", "")
+
+      @corosync_qdevice = settings["corosync_qdevice"] || false
+      @qdevice_model = settings["qdevice_model"] || "net"
+      @qdevice_votes = settings["qdevice_votes"] || ""
+      @qdevice_host = settings["qdevice_host"] || ""
+      @qdevice_port = settings["qdevice_port"] || "5403"
+      @qdevice_tls = settings["qdevice_tls"] || "off"
+      @qdevice_algorithm= settings["qdevice_algorithm"] || "ffsplit"
+      @qdevice_tie_breaker = settings["qdevice_tie_breaker"] || "lowest"
+
+      @heuristics_mode = settings["heuristics_mode"] || "off"
+      @heuristics_timeout = settings["heuristics_timeout"] || "5000"
+      @heuristics_sync_timeout = settings["heuristics_sync_timeout"] || "15000"
+      @heuristics_interval = settings["heuristics_interval"] || "30000"
+      @heuristics_executables = settings["heuristics_executables"] || {}
+
       @corokey = Ops.get_string(settings, "corokey", "")
       @csync2key = Ops.get_string(settings, "csync2key", "")
 
@@ -724,6 +802,22 @@ module Yast
       Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
       Ops.set(result, "rrpmode", @rrpmode)
+
+      result["corosync_qdevice"] = @corosync_qdevice
+      result["qdevice_model"] = @qdevice_model
+      result["qdevice_votes"] = @qdevice_votes
+      result["qdevice_host"] = @qdevice_host
+      result["qdevice_port"] = @qdevice_port
+      result["qdevice_tls"] = @qdevice_tls
+      result["qdevice_algorithm"] = @qdevice_algorithm
+      result["qdevice_tie_breaker"] = @qdevice_tie_breaker
+
+      result["heuristics_mode"] = @heuristics_mode
+      result["heuristics_timeout"] = @heuristics_timeout
+      result["heuristics_sync_timeout"] = @heuristics_sync_timeout
+      result["heuristics_interval"] = @heuristics_interval
+      result["heuristics_executables"] = @heuristics_executables
+
       Ops.set(result, "csync2_host", @csync2_host)
       Ops.set(result, "csync2_include", @csync2_include)
       if SCR.Read(path(".target.size"), "/etc/corosync/authkey") != -1
@@ -817,6 +911,11 @@ module Yast
     publish :variable => :qdevice_tls, :type => "string"
     publish :variable => :qdevice_algorithm, :type => "string"
     publish :variable => :qdevice_tie_breaker, :type => "string"
+    publish :variable => :heuristics_mode, :type => "string"
+    publish :variable => :heuristics_timeout, :type => "string"
+    publish :variable => :heuristics_sync_timeout, :type => "string"
+    publish :variable => :heuristics_interval, :type => "string"
+    publish :variable => :heuristics_executables, :type => "map <string, string>"
     publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"
     publish :variable => :mcastport1, :type => "string"
