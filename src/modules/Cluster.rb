@@ -753,6 +753,22 @@ module Yast
       @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
       @rrpmode = Ops.get_string(settings, "rrpmode", "")
+
+      @corosync_qdevice = settings["corosync_qdevice"] || false
+      @qdevice_model = settings["qdevice_model"] || "net"
+      @qdevice_votes = settings["qdevice_votes"] || ""
+      @qdevice_host = settings["qdevice_host"] || ""
+      @qdevice_port = settings["qdevice_port"] || "5403"
+      @qdevice_tls = settings["qdevice_tls"] || "off"
+      @qdevice_algorithm= settings["qdevice_algorithm"] || "ffsplit"
+      @qdevice_tie_breaker = settings["qdevice_tie_breaker"] || "lowest"
+
+      @heuristics_mode = settings["heuristics_mode"] || "off"
+      @heuristics_timeout = settings["heuristics_timeout"] || "5000"
+      @heuristics_sync_timeout = settings["heuristics_sync_timeout"] || "15000"
+      @heuristics_interval = settings["heuristics_interval"] || "30000"
+      @heuristics_executables = settings["heuristics_executables"] || {}
+
       @corokey = Ops.get_string(settings, "corokey", "")
       @csync2key = Ops.get_string(settings, "csync2key", "")
 
@@ -786,6 +802,22 @@ module Yast
       Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
       Ops.set(result, "rrpmode", @rrpmode)
+
+      result["corosync_qdevice"] = @corosync_qdevice
+      result["qdevice_model"] = @qdevice_model
+      result["qdevice_votes"] = @qdevice_votes
+      result["qdevice_host"] = @qdevice_host
+      result["qdevice_port"] = @qdevice_port
+      result["qdevice_tls"] = @qdevice_tls
+      result["qdevice_algorithm"] = @qdevice_algorithm
+      result["qdevice_tie_breaker"] = @qdevice_tie_breaker
+
+      result["heuristics_mode"] = @heuristics_mode
+      result["heuristics_timeout"] = @heuristics_timeout
+      result["heuristics_sync_timeout"] = @heuristics_sync_timeout
+      result["heuristics_interval"] = @heuristics_interval
+      result["heuristics_executables"] = @heuristics_executables
+
       Ops.set(result, "csync2_host", @csync2_host)
       Ops.set(result, "csync2_include", @csync2_include)
       if SCR.Read(path(".target.size"), "/etc/corosync/authkey") != -1
