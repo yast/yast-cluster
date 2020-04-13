@@ -742,9 +742,9 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(40, InputField(Id(:exec_name), _("Execuate Name"), name)),
+            MinWidth(40, InputField(Id(:exec_name), _("Execute Name"), name)),
             HSpacing(1),
-            MinWidth(100, InputField(Id(:exec_script), _("Execuate Script"), script))
+            MinWidth(100, InputField(Id(:exec_script), _("Execute Script"), script))
             ),
             VSpacing(1),
             Right(
@@ -801,7 +801,7 @@ module Yast
         Popup.Message(_("Member Address is required when enable corosync qdevice"))
       end
 
-      if !["off"].include?(UI.QueryWidget(Id(:heuristics_mode), :Value))
+      if UI.QueryWidget(Id(:heuristics_mode), :Value) != "off"
         if UI.QueryWidget(Id(:heuristics_timeout), :Value).to_i <= 0
           Popup.Message(_("The qdevice heuristics timeout must be a positive integer"))
           UI.SetFocus(Id(:heuristics_timeout))
