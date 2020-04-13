@@ -1,7 +1,7 @@
 #
 # spec file for package yast2-cluster
 #
-# Copyright (c) 2019 SUSE LLC
+# Copyright (c) 2020 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -12,13 +12,13 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
-# Please submit bugfixes or comments via http://bugs.opensuse.org/
+# Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
 
-Name:           yast2-cluster
 %define _fwdefdir %{_libexecdir}/firewalld/services
-Version:        4.0.10
+Name:           yast2-cluster
+Version:        4.0.11
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build

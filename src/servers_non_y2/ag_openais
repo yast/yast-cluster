@@ -13,12 +13,12 @@
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #   See the GNU General Public License for more details.
-#   
+#
 #   This program is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU General Public License
 #   as published by the Free Software Foundation; either version
 #   2 of the License, or (at your option) any later version.
-#   
+#
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
@@ -39,6 +39,10 @@ import sys
 debug = False
 
 #the option table is used to parse and write suggested_value if no options are read
+
+#type is used for verification of values. "string", "int" and "dict"
+#"dict" is for store the flexible key:value pair of a section. eg. quorum.device.heuristics.executables
+#       store in "other"(executables) dict, so doList(Dir) need to query the dict(executables)
 
 #default_value is used in file_parser, if input has the option, but failed to parse,
 #use the default_value.
@@ -108,9 +112,6 @@ totem_option_table = {
 	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv4,ipv6]","default_value":"ipv4"},
 }
 
-
-
-
 interface_option_table = {
 	"ringnumber":{"doc":"The ringnumber assigned to this interface setting", "default_value":0, "type":"int"},
 	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
@@ -118,7 +119,6 @@ interface_option_table = {
 	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
 	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
 	}
-
 
 #only has two rings at most
 node_option_table = {
@@ -180,6 +180,14 @@ quorum_qdevice_net_option_table = {
 		"force_ip_version":{"doc":"Can be one of 0|4|6 and forces the software to use the given IP version.", "default_value":0, "type":"int","suggested_value":0}
 		}
 
+quorum_qdevice_heuristics_option_table = {
+		"mode":{"doc":"Specifies the mode of operation of heuristics.","type":"string","default_value":"off","suggested_value":"off"},
+		"timeout":{"doc":"How long corosync-qdevice waits till the heuristics commands finish in milliseconds.","type":"int","default_value":5000},
+		"sync_timeout":{"doc":"How long corosync-qdevice waits during membership changes in milliseconds.","type":"int","default_value":15000},
+		"interval":{"doc":"Specifies interval between two regular heuristics execution in milliseconds.","type":"int","default_value":30000},
+		"executables":{"doc":"Executables. Scripts for heuristics check.","type":"dict","default_value":{}}
+		}
+
 qb_option_table = { "ipc_type":{"doc":"This specifies type of IPC to use",
 		    "type":"string", "default_value":"native"}
 		  }
@@ -199,7 +207,6 @@ def strip_comments_and_pending_space(line):
 def get_next_line(ff):
 	l = next(ff)
 	return strip_comments_and_pending_space(l)
-
 
 def fulfill_suggested_logging_options ():
 	for opt in logging_option_table.keys():
@@ -244,6 +251,13 @@ def fulfill_suggested_quorum_qdevice_options():
 		if v == None and sv != None:
 			quorum_qdevice_options["net"][opt] = sv
 
+	if is_qdevice_heuristics_enabled():
+		for opt in ['mode', 'timeout', 'sync_timeout', 'interval']:
+			sv = quorum_qdevice_heuristics_option_table[opt].get("suggested_value", None)
+			v = quorum_qdevice_options["heuristics"].get(opt, None)
+			if v == None and sv != None:
+				quorum_qdevice_options["heuristics"][opt] = sv
+
 def print_quorum_qdevice_net_options(f, indent):
 	'''
 		indent means the level of sub-directive
@@ -254,6 +268,24 @@ def print_quorum_qdevice_net_options(f, indent):
 		f.write("\t"*(indent+1)+"%s:\t%s\n\n" % (l, quorum_qdevice_options["net"][l]))
 	f.write("\t"*indent+"}\n")
 
+def print_quorum_qdevice_heuristics_options(f, indent):
+	'''
+		indent means the level of sub-directive
+		sub-director of quorum.qdevice
+	'''
+	f.write("\t"*indent+"heuristics {\n")
+	for l in quorum_qdevice_options["heuristics"].keys():
+		if l != "executables":
+			f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_heuristics_option_table[l]["doc"]))
+			f.write("\t"*(indent+1)+"%s:\t%s\n\n" % (l, quorum_qdevice_options["heuristics"][l]))
+
+	f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_heuristics_option_table["executables"]["doc"]))
+	for key, value in quorum_qdevice_options["heuristics"]["executables"].items():
+		f.write("\t"*(indent+1)+"%s:\t%s\n" % (key, value))
+	f.write("\n")
+
+	f.write("\t"*indent+"}\n")
+
 def print_quorum_options(f):
 	f.write("quorum {\n")
 	for key in quorum_options.keys():
@@ -262,6 +294,9 @@ def print_quorum_options(f):
 			for l in quorum_options["device"].keys():
 				if l == "net":
 					print_quorum_qdevice_net_options(f, 2)
+				elif l == "heuristics":
+					if is_qdevice_heuristics_enabled():
+						print_quorum_qdevice_heuristics_options(f, 2)
 				else:
 					f.write("\t\t#%s\n" % (quorum_qdevice_option_table[l]["doc"]))
 					f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
@@ -304,7 +339,15 @@ def is_quorum_qdevice_configured():
 		return False
 	else:
 		return True
-			
+
+def is_qdevice_heuristics_enabled():
+	if is_quorum_qdevice_configured():
+		if ("heuristics" not in quorum_qdevice_options) or \
+				(quorum_qdevice_options["heuristics"].get("mode", "off")) == "off":
+			return False
+
+	return True
+
 def print_logging_options(f):
 	f.write("logging {\n")
 	for key in logging_options.keys():
@@ -383,11 +426,13 @@ def file_parser(file):
 		print(nodelist_options)
 		print(qb_options)
 		print(quorum_options)
-	
+
 def opt_parser(file, options, parent):
 	global quorum_qdevice_options
 
 	result = {}
+	others = {}
+
 	i = ""
 	while (i == ""):
 		i = get_next_line(file)
@@ -407,12 +452,12 @@ def opt_parser(file, options, parent):
 				members.append(opt_parser(file, node_option_table, "node"))
 				result["node"] = members
 			elif i.lstrip().split(" ")[0] == "device" and parent == "quorum":
-				dev = result.get("device", {})
 				quorum_qdevice_options = opt_parser(file, quorum_qdevice_option_table, "qdevice")
 				result["device"] = quorum_qdevice_options
 			elif i.lstrip().split(" ")[0] == "net" and parent == "qdevice":
-				net = result.get("net", {})
 				result["net"] = opt_parser(file, quorum_qdevice_net_option_table, "net")
+			elif i.lstrip().split(" ")[0] == "heuristics" and parent == "qdevice":
+				result["heuristics"] = opt_parser(file, quorum_qdevice_heuristics_option_table, "heuristics")
 			# member of interface is removed in the latest version
 			elif i.lstrip().split(" ")[0] == "member" and parent == "interface":
 				oldmembers = result.get("oldlist", [])
@@ -422,31 +467,42 @@ def opt_parser(file, options, parent):
 				#y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
 				while (i[-1] != "}"):
 					i = get_next_line(file)
-				
+
 			i = get_next_line(file)
 			while ( i == ""):
 				i = get_next_line(file)
 			continue
-		
+
 		tmp_opt = i.split(":")
 		# In case string like IPv6 have ":" in value
-		opt = [tmp_opt[0], ":".join(tmp_opt[1:])]
+		opt = [tmp_opt[0].strip(), ":".join(tmp_opt[1:]).strip()]
 		#opt = i.split(":")
 
 		try:
-			doc = options[opt[0].strip()]["doc"]
+			doc = options[opt[0]]["doc"]
 		except KeyError:
-			#y2warning("Unknown options %s"%opt[0].strip())
-			pass
+			#y2warning("Unknown options %s"%opt[0])
+
+			# If the keys of options have "dict"
+			# Then set to the "dict" as key:value pair of it
+			if not len(others):
+				for key in options.keys():
+					if options[key].get("type", "string") == "dict":
+						result[key] = others
+
+			others[opt[0]] = opt[1]
+
 		else:
-			if options[opt[0].strip()].get("type", "string") == "int":
+			#Available types: "string", "int".
+			if options[opt[0]].get("type", "string") == "int":
 				try:
-					result[opt[0].strip()] = int(opt[1].strip())
+					result[opt[0]] = int(opt[1])
 				except ValueError:
-					#y2warning("Invalid option %s found, default to %s" % (opt[0].strip(), options[opt[0].strip()]["default_value"]))
-					result[opt[0].strip()] = options[opt[0].strip()]["default_value"]
+					#y2warning("Invalid option %s found, default to %s" % (opt[0], options[opt[0]]["default_value"]))
+					result[opt[0]] = options[opt[0]]["default_value"]
 			else:
-				result[opt[0].strip()] = opt[1].strip()
+				result[opt[0]] = opt[1]
+
 		i = ""
 		while (i == ""):
 			i = get_next_line(file)
@@ -509,7 +565,7 @@ def del_interface(k):
 		if totem_options["interface"][i]["ringnumber"] == k:
 			del totem_options["interface"][i]
 			break
-		
+
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
 	for x in range(len(totem_options["interface"])):
@@ -535,17 +591,26 @@ def load_ais_conf(filename):
 		except:
 			pass
 
+def safe_return_str(obj):
+	'''
+		return a str with all '"' replaced to '\"'
+		necessary when value may include '"'
+		For example:
+		  "nick"123l"nick" => "nick\"123l\"nick"
+		  "{'exec_ping': 'ping -q -c 1 "127.3.1.1"'}" => "{'exec_ping': 'ping -q -c 1 \"127.3.1.1\"'}"
+	'''
+	return str(obj).replace('"', '\\"')
 
 class OpenAISConf_Parser(object):
 	def __init__(self):
 		load_ais_conf("/etc/corosync/corosync.conf")
-    
+
 	def doList(self, path):
 		#remove the leading dot
 		path_arr = path
 		if len(path_arr) == 0:
 			return '["allconfs"]'
-	
+
 		if path_arr[0] == 'allconfs' and len(path_arr) == 1:
 			return '["quorum", "totem", "nodelist"]'
 		elif path_arr[0] == 'totem':
@@ -583,11 +648,13 @@ class OpenAISConf_Parser(object):
 				return '["model", "timeout", "sync_timeout", "net", "votes"]'
 			elif len(path_arr) == 3 and path_arr[2] == "net":
 				return '["host", "port", "tls", "algorithm", "tie_breaker", "connect_timeout", "force_ip_version"]'
+			elif len(path_arr) == 3 and path_arr[2] == "heuristics":
+				return '["mode", "timeout", "sync_timeout", "interval", "executables"]'
 			else:
 				return '[]'
 		else:
 			return 'nil\n'
-	
+
 	def doRead(self, path):
 		if path[0] == "":
 			return "nil\n"
@@ -604,6 +671,13 @@ class OpenAISConf_Parser(object):
 				path[1] == "device" and path[2] in quorum_qdevice_option_table.keys():
 				return '"%s"' % quorum_options["device"].get(path[2],
 					quorum_qdevice_option_table[path[2]]["default_value"])
+			elif is_quorum_qdevice_configured() and is_qdevice_heuristics_enabled() and \
+				len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
+				# "executables" will return a dict in str
+				# eg. "{'exec_check': '/tmp/check.sh', 'exec_ping': 'ping -q -c 1 \"127.0.0.1\"'}"
+				if path[3] in quorum_qdevice_heuristics_option_table.keys():
+					return '"%s"' % safe_return_str(quorum_qdevice_options["heuristics"].get(path[3],
+						quorum_qdevice_heuristics_option_table[path[3]]["default_value"]))
 			elif is_quorum_qdevice_configured() and len(path) == 4 and \
 				path[1] == "device" and path[2] == "net" and \
 				path[3] in quorum_qdevice_net_option_table.keys():
@@ -744,6 +818,31 @@ class OpenAISConf_Parser(object):
 					quorum_options["device"] = quorum_qdevice_options
 				quorum_qdevice_options["net"][path[3]] = args
 				return "true"
+			elif len(path) == 3 and path[1] == "device" and \
+				path[2] == "heuristics" and args == "":
+				# May no "device" in quorum_options,
+				# cause reset in file_parser
+				if "device" in quorum_options and "heuristics" in quorum_options["device"]:
+					del(quorum_options["device"]["heuristics"])
+					quorum_qdevice_options["heuristics"] = {}
+				return "true"
+			elif len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
+				if "heuristics" not in quorum_qdevice_options:
+					quorum_qdevice_options["heuristics"] = {"executables": {}}
+					quorum_options["device"] = quorum_qdevice_options
+
+				if path[3] == "executables":
+					# always replaced by new dict
+					quorum_qdevice_options["heuristics"]["executables"] = {}
+					# args example (str type):
+					# {'exec_testing': '/tmp/testing.sh', 'exec_ping': 'ping -q -c 1 "127.0.0.1"'}
+					executables_dict = eval(args)
+					for key, value in executables_dict.items():
+						quorum_qdevice_options["heuristics"]["executables"][key] = value
+				elif path[3] in quorum_qdevice_heuristics_option_table.keys():
+					# key == executables run in the previous condition
+					quorum_qdevice_options["heuristics"][path[3]] = args
+				return "true"
 			else:
 				return "false"
 		elif path[0] == "totem":
@@ -803,7 +902,7 @@ class OpenAISConf_Parser(object):
 							i = get_interface(1)
 					else:
 						i = None
-						
+
 					if i != None:
 						if path[3] == "bindnetaddr":
 							i["bindnetaddr"] = args
@@ -944,6 +1043,6 @@ def main_entry():
 		except:
 			break
 # <-- main
-    
+
 if __name__ == "__main__":
 	main_entry()
