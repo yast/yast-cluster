@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Wed Aug 19 09:51:43 UTC 2020 - Callum Farmer <callumjfarmer13@gmail.com>
+
+- Correct firewall directory for %_libexecdir changes (bsc#1174075)
+- Version 4.3.2
+
+-------------------------------------------------------------------
 Mon Aug 10 17:05:37 CEST 2020 - schubi@suse.de
 
 - AutoYaST: Added supplements: autoyast(cluster) into the spec file
