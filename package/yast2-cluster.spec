@@ -15,10 +15,10 @@
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
-%define _fwdefdir %{_libexecdir}/firewalld/services
+%define _fwdefdir %{_prefix}/lib/firewalld/services
 
 Name:           yast2-cluster
-Version:        4.3.1
+Version:        4.3.2
 Release:        0
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
