@@ -18,7 +18,7 @@
 
 %define _fwdefdir %{_libexecdir}/firewalld/services
 Name:           yast2-cluster
-Version:        4.0.11
+Version:        4.0.12
 Release:        0
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
