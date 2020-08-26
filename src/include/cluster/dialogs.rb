@@ -1477,10 +1477,11 @@ module Yast
         firewalld_cluster = firewalld.find_service("cluster")
         tcp_ports = firewalld_cluster.tcp_ports
       rescue Y2Firewall::Firewalld::Service::NotFound
-        tcp_ports = []
+        y2debug("Firewalld service not found.")
+        return 3
       end
 
-      tcp_ports.include?(@csync2_port) ? 2 : 3
+      tcp_ports.include?(@csync2_port) ? 3 : 2
     end
 
     def csync2_turn_off
