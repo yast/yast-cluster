@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Aug 25 01:18:40 UTC 2020 - nick wang <nwang@suse.com>
+
+- bsc#1175648, fix UI label switch to turn off csync2 service
+- Version 4.2.7
+
+-------------------------------------------------------------------
 Mon Apr 13 06:49:43 UTC 2020 - nick wang <nwang@suse.com>
 
 - jsc#SLE-12432, add qdevice heuristics support
