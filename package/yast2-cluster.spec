@@ -18,10 +18,9 @@
 
 %define _fwdefdir %{_libexecdir}/firewalld/services
 Name:           yast2-cluster
-Version:        4.1.5
+Version:        4.1.6
 Release:        0
 
-BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.firewalld.xml
@@ -39,6 +38,7 @@ BuildRequires:  firewall-macros
 Requires:       yast2 >= 4.0.39
 Requires:       yast2-ruby-bindings >= 1.0.0
 Requires:       sharutils
+BuildArch:      noarch
 
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
