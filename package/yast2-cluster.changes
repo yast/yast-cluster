@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Aug 25 01:18:40 UTC 2020 - nick wang <nwang@suse.com>
+
+- bsc#1175648, fix UI label switch to turn off csync2 service
+- Version 4.3.3
+
+-------------------------------------------------------------------
 Wed Aug 19 09:51:43 UTC 2020 - Callum Farmer <callumjfarmer13@gmail.com>
 
 - Correct firewall directory for %_libexecdir changes (bsc#1174075)
