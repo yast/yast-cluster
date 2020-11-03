@@ -59,6 +59,7 @@ module Yast
         "/etc/samba/smb.conf",
         "/etc/booth",
         "/etc/sysconfig/sbd",
+        "/etc/sysconfig/nfs",
         "/etc/csync2/csync2.cfg",
         "/etc/csync2/key_hagroup"
       ]
