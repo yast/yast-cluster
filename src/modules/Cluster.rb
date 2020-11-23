@@ -433,16 +433,17 @@ module Yast
       else
         if @transport == "udpu"
           SCR.Write(path(".openais.totem.interface.interface1.mcastaddr"), "")
+          SCR.Write(path(".openais.totem.interface.interface1.bindnetaddr"), "")
         else
           SCR.Write(
             path(".openais.totem.interface.interface1.mcastaddr"),
             @mcastaddr2
           )
+          SCR.Write(
+            path(".openais.totem.interface.interface1.bindnetaddr"),
+            @bindnetaddr2
+          )
         end
-        SCR.Write(
-          path(".openais.totem.interface.interface1.bindnetaddr"),
-          @bindnetaddr2
-        )
         SCR.Write(
           path(".openais.totem.interface.interface1.mcastport"),
           @mcastport2
