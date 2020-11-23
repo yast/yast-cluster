@@ -720,7 +720,7 @@ class OpenAISConf_Parser(object):
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
-							if path[3] == "ttl":
+							elif path[3] == "ttl":
 								return '"%d"' % i.get("ttl", 1)
 							else:
 								return "nil"
@@ -735,6 +735,8 @@ class OpenAISConf_Parser(object):
 								return '"%s"' % i.get("mcastaddr", "")
 							elif path[3] == "mcastport":
 								return '"%d"' % i.get("mcastport", 5405)
+							elif path[3] == "ttl":
+								return '"%d"' % i.get("ttl", 1)
 							else:
 								return "nil"
 					elif path[2] == "member":
