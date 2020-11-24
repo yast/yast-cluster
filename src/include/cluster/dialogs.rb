@@ -414,15 +414,17 @@ module Yast
       udp = UI.QueryWidget(Id(:transport), :Value) == "udp"
       enable2 = UI.QueryWidget(Id(:enable2), :Value)
 
-      enable1 = udp
-      enable2 = udp && enable2
+      UI.ChangeWidget(Id(:enable2_vbox), :Enabled, enable2)
+      UI.ChangeWidget(Id(:mcastport2), :Enabled, enable2)
 
-      UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1)
+      enable1_addr = udp
+      enable2_addr = udp && enable2
 
-      UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2)
+      UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1_addr)
+      UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2_addr)
 
-      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1)
-      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2)
+      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1_addr)
+      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2_addr)
 
       ip = UI.QueryWidget(Id(:ip_version), :Value).to_s
       if ip == "ipv6"
@@ -509,12 +511,15 @@ module Yast
         )
       )
 
+      #Refer to https://bugzilla.suse.com/show_bug.cgi?id=1179007
+      #for the reason of option ":noAutoEnable"
       riface = CheckBoxFrame(
         Id(:enable2),
-        Opt(:notify),
+        Opt(:noAutoEnable, :notify),
         _("Redundant Channel"),
         false,
         VBox(
+          Id(:enable2_vbox),
           ComboBox(
             Id(:bindnetaddr2),
             Opt(:editable, :hstretch, :notify),
