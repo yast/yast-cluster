@@ -543,6 +543,10 @@ class OpenAISConf_Parser:
 			elif len(path) == 2:
 				if path[1] == "secauth":
 					return '"%s"' % totem_options.get("secauth", "on")
+				elif path[1] == "crypto_hash":
+					return '"%s"' % totem_options.get("crypto_hash", "none")
+				elif path[1] == "crypto_cipher":
+					return '"%s"' % totem_options.get("crypto_cipher", "none")
 				elif path[1] == "autoid":
 					#FIXME, check nodelist has nodeid
 					for i in nodelist_options.get('node'):
@@ -657,6 +661,12 @@ class OpenAISConf_Parser:
 					return "true"
 				elif path[1] == "secauth":
 					totem_options["secauth"] = args
+					return "true"
+				elif path[1] == "crypto_hash":
+					totem_options["crypto_hash"] = args
+					return "true"
+				elif path[1] == "crypto_cipher":
+					totem_options["crypto_cipher"] = args
 					return "true"
 				elif path[1] == "rrpmode":
 					totem_options["rrp_mode"] = args

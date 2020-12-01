@@ -66,6 +66,8 @@ module Yast
 
       # Settings: Define all variables needed for configuration of cluster
       @secauth = false
+      @crypto_hash = "none"
+      @crypto_cipher = "none"
       @cluster_name = ""
       @ip_version = ""
       @expected_votes = ""
@@ -157,6 +159,8 @@ module Yast
 
       if Convert.to_string(SCR.Read(path(".openais.totem.secauth"))) == "on"
         @secauth = true
+        @crypto_hash = SCR.Read(path(".openais.totem.crypto_hash"))
+        @crypto_cipher = SCR.Read(path(".openais.totem.crypto_cipher"))
       else
         @secauth = false
       end
@@ -270,8 +274,12 @@ module Yast
 
       if @secauth == true
         SCR.Write(path(".openais.totem.secauth"), "on")
+        SCR.Write(path(".openais.totem.crypto_hash"), @crypto_hash)
+        SCR.Write(path(".openais.totem.crypto_cipher"), @crypto_cipher)
       else
         SCR.Write(path(".openais.totem.secauth"), "off")
+        SCR.Write(path(".openais.totem.crypto_hash"), "none")
+        SCR.Write(path(".openais.totem.crypto_cipher"), "none")
       end
 
       SCR.Write(path(".openais.totem.transport"), @transport)
@@ -616,6 +624,8 @@ module Yast
     def Import(settings)
       settings = deep_copy(settings)
       @secauth = Ops.get_boolean(settings, "secauth", false)
+      @crypto_hash = settings["crypto_hash"] || "none"
+      @crypto_cipher = settings["crypto_cipher"] || "none"
       @transport = Ops.get_string(settings, "transport", "udp")
       @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
       @memberaddr = Ops.get_list(settings, "memberaddr", [])
@@ -649,6 +659,8 @@ module Yast
     def Export
       result = {}
       Ops.set(result, "secauth", @secauth)
+      Ops.set(result, "crypto_hash", @crypto_hash)
+      Ops.set(result, "crypto_cipher", @crypto_cipher)
       Ops.set(result, "transport", @transport)
       Ops.set(result, "bindnetaddr1", @bindnetaddr1)
       Ops.set(result, "memberaddr", @memberaddr)
@@ -743,6 +755,8 @@ module Yast
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
     publish :variable => :secauth, :type => "boolean"
+    publish :variable => :crypto_hash, :type => "string"
+    publish :variable => :crypto_cipher, :type => "string"
     publish :variable => :bindnetaddr1, :type => "string"
     publish :variable => :mcastaddr1, :type => "string"
     publish :variable => :cluster_name, :type => "string"
