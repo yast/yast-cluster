@@ -725,18 +725,10 @@ module Yast
       ret
     end
 
-    def SaveSecurityToConf
-      if UI.QueryWidget(Id(:secauth), :Value) == true
-        SCR.Write(path(".openais.totem.secauth"), "on")
-      else
-        SCR.Write(path(".openais.totem.secauth"), "off")
-      end
-
-      nil
-    end
-
     def SaveSecurity
       Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
+      Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
+      Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
 
       nil
     end
@@ -1083,6 +1075,19 @@ module Yast
           _("Enable Security Auth"),
           true,
           VBox(
+            HBox(
+              HSpacing(20),
+              Left(ComboBox(
+                Id(:crypto_hash), Opt(:hstretch, :notify), _("Crypto Hash:"),
+                ["sha1", "sha256", "sha384", "sha512", "md5"]
+              )),
+              HSpacing(5),
+              Left(ComboBox(
+                Id(:crypto_cipher), Opt(:hstretch, :notify), _("Crypto Cipher:"),
+                ["aes256", "aes192", "aes128", "3des"]
+              )),
+              HSpacing(20),
+            ),
             Label(
               _(
                 "For a newly created cluster, push the button below to generate /etc/corosync/authkey."
@@ -1102,6 +1107,8 @@ module Yast
       my_SetContents("security", contents)
 
       UI.ChangeWidget(Id(:secauth), :Value, Cluster.secauth)
+      UI.ChangeWidget(Id(:crypto_hash), :Value, Cluster.crypto_hash)
+      UI.ChangeWidget(Id(:crypto_cipher), :Value, Cluster.crypto_cipher)
 
       while true
         ret = UI.UserInput
@@ -1122,7 +1129,7 @@ module Yast
           next
         end
 
-        if ret == :secauth
+        if ret == :secauth || ret == :crypto_cipher || ret == :crypto_hash
           if UI.QueryWidget(Id(:secauth), :Value) == true
             next
           end
