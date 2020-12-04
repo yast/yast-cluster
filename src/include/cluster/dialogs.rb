@@ -414,15 +414,17 @@ module Yast
       udp = UI.QueryWidget(Id(:transport), :Value) == "udp"
       enable2 = UI.QueryWidget(Id(:enable2), :Value)
 
-      enable1 = udp
-      enable2 = udp && enable2
+      UI.ChangeWidget(Id(:enable2_vbox), :Enabled, enable2)
+      UI.ChangeWidget(Id(:mcastport2), :Enabled, enable2)
 
-      UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1)
+      enable1_addr = udp
+      enable2_addr = udp && enable2
 
-      UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2)
+      UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1_addr)
+      UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2_addr)
 
-      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1)
-      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2)
+      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1_addr)
+      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2_addr)
 
       ip = UI.QueryWidget(Id(:ip_version), :Value).to_s
       if ip == "ipv6"
@@ -509,12 +511,15 @@ module Yast
         )
       )
 
+      #Refer to https://bugzilla.suse.com/show_bug.cgi?id=1179007
+      #for the reason of option ":noAutoEnable"
       riface = CheckBoxFrame(
         Id(:enable2),
-        Opt(:notify),
+        Opt(:noAutoEnable, :notify),
         _("Redundant Channel"),
         false,
         VBox(
+          Id(:enable2_vbox),
           ComboBox(
             Id(:bindnetaddr2),
             Opt(:editable, :hstretch, :notify),
@@ -720,18 +725,10 @@ module Yast
       ret
     end
 
-    def SaveSecurityToConf
-      if UI.QueryWidget(Id(:secauth), :Value) == true
-        SCR.Write(path(".openais.totem.secauth"), "on")
-      else
-        SCR.Write(path(".openais.totem.secauth"), "off")
-      end
-
-      nil
-    end
-
     def SaveSecurity
       Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
+      Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
+      Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
 
       nil
     end
@@ -1078,6 +1075,19 @@ module Yast
           _("Enable Security Auth"),
           true,
           VBox(
+            HBox(
+              HSpacing(20),
+              Left(ComboBox(
+                Id(:crypto_hash), Opt(:hstretch, :notify), _("Crypto Hash:"),
+                ["sha1", "sha256", "sha384", "sha512", "md5"]
+              )),
+              HSpacing(5),
+              Left(ComboBox(
+                Id(:crypto_cipher), Opt(:hstretch, :notify), _("Crypto Cipher:"),
+                ["aes256", "aes192", "aes128", "3des"]
+              )),
+              HSpacing(20),
+            ),
             Label(
               _(
                 "For a newly created cluster, push the button below to generate /etc/corosync/authkey."
@@ -1097,6 +1107,8 @@ module Yast
       my_SetContents("security", contents)
 
       UI.ChangeWidget(Id(:secauth), :Value, Cluster.secauth)
+      UI.ChangeWidget(Id(:crypto_hash), :Value, Cluster.crypto_hash)
+      UI.ChangeWidget(Id(:crypto_cipher), :Value, Cluster.crypto_cipher)
 
       while true
         ret = UI.UserInput
@@ -1117,7 +1129,7 @@ module Yast
           next
         end
 
-        if ret == :secauth
+        if ret == :secauth || ret == :crypto_cipher || ret == :crypto_hash
           if UI.QueryWidget(Id(:secauth), :Value) == true
             next
           end
