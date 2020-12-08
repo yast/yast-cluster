@@ -1,5 +1,6 @@
 # YaST - The Cluster Module #
 
-[![Travis Build](https://travis-ci.org/yast/yast-cluster.svg?branch=master)](https://travis-ci.org/yast/yast-cluster)
-[![Jenkins Build](http://img.shields.io/jenkins/s/https/ci.opensuse.org/yast-cluster-master.svg)](https://ci.opensuse.org/view/Yast/job/yast-cluster-master/)
-
+[![Workflow Status](https://github.com/yast/yast-cluster/workflows/CI/badge.svg?branch=master)](
+https://github.com/yast/yast-cluster/actions?query=branch%3Amaster)
+[![Jenkins Status](https://ci.opensuse.org/buildStatus/icon?job=yast-yast-cluster-master)](
+https://ci.opensuse.org/view/Yast/job/yast-yast-cluster-master/)
