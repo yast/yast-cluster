@@ -61,7 +61,8 @@ module Yast
         "/etc/booth",
         "/etc/sysconfig/sbd",
         "/etc/csync2/csync2.cfg",
-        "/etc/csync2/key_hagroup"
+        "/etc/csync2/key_hagroup",
+        "/etc/modules-load.d/watchdog.conf"
       ]
 
       @csync2_port = "30865"
