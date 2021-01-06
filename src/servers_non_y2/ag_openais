@@ -556,7 +556,7 @@ def generateMemberString():
 				member_str = member_str + ";" + address2
 			nodeid = item.get("nodeid", None)
 			if nodeid:
-				member_str = member_str + "-" + nodeid
+				member_str = member_str + "|" + nodeid
 			member_str = member_str + " "
 	return '"%s"' % member_str.strip()
 
@@ -935,16 +935,16 @@ class OpenAISConf_Parser(object):
 						nodelist_options["node"] = member_addr_set
 						return "nil"
 					for member_address in args.strip().split(" "):
-						dash_pos = member_address.find("-")
-						if (dash_pos > -1):
-							tmpid = member_address[dash_pos+1:]
-							semicolon_pos = member_address[:dash_pos].find(";")
+						pipe_pos = member_address.find("|")
+						if (pipe_pos > -1):
+							tmpid = member_address[pipe_pos+1:]
+							semicolon_pos = member_address[:pipe_pos].find(";")
 							if (semicolon_pos > -1):
-								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:dash_pos],"nodeid":member_address[dash_pos+1:]})
+								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:pipe_pos],"nodeid":member_address[pipe_pos+1:]})
 							else:
-								member_addr_set.append({"ring0_addr":member_address[:dash_pos],"nodeid":member_address[dash_pos+1:]})
+								member_addr_set.append({"ring0_addr":member_address[:pipe_pos],"nodeid":member_address[pipe_pos+1:]})
 						else:
-							semicolon_pos = member_address[:dash_pos].find(";")
+							semicolon_pos = member_address[:pipe_pos].find(";")
 							if (semicolon_pos > -1):
 								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:]})
 							else:
