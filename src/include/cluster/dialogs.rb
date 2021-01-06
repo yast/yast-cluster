@@ -61,7 +61,8 @@ module Yast
         "/etc/sysconfig/sbd",
         "/etc/sysconfig/nfs",
         "/etc/csync2/csync2.cfg",
-        "/etc/csync2/key_hagroup"
+        "/etc/csync2/key_hagroup",
+        "/etc/modules-load.d/watchdog.conf"
       ]
 
       @csync2_port = "30865"
@@ -205,7 +206,29 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:transport), :Value) == "udp"
+      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
+        i = 0
+        Builtins.foreach(Cluster.memberaddr) do |value|
+          if  ( UI.QueryWidget(Id(:addr1), :Value) == "" ) ||
+            ( UI.QueryWidget(Id(:enable2), :Value) && ( UI.QueryWidget(Id(:addr2), :Value) == "" ) )
+            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+            i = 0
+            raise Break
+          end
+          i = Ops.add(i, 1)
+        end
+        if i == 0
+          UI.SetFocus(:memberaddr)
+          Popup.Message(_("The Member Address has to be fulfilled"))
+          return false
+        end
+      else
+        #BNC#880242, expected_votes must have value when "udp"
+        if UI.QueryWidget(Id(:expected_votes), :Value) == ""
+          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
+          UI.SetFocus(:expected_votes)
+          return false
+        end
 
         if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr1), :Value), ip_version)
           Popup.Message(_("IP Version doesn't match with Bind Network Address in Channel"))
