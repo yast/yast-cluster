@@ -247,8 +247,9 @@ module Yast
             # memberaddr of udpu only read in interface0
             # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
             # 123.3.21.44;156.32.123.9"
-            @address.each do |addr|
-              p = addr.split("-")
+            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
+            address.each do |addr|
+              p = addr.split("|")
               if p[1] != nil
                 q = p[0].split(";")
                 if q[1] != nil
@@ -318,16 +319,16 @@ module Yast
     end
 
 
-    # BNC#871970, generate string like "123.3.21.32;156.32.123.1:1"
+    # BNC#871970, generate string like "123.3.21.32;156.32.123.1|1"
     def generateMemberString(memberaddr)
       address_string = ""
       memberaddr.each do |i|
         address_string << i[:addr1]
         if i[:addr2]
           address_string << ";#{i[:addr2]}"
-          address_string << "-#{i[:nodeid]}" if i [:nodeid]
+          address_string << "|#{i[:nodeid]}" if i [:nodeid]
         else 
-          address_string << "-#{i[:nodeid]}" if i[:nodeid]
+          address_string << "|#{i[:nodeid]}" if i[:nodeid]
         end
         address_string << " "
       end
