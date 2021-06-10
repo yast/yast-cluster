@@ -717,12 +717,12 @@ module Yast
               HSpacing(20),
               Left(ComboBox(
                 Id(:crypto_hash), Opt(:hstretch, :notify), _("Crypto Hash:"),
-                ["sha1", "sha256", "sha384", "sha512", "md5"]
+                ["sha1", "sha256", "sha384", "sha512", "md5", "none"]
               )),
               HSpacing(5),
               Left(ComboBox(
                 Id(:crypto_cipher), Opt(:hstretch, :notify), _("Crypto Cipher:"),
-                ["aes256", "aes192", "aes128", "3des"]
+                ["aes256", "aes192", "aes128", "3des", "none"]
               )),
               HSpacing(20),
             ),
