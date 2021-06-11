@@ -56,30 +56,64 @@ totem_option_table = {
 		   "type":"int",
 		   "default_value":2,
 		   "suggested_value":2},
+	"linknumber":{"doc":"This specifies the link number for the interface. UDP only supported number is 0",
+				"type":"int", "default_value":0},
+	"knet_link_priority":{"doc":"This specifies the priority for the link when knet is used in 'passive' mode",
+				"type":"int", "default_value":1},
+	"knet_ping_interval":{"doc":"This specifies the interval between knet link pings",
+				"type":"int", "default_value":750},
+	"knet_ping_timeout":{"doc":"If no ping is received within this time, the knet link is declared dead",
+				"type":"int", "default_value":1500},
+	"knet_ping_precision":{"doc":"How many values of latency are used to calculate the average link latency",
+				"type":"int", "default_value":2048},
+	"knet_pong_count":{"doc":"How many valid ping/pongs before a link is marked UP",
+				"type":"int", "default_value":2},
+	"knet_transport":{"doc":"Which IP transport knet should use",
+				"type":"select[udp, sctp]", "default_value":"udp"},
+	"crypto_model":{"doc":"This specifies which cryptographic library should be used by knet",
+		"type":"select[nss, openssl]","default_value":"nss",
+		},
 	"crypto_cipher":{"doc":"Used for mutual node authentication",
-		"type":"select[aes256, aes192, aes128, 3des, none]","default_value":"aes256",
+		"type":"select[aes256, aes192, aes128, none]","default_value":"none",
 		},
 	"crypto_hash":{"doc":"Used for mutual node authentication",
-		"type":"select[none, md5, sha1, sha256, sha384, sha512]","default_value":"sha1",
+		"type":"select[none, md5, sha1, sha256, sha384, sha512]","default_value":"none",
 		},
 	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
 			       "default_value":"yes"},
 	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"hacluster"},
 	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message",
 		   "default_value":"off"},
-	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
-		    "type":"select[none,active,passive]", "default_value":"none"},
+	"keyfile":{"doc":"This specifies the fully qualified path to the shared key used to authenticate and encrypt data used within the Totem protocol",
+				"type":"string", "default_value":"/etc/corosync/authkey"},
+	"key":{"doc":"Shared key stored in configuration instead of authkey file", "type":"string", "default_value":""},
+	"link_mode":{"doc":"This specifies the Kronosnet mode",
+				"type":"select[passive, active, rr]", "default_value":"passive"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
 	"token":{"doc":"Timeout for a token lost. in ms",
-		 "type":"int", "default_value":1000,
+		 "type":"int", "default_value":3000,
 		 "suggested_value":5000},
 	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.",
 			    "type":"int", "default_value":238},
+	"token_warning":{"doc":"Specifies the interval between warnings that the token has not been received",
+				"type":"string", "default_value":"75%"},
 	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.",
 		"type":"int", "default_value":180},
 	"token_retransmits_before_loss_const":{"doc":"How many token retransmits should be attempted before forming a new configuration.",
 					       "type":"int", "default_value":4,
 					       "suggested_value":10},
+	"knet_compression_model":{"doc":"Type of compression used by Kronosnet",
+				"type":"string", "default_value":"none"},
+	"knet_compression_threshold":{"doc":"Tells knet to NOT compress any packets that are smaller than the value indicated",
+				"type":"int", "default_value":100},
+	"knet_compression_level":{"doc":"Many compression libraries allow tuning of compression parameters",
+				"type":"int", "default_value":0},
+	"knet_pmtud_interval":{"doc":"How often the knet PMTUd runs to look for network MTU changes",
+				"type":"int", "default_value":30},
+	"miss_count_const":{"doc":"This constant defines the maximum number of times on receipt of a token a message is checked for retransmission before a retransmission occurs",
+				"type":"int", "default_value":5},
+	"block_unlisted_ips":{"doc":"Allow UDPU and KNET to drop packets from IP addresses that are not known",
+				"type":"select[yes, no]", "default_value":"yes"},
 	"join":{"doc":"How long to wait for join messages in membership protocol. in ms",
 		"type":"int", "default_value":50,
 		"suggested_value":60},
@@ -96,7 +130,6 @@ totem_option_table = {
 			      "type":"int", "default_value":50},
 	"seqno_unchanged_const":{"doc":"How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.",
 				 "type":"int", "default_value":30},
-	"heartbeat_failure_allowed":{"doc":"Configures the optional HeartBeating mechanism for faster failure detection. 0 for disable.", "type":"int", "default_value":0},
 	"max_network_delay":{"doc":"The approximate delay that your network takes to transport one packet from one machine to another.",
 			     "type":"int", "default_value":50},
 	"window_size":{"doc":"The maximum number of messages that may be sent on one token rotation.",
@@ -104,16 +137,12 @@ totem_option_table = {
 	"max_messages":{"doc":"The maximum number of messages that may be sent by one processor on receipt of the token.",
 			"type":"int", "default_value":17,
 			"suggested_value":20},
-	"rrp_problem_count_timeout":{"doc":"The time in milliseconds to wait before decrementing the problem count by 1 for a particular ring to ensure a link is not marked faulty for transient network failures.",
-				     "type":"int", "default_value":2000},
-	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.",
-					"type":"int", "default_value":10},
-	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
-	"transport":{"doc":"Transport protocol", "type":"select[udp,udpu]","default_value":"udp"},
-	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv4,ipv6]","default_value":"ipv4"},
+	"transport":{"doc":"This directive controls the transport mechanism used. The default is knet", "type":"select[kent, udpu, udp]","default_value":"knet"},
+	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv6-4, ipv4-6, ipv4,ipv6]","default_value":"ipv6-4"},
 }
 
 interface_option_table = {
+	# FIXME: remove ringnumber
 	"ringnumber":{"doc":"The ringnumber assigned to this interface setting", "default_value":0, "type":"int"},
 	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
 	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
@@ -123,9 +152,19 @@ interface_option_table = {
 
 #only has two rings at most
 node_option_table = {
+		#ringX_addr, support up to 8 rings so far
 		"ring0_addr":{"doc":"ring0 address", "type":"string", "default_value":"0"},
 		"ring1_addr":{"doc":"ring1 address","type":"string", "default_value":"0"},
-		"nodeid":{"doc":"required in ipv6, optional in ipv4","type":"string"},
+		"ring2_addr":{"doc":"ring2 address","type":"string", "default_value":"0"},
+		"ring3_addr":{"doc":"ring3 address","type":"string", "default_value":"0"},
+		"ring4_addr":{"doc":"ring4 address","type":"string", "default_value":"0"},
+		"ring5_addr":{"doc":"ring5 address","type":"string", "default_value":"0"},
+		"ring6_addr":{"doc":"ring6 address","type":"string", "default_value":"0"},
+		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":"0"},
+		"name":{"doc":"This option is used mainly with knet transport to identify local node.",
+                        "type":"string", "default_value":""},
+		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string"},
+		"quorum_votes":{"doc":"Quorum votes of a node","type":"int", "default_value":1},
 }
 
 #BNC-879596. Obsolete, just use to detect the file format is SLE11SP3 or SLE12
@@ -138,13 +177,18 @@ logging_option_table = {
 		 "suggested_value":"off"},
 	"fileline":{"doc":"Logging file line in the source code as well", "default_value":"off",
 		    "suggested_value":"off"},
+	"function_name":{"doc":"This specifies that the code function name should be printed",
+                    "default_value":"off", "suggested_value":"off"},
+	"blackbox":{"doc":"This specifies that blackbox functionality should be enabled",
+                    "default_value":"on", "suggested_value":"on"},
 	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
 		     "suggested_value":"yes"},
-	"to_stderr":{"doc":"Log to the standard error output", "default_value":"no", "suggested_value":"no"},
-	"to_logfile":{"doc":"Log to a specified file", "default_value":"no", "suggested_value":"no"},
-	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/tmp/saved_pacemaker_log"},
+	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
+	"to_logfile":{"doc":"Log to a specified file", "default_value":"yes", "suggested_value":"yes"},
+	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/var/log/cluster/corosync.log"},
 	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
-	"timestamp":{"doc":"Log timestamp as well", "default_value":"off", "suggested_value":"off"},
+	"timestamp":{"doc":"Log timestamp as well", "type":"select[hires, off, on]",
+                    "default_value":"hires", "suggested_value":"hires"},
 }
 
 logger_subsys_option_table = {
@@ -189,9 +233,29 @@ quorum_qdevice_heuristics_option_table = {
 		"executables":{"doc":"Executables. Scripts for heuristics check.","type":"dict","default_value":{}}
 		}
 
-qb_option_table = { "ipc_type":{"doc":"This specifies type of IPC to use",
-		    "type":"string", "default_value":"native"}
-		  }
+system_option_table = {
+		"qb_ipc_type":{"doc":"This specifies type of IPC to use", "type":"select[native, shm, socket]", "default_value":"native"},
+		"sched_rr":{"doc":"Whether corosync should try to set round robin realtime scheduling with maximal priority to itself",
+					"type":"string", "default_value":"yes"},
+		"priority":{"doc":"Set priority of corosync process. Valid only when sched_rr is set to no",
+					"type":"string", "default_value":"max"},
+		"move_to_root_cgroup":{"doc":"Whether corosync should try to move itself to root cgroup",
+					"type":"string", "default_value":"yes"},
+		"allow_knet_handle_fallback":{"doc":"If knet handle creation fails using privileged operations, allow fallback to creating knet handle using unprivileged operations", "type":"string", "default_value":"no"},
+		"state_dir":{"doc":"Existing directory where corosync should chdir into",
+					"type":"string", "default_value":"/var/lib/corosync"},
+		}
+
+resources_option_table = {
+		"watchdog_device":{"doc":"Watchdog device to use, for example /dev/watchdog", "type":"string", "default_value":"off"},
+		}
+
+nozzle_option_table = {
+		"name":{"doc":"The name of the network device to be created", "type":"string", "default_value":""},
+		"ipaddr":{"doc":"The IP address (IPv6 or IPv4) of the interface", "type":"string", "default_value":""},
+		"ipprefix":{"doc":"Specifies the IP address prefix for the nozzle device", "type":"string", "default_value":""},
+		"macaddr":{"doc":"Specifies the MAC address prefix for the nozzle device", "type":"string", "default_value":""},
+		}
 
 # Using [] instead of {} is because some sections like nodelist have many nodes
 # Default value to avoid traceback in doRead when without corosync.conf
@@ -200,7 +264,9 @@ logging_options = {"logger_subsys":[]}
 quorum_qdevice_options={}
 quorum_options={"device":quorum_qdevice_options}
 nodelist_options={"node":[]}
-qb_options={}
+system_options={}
+resources_options={}
+nozzle_options={}
 
 def strip_comments_and_pending_space(line):
 	return line.split('#')[0].rstrip().lstrip()
@@ -225,7 +291,7 @@ def fulfill_suggested_totem_options():
 		v = totem_options.get(opt, None)
 		if v == None and sv != None:
 			totem_options[opt] = sv
-			
+
 def fulfill_suggested_quorum_options():
 	# must has provider
 	for opt in ['provider']:
@@ -308,13 +374,31 @@ def print_quorum_options(f):
 				f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
 	f.write("}\n")
 
-def print_qb_options(f):
-	if(len(qb_options) == 0):
+def print_system_options(f):
+	if(len(system_options) == 0):
 		return
-	f.write("qb {\n")
-	for key in qb_options.keys():
-		f.write("\t#%s\n" % (qb_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, qb_options[key]))
+	f.write("system {\n")
+	for key in system_options.keys():
+		f.write("\t#%s\n" % (system_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, system_options[key]))
+	f.write("}\n")
+
+def print_resources_options(f):
+	if(len(resources_options) == 0):
+		return
+	f.write("resources {\n")
+	for key in resources_options.keys():
+		f.write("\t#%s\n" % (resources_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, resources_options[key]))
+	f.write("}\n")
+
+def print_nozzle_options(f):
+	if(len(nozzle_options) == 0):
+		return
+	f.write("nozzle {\n")
+	for key in nozzle_options.keys():
+		f.write("\t#%s\n" % (nozzle_option_table[key]["doc"]))
+		f.write("\t%s:\t%s\n\n" % (key, nozzle_options[key]))
 	f.write("}\n")
 
 def print_nodelist_options(f):
@@ -397,7 +481,9 @@ def file_parser(file):
 	global totem_options
 	global logging_options
 	global nodelist_options
-	global qb_options
+	global system_options
+	global resources_options
+	global nozzle_options
 	global quorum_options
 
 	for l in file:
@@ -415,8 +501,12 @@ def file_parser(file):
 				nodelist_options = opt_parser(file, {}, "nodelist")
 			elif i == "quorum":
 				quorum_options = opt_parser(file, quorum_option_table, "quorum")
-			elif i == "qb":
-				qb_options = opt_parser(file, qb_option_table, "qb")
+			elif i == "system":
+				system_options = opt_parser(file, system_option_table, "system")
+			elif i == "resources":
+				resources_options = opt_parser(file, resources_option_table, "resources")
+			elif i == "nozzle":
+				nozzle_options = opt_parser(file, nozzle_option_table, "nozzle")
 			else:
 				pass
 
@@ -425,7 +515,9 @@ def file_parser(file):
 		print(totem_options)
 		print(logging_options)
 		print(nodelist_options)
-		print(qb_options)
+		print(system_options)
+		print(resources_options)
+		print(nozzle_options)
 		print(quorum_options)
 
 def opt_parser(file, options, parent):
@@ -623,10 +715,12 @@ class OpenAISConf_Parser(object):
 			return '["allconfs"]'
 
 		if path_arr[0] == 'allconfs' and len(path_arr) == 1:
-			return '["quorum", "totem", "nodelist"]'
+			return '["quorum", "totem", "nodelist", "logging", "system", "resources", "nozzle"]'
 		elif path_arr[0] == 'totem':
 			if len(path_arr) == 1:
-				return '["crypto_cipher","crypto_hash","secauth", "autoid", "rrpmode", "transport", "interface", "cluster_name", "ip_version"]'
+				totem_keys = list(totem_option_table.keys())
+				totem_keys.append("interface")
+				return str(totem_keys)
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
@@ -654,13 +748,20 @@ class OpenAISConf_Parser(object):
 				return '["node"]'
 		elif path_arr[0] == 'quorum':
 			if len(path_arr) == 1:
-				return '["provider", "device", "expected_votes", "two_node"]'
+				quorum_keys = list(quorum_option_table.keys())
+				quorum_keys.append("device")
+				return str(quorum_keys)
 			elif len(path_arr) == 2 and path_arr[1] == "device":
-				return '["model", "timeout", "sync_timeout", "net", "votes"]'
+				qdevice_keys = list(quorum_qdevice_option_table.keys())
+				qdevice_keys.append("net")
+				qdevice_keys.append("heuristics")
+				return str(qdevice_keys)
 			elif len(path_arr) == 3 and path_arr[2] == "net":
-				return '["host", "port", "tls", "algorithm", "tie_breaker", "connect_timeout", "force_ip_version"]'
+				qnet_keys = list(quorum_qdevice_net_option_table.keys())
+				return str(qnet_keys)
 			elif len(path_arr) == 3 and path_arr[2] == "heuristics":
-				return '["mode", "timeout", "sync_timeout", "interval", "executables"]'
+				qheuristics_keys = list(quorum_qdevice_heuristics_option_table.keys())
+				return str(qheuristics_keys)
 			else:
 				return '[]'
 		else:
@@ -700,26 +801,13 @@ class OpenAISConf_Parser(object):
 			if len(path) == 1:
 				return "nil"
 			elif len(path) == 2:
-				if path[1] == "secauth":
-					return '"%s"' % totem_options.get("secauth", "")
-				elif path[1] == "crypto_hash":
-					return '"%s"' % totem_options.get("crypto_hash", "none")
-				elif path[1] == "crypto_cipher":
-					return '"%s"' % totem_options.get("crypto_cipher", "none")
-				elif path[1] == "autoid":
-					#FIXME, check nodelist has nodeid
+				if path[1] == "autoid":
 					for i in nodelist_options.get('node'):
 						if 'nodeid' in i:
 							return '"no"'
 					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
-				elif path[1] == "rrpmode":
-					return '"%s"' % totem_options.get("rrp_mode", "none")
-				elif path[1] == "transport":
-					return '"%s"' % totem_options.get("transport", "udp")
-				elif path[1] == "cluster_name":
-					return '"%s"' % totem_options.get("cluster_name", "hacluster")
-				elif path[1] == "ip_version":
-					return '"%s"' % totem_options.get("ip_version", "ipv4")
+				elif path[1] in totem_option_table.keys():
+					return '"%s"' % totem_options.get(path[1], totem_option_table[path[1]]["default_value"])
 				else:
 					return "nil"
 			elif len(path) == 4:
@@ -792,7 +880,9 @@ class OpenAISConf_Parser(object):
 		print_nodelist_options(f)
 		print_logging_options(f)
 		print_quorum_options(f)
-		print_qb_options(f)
+		print_system_options(f)
+		print_resources_options(f)
+		print_nozzle_options(f)
 		f.close()
 
 		try:
@@ -867,26 +957,8 @@ class OpenAISConf_Parser(object):
 				if path[1] == "autoid":
 					totem_options["clear_node_high_bit"] = args
 					return "true"
-				elif path[1] == "secauth":
-					totem_options["secauth"] = args
-					return "true"
-				elif path[1] == "crypto_hash":
-					totem_options["crypto_hash"] = args
-					return "true"
-				elif path[1] == "crypto_cipher":
-					totem_options["crypto_cipher"] = args
-					return "true"
-				elif path[1] == "rrpmode":
-					totem_options["rrp_mode"] = args
-					return "true"
-				elif path[1] == "transport":
-					totem_options["transport"] = args
-					return "true"
-				elif path[1] == "cluster_name":
-					totem_options["cluster_name"] = args
-					return "true"
-				elif path[1] == "ip_version":
-					totem_options["ip_version"] = args
+				elif path[1] in totem_option_table.keys():
+					totem_options[path[1]] = args
 					return "true"
 				else:
 					return "false"
@@ -981,23 +1053,24 @@ class OpenAISConf_Parser(object):
 		else:
 			return "false"
 		return "false"
+
 class SCR_Agent(object):
 	def __init__(self):
 		self.command = ""
 		self.path = ""
 		self.args = ""
-	
+
 	def SCR_Command (self):
 		# clean up old data before actually started
 		self.command = ""
 		self.args = ""
 		self.path = ""
-			
+
 		#y2debug ("waiting for a command")
 		scr_command = sys.stdin.readline().strip()
-		
+
 		#y2debug ("newline: %s" % scr_command)
-		
+
 		# eg. Read(.totem.interface.interface0.binnetaddr,"args")  Write(.)
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
 		r = p.match(scr_command)
@@ -1007,7 +1080,7 @@ class SCR_Agent(object):
 			except IndexError:
 				#y2error("No command in %s " % scr_command)
 				return
-			
+
 			try:
 				path = r.group(3)
 				if path[0] == '.':
@@ -1037,7 +1110,7 @@ def main_entry():
 	scr_agent = SCR_Agent ()
 	openais_agent = OpenAISConf_Parser()
 
-    
+
 	while True:
 		scr_agent.SCR_Command ()
 
@@ -1045,7 +1118,7 @@ def main_entry():
 		if debug:
 			print("Command %s %s: %s" % (scr_agent.command,
 				scr_agent.path,scr_agent.args))
-		
+
 		if (scr_agent.command == 'Dir' ):
 			print(openais_agent.doList(scr_agent.path))
 

@@ -49,7 +49,6 @@ module Yast
       # Data was modified?
       @modified = false
 
-
       @proposal_valid = false
 
       @firstrun = false
@@ -62,27 +61,19 @@ module Yast
       # return boolean return true if abort
       @AbortFunction = fun_ref(method(:Modified), "boolean ()")
 
-
       # Settings: Define all variables needed for configuration of cluster
       @secauth = false
+      @crypto_model = "nss"
       @crypto_hash = "none"
       @crypto_cipher = "none"
       @cluster_name = ""
-      @ip_version = ""
+      @link_mode = "passive"
+      @ip_version = "ipv6-4"
       @expected_votes = ""
       @two_node = "0"
       @config_format = ""
 
-      @bindnetaddr1 = ""
-      @mcastaddr1 = ""
-      @mcastport1 = ""
-      @enable2 = false
-      @bindnetaddr2 = ""
-      @mcastaddr2 = ""
-      @mcastport2 = ""
-
       @autoid = true
-      @rrpmode = ""
 
       @corokey = ""
       @csync2key = ""
