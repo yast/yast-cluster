@@ -139,28 +139,33 @@ totem_option_table = {
 			"suggested_value":20},
 	"transport":{"doc":"This directive controls the transport mechanism used. The default is knet", "type":"select[kent, udpu, udp]","default_value":"knet"},
 	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv6-4, ipv4-6, ipv4,ipv6]","default_value":"ipv6-4"},
+	# corosync3: udp only. With UDP, linknumber must set to 0
+	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
+	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
+	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
+	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
 }
 
 interface_option_table = {
-	# FIXME: remove ringnumber
-	"ringnumber":{"doc":"The ringnumber assigned to this interface setting", "default_value":0, "type":"int"},
 	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
 	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
 	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
 	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
 	}
 
-#only has two rings at most
+ring_list = ("ring0_addr", "ring1_addr", "ring2_addr", "ring3_addr",
+			"ring4_addr", "ring5_addr", "ring6_addr", "ring7_addr")
+
 node_option_table = {
 		#ringX_addr, support up to 8 rings so far
-		"ring0_addr":{"doc":"ring0 address", "type":"string", "default_value":"0"},
-		"ring1_addr":{"doc":"ring1 address","type":"string", "default_value":"0"},
-		"ring2_addr":{"doc":"ring2 address","type":"string", "default_value":"0"},
-		"ring3_addr":{"doc":"ring3 address","type":"string", "default_value":"0"},
-		"ring4_addr":{"doc":"ring4 address","type":"string", "default_value":"0"},
-		"ring5_addr":{"doc":"ring5 address","type":"string", "default_value":"0"},
-		"ring6_addr":{"doc":"ring6 address","type":"string", "default_value":"0"},
-		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":"0"},
+		"ring0_addr":{"doc":"ring0 address","type":"string", "default_value":""},
+		"ring1_addr":{"doc":"ring1 address","type":"string", "default_value":""},
+		"ring2_addr":{"doc":"ring2 address","type":"string", "default_value":""},
+		"ring3_addr":{"doc":"ring3 address","type":"string", "default_value":""},
+		"ring4_addr":{"doc":"ring4 address","type":"string", "default_value":""},
+		"ring5_addr":{"doc":"ring5 address","type":"string", "default_value":""},
+		"ring6_addr":{"doc":"ring6 address","type":"string", "default_value":""},
+		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":""},
 		"name":{"doc":"This option is used mainly with knet transport to identify local node.",
                         "type":"string", "default_value":""},
 		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string"},
@@ -193,7 +198,6 @@ logging_option_table = {
 
 logger_subsys_option_table = {
 	"subsys":{"doc":"This specifies the subsystem identity (name) for which logging is specified", "default_value":"QUORUM"},
-	"debug":{"doc":"Enable debug for this logger.", "default_value":"on"},
 	}
 
 
@@ -260,7 +264,8 @@ nozzle_option_table = {
 # Using [] instead of {} is because some sections like nodelist have many nodes
 # Default value to avoid traceback in doRead when without corosync.conf
 totem_options = {"interface":[]}
-logging_options = {"logger_subsys":[]}
+logging_subsys_options={}
+logging_options = {"logger_subsys":logging_subsys_options}
 quorum_qdevice_options={}
 quorum_options={"device":quorum_qdevice_options}
 nodelist_options={"node":[]}
@@ -284,7 +289,6 @@ def fulfill_suggested_logging_options ():
 			logging_options[opt] = sv
 
 def fulfill_suggested_totem_options():
-	totem_options["version"] = 2
 	for opt in totem_option_table.keys():
 		if opt == "interface": continue
 		sv = totem_option_table[opt].get("suggested_value", None)
@@ -408,14 +412,14 @@ def print_nodelist_options(f):
 	f.write("nodelist {\n")
 	for node in nodelist:
 		f.write("\tnode {\n")
-		# Sort the keys like ring0 and ring1
+		# Sort the keys like ring0_addr, ring1_addr ... ring7_addr
 		klist=list(node.keys())
 		klist.sort()
 		for key in klist:
 			if node[key] == "":
 				continue
-			f.write("\t#%s\n" % (node_option_table[key]["doc"]))
-			f.write("\t%s:\t%s\n\n" % (key, node[key]))
+			f.write("\t\t#%s\n" % (node_option_table[key]["doc"]))
+			f.write("\t\t%s:\t%s\n\n" % (key, node[key]))
 		f.write("\t}\n")
 	f.write("}\n")
 
@@ -437,12 +441,11 @@ def print_logging_options(f):
 	f.write("logging {\n")
 	for key in logging_options.keys():
 		if key == "logger_subsys":
-			for log in logging_options["logger_subsys"]:
-				f.write("\tlogger_subsys {\n")
-				for l in log.keys():
-					f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
-					f.write("\t\t%s:\t%s\n\n" % (l, log[l]))
-				f.write("\t}\n")
+			f.write("\tlogger_subsys {\n")
+			for l in logging_subsys_options.keys():
+				f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
+				f.write("\t\t%s:\t%s\n\n" % (l, logging_subsys_options[l]))
+			f.write("\t}\n")
 		else:
 			f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
 			f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
@@ -494,19 +497,19 @@ def file_parser(file):
 		if i[-1] == "{":
 			i = i[:-1].rsplit()[0]
 			if i == "totem":
-				totem_options = opt_parser(file, totem_option_table, "totem")
+				totem_options.update(opt_parser(file, totem_option_table, "totem"))
 			elif i == "logging":
-				logging_options = opt_parser(file, logging_option_table, "logging")
+				logging_options.update(opt_parser(file, logging_option_table, "logging"))
 			elif i == "nodelist":
-				nodelist_options = opt_parser(file, {}, "nodelist")
+				nodelist_options.update(opt_parser(file, {}, "nodelist"))
 			elif i == "quorum":
-				quorum_options = opt_parser(file, quorum_option_table, "quorum")
+				quorum_options.update(opt_parser(file, quorum_option_table, "quorum"))
 			elif i == "system":
-				system_options = opt_parser(file, system_option_table, "system")
+				system_options.update(opt_parser(file, system_option_table, "system"))
 			elif i == "resources":
-				resources_options = opt_parser(file, resources_option_table, "resources")
+				resources_options.update(opt_parser(file, resources_option_table, "resources"))
 			elif i == "nozzle":
-				nozzle_options = opt_parser(file, nozzle_option_table, "nozzle")
+				nozzle_options.update(opt_parser(file, nozzle_option_table, "nozzle"))
 			else:
 				pass
 
@@ -522,6 +525,7 @@ def file_parser(file):
 
 def opt_parser(file, options, parent):
 	global quorum_qdevice_options
+	global logging_subsys_options
 
 	result = {}
 	others = {}
@@ -537,9 +541,8 @@ def opt_parser(file, options, parent):
 				infs.append(opt_parser(file, interface_option_table, "interface"))
 				result["interface"] = infs
 			elif i.lstrip().split(" ")[0] == "logger_subsys" and parent == "logging":
-				logs = result.get("logger_subsys", [])
-				logs.append(opt_parser(file, logger_subsys_option_table, "logger_subsys"))
-				result["logger_subsys"] = logs
+				logging_subsys_options = opt_parser(file, logger_subsys_option_table, "logger_subsys")
+				result["logger_subsys"] = logging_subsys_options
 			elif i.lstrip().split(" ")[0] == "node" and parent == "nodelist":
 				members = result.get("node", [])
 				members.append(opt_parser(file, node_option_table, "node"))
@@ -612,62 +615,39 @@ def opt_parser(file, options, parent):
 
 	return result.copy()
 
-def validate_conf():
-	if totem_options.get("version", 0) != 2:
-		return 1, "Version has to be set to 2"
-	inf1 = get_interface(0)
-	inf2 = get_interface(1)
-	if inf1 == None and inf2 != None:
-		return 1, "Ringnumber 1 is specified while ringnumber 0 is not"
-	if len(totem_options.get("interface", [])) == 0:
-		return 1, "No interface specified"
-	if len(totem_options.get("interface", []))>2:
-		return 1, "More then 2 interfaces specified"
-	for inf in totem_options["interface"]:
-		if inf.get("mcastaddr", "") == "":
-			return 1, "No multicast address specified"
-		if inf.get("mcastport", 0) == 0:
-			return 1, "No multicast port specified"
-		if inf.get("ringnumber", -1) != 0 and inf.get("ringnumber", -1) != 1:
-			return 1, "Ring Number must be 0 or 1, but got %d" %(inf.get("ringnumber", -1))
-		try:
-			inf.get("mcastaddr", "").index(':')
-			if totem_options.get("nodeid", 0) == 0:
-				return 1, "Node ID must be specified for IPv6"
-		except ValueError:
-			pass
-	return 0, "OK"
-
-def get_interface(i):
-	for inf in totem_options.get("interface", []):
-		if inf["ringnumber"] == i:
-			return inf
+def get_interface(index):
+	'''
+	The interface sub-directive of totem is optional for UDP and knet transports.
+	For knet, multiple interface subsections define parameters for each knet link
+	on the system.
+	For UDPU an interface section is not needed and it is recommended that
+	the nodelist is used to define cluster nodes.
+	'''
+	if len(totem_options["interface"]) > index:
+		return totem_options["interface"][index]
 	else:
 		return None
 
-# BNC#871970,combine ring0 and ring1 of one node into one struct
-# Only ring0 is available
-def generateMemberString():
+# BNC#871970,combine ring0 ... ringX of one node into one struct
+# ring0_addr;ring1_addr;ring2_addr
+def generateMemberString(node):
 	member_str = ""
 
-	for item in nodelist_options.get("node"):
-		if "ring0_addr" in item:
-			address1 = item.get("ring0_addr", None)
-			member_str += address1
-			address2 = item.get("ring1_addr", None)
-			if address2:
-				member_str = member_str + ";" + address2
-			nodeid = item.get("nodeid", None)
-			if nodeid:
-				member_str = member_str + "|" + nodeid
-			member_str = member_str + " "
+	for ring in ring_list:
+		if ring in node:
+			IPaddress = node.get(ring, None)
+			if member_str != "":
+				member_str += ";"
+			member_str += IPaddress
+		else:
+			# ringX number should continues exist from 0
+			break
+
 	return '"%s"' % member_str.strip()
 
-def del_interface(k):
-	for i in range(len(totem_options["interface"])):
-		if totem_options["interface"][i]["ringnumber"] == k:
-			del totem_options["interface"][i]
-			break
+def del_interface(index):
+	if len(totem_options["interface"]) > index:
+		totem_options["interface"].pop(index)
 
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
@@ -704,13 +684,20 @@ def safe_return_str(obj):
 	'''
 	return str(obj).replace('"', '\\"')
 
+def _return_str_list(obj):
+	'''
+	input: listable object
+	return: a string of list. Each element of the "list" is string.
+	'''
+	lobj = list(obj)
+	dummy = list(map(str, lobj))
+	return str(dummy)
+
 class OpenAISConf_Parser(object):
 	def __init__(self):
 		load_ais_conf("/etc/corosync/corosync.conf")
 
-	def doList(self, path):
-		#remove the leading dot
-		path_arr = path
+	def doList(self, path_arr):
 		if len(path_arr) == 0:
 			return '["allconfs"]'
 
@@ -724,28 +711,30 @@ class OpenAISConf_Parser(object):
 			else:
 				if path_arr[1] == 'interface':
 					if len(path_arr) == 2:
-						r = '[ '
-						if get_interface(0) != None:
-							r = r + '"interface0"'
-							if get_interface(1) != None:
-								r = r +  ', "interface1"'
-						r = r + ']'
-						return r
+						interface_num = len(totem_options["interface"])
+						return _return_str_list(range(interface_num))
 					else:
 						if len(path_arr) == 3:
-							if path_arr[2] == "interface0" and get_interface(0) != None:
-								return '["bindnetaddr", "mcastaddr", "mcastport","ttl"]'
-							elif path_arr[2] == "interface1" and get_interface(1) != None:
-								return ' ["bindnetaddr", "mcastaddr", "mcastport", "ttl"]'
+							i = get_interface(int(path_arr[2]))
+							if  i != None:
+								return _return_str_list(i.keys())
 							else:
 								return '[]'
 						else:
-							return '[]'
+							return 'nil\n'
 				else:
-					return '[]'
+					return 'nil\n'
 		elif path_arr[0] == 'nodelist':
 			if len(path_arr) == 1:
 				return '["node"]'
+			elif len(path_arr) == 2 and path_arr[1] == "node":
+				node_num = len(nodelist_options["node"])
+				return _return_str_list(range(node_num))
+			elif len(path_arr) == 3 and path_arr[1] == "node" and \
+				path_arr[2].isdigit() and int(path_arr[2]) < len(nodelist_options["node"]):
+				return _return_str_list(nodelist_options["node"][int(path_arr[2])].keys())
+			else:
+				return 'nil\n'
 		elif path_arr[0] == 'quorum':
 			if len(path_arr) == 1:
 				quorum_keys = list(quorum_option_table.keys())
@@ -764,6 +753,30 @@ class OpenAISConf_Parser(object):
 				return str(qheuristics_keys)
 			else:
 				return '[]'
+		elif path_arr[0] == 'logging':
+			if len(path_arr) == 1:
+				logging_keys = list(logging_option_table.keys())
+				logging_keys.append("logger_subsys")
+				return str(logging_keys)
+			elif len(path_arr) == 2 and path_arr[1] == 'logger_subsys':
+					return _return_str_list(logger_subsys_option_table.keys())
+			else:
+				return 'nil\n'
+		elif path_arr[0] == 'system':
+			if len(path_arr) == 1:
+				return _return_str_list(system_option_table.keys())
+			else:
+				return 'nil\n'
+		elif path_arr[0] == 'resources':
+			if len(path_arr) == 1:
+				return _return_str_list(resources_option_table.keys())
+			else:
+				return 'nil\n'
+		elif path_arr[0] == 'nozzle':
+			if len(path_arr) == 1:
+				return _return_str_list(nozzle_option_table.keys())
+			else:
+				return 'nil\n'
 		else:
 			return 'nil\n'
 
@@ -812,52 +825,66 @@ class OpenAISConf_Parser(object):
 					return "nil"
 			elif len(path) == 4:
 				if path[1] == "interface":
-					if path[2] == "interface0":
-						i = get_interface(0)
-						if i == None:
-							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
-							else:
-								return "nil"
-					elif path[2] == "interface1":
-						i = get_interface(1)
-						if i == None:
-							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
-							else:
-								return "nil"
-					elif path[2] == "member":
+					# bsc#879596, "member" only exist in old format.
+					if path[2] == "member":
 						return '"%s"' % check_conf_format()
+					elif path[2].isdigit():
+						i = get_interface(int(path[2]))
+						if i == None:
+							return "nil"
+						else:
+							if path[3] == "bindnetaddr":
+								return '"%s"' % i.get("bindnetaddr", "")
+							elif path[3] == "mcastaddr":
+								return '"%s"' % i.get("mcastaddr", "")
+							elif path[3] == "mcastport":
+								return '"%d"' % i.get("mcastport", 5405)
+							elif path[3] == "ttl":
+								return '"%d"' % i.get("ttl", 1)
+							else:
+								return "nil"
 					else:
 						return "nil"
 				else:
 					return "nil"
-			else:
-				return "nil"
 		elif path[0] == "nodelist":
-			if len(path[0]) == 1:
-				return "nil"
-			elif len(path) == 2:
-				if path[1] == 'node':
-					return generateMemberString()
+			if len(path) == 4 and path[1] == "node" and path[2].isdigit() and \
+					int(path[2]) < len(nodelist_options["node"]):
+				n = nodelist_options["node"][int(path[2])]
+				if path[3] == "IPs":
+					return generateMemberString(n)
+				elif path[3] in node_option_table.keys():
+					return '"%s"' % n.get(path[3], node_option_table[path[3]]["default_value"])
 				else:
 					return "nil"
+			else:
+				return "nil"
+		elif path[0] == "logging":
+			if len(path) == 2 and path[1] in logging_option_table.keys():
+				return '"%s"' % logging_options.get(path[1],
+					logging_option_table[path[1]]["default_value"])
+			elif len(path) == 3 and path[1] == "logger_subsys" and \
+				path[2] in logger_subsys_option_table.keys():
+				return '"%s"' % logging_subsys_options.get(path[2],
+					logger_subsys_option_table[path[2]]["default_value"])
+			else:
+				return "nil"
+		elif path[0] == "system":
+			if len(path) == 2 and path[1] in system_option_table.keys():
+				return '"%s"' % system_options.get(path[1],
+					system_option_table[path[1]]["default_value"])
+			else:
+				return "nil"
+		elif path[0] == "resources":
+			if len(path) == 2 and path[1] in resources_option_table.keys():
+				return '"%s"' % resources_options.get(path[1],
+					resources_option_table[path[1]]["default_value"])
+			else:
+				return "nil"
+		elif path[0] == "nozzle":
+			if len(path) == 2 and path[1] in nozzle_option_table.keys():
+				return '"%s"' % nozzle_options.get(path[1],
+					nozzle_option_table[path[1]]["default_value"])
 			else:
 				return "nil"
 		else:
@@ -897,6 +924,7 @@ class OpenAISConf_Parser(object):
 
 	def doWrite(self, path, args):
 		global quorum_qdevice_options
+		global nodelist_options
 
 		if path[0] == "":
 			self.saveFile()
@@ -965,13 +993,8 @@ class OpenAISConf_Parser(object):
 			elif len(path) == 3:
 				if path[1] == "interface":
 					if args == "":
-						if path[2] == "interface0":
-							#y2debug("deleting interface 0")
-							del_interface(0)
-							return "true"
-						elif path[2] == "interface1":
-							#y2debug("deleting interface 1")
-							del_interface(1)
+						if path[2].isdigit():
+							del_interface(int(path[2]))
 							return "true"
 						else:
 							return "false"
@@ -980,34 +1003,19 @@ class OpenAISConf_Parser(object):
 				else:
 					return "false"
 			elif len(path) == 4:
-				ring_num = 0
 				if path[1] == "interface":
-					i = None
-					if path[2] == "interface0":
-						i = get_interface(0)
-						ring_num = 0
-						if i == None:
-							totem_options["interface"].append({"ringnumber":0})
-							i = get_interface(0)
-					elif path[2] == "interface1":
-						ring_num = 1
-						i = get_interface(1)
-						if i == None:
-							totem_options["interface"].append({"ringnumber":1})
-							i = get_interface(1)
-					else:
-						i = None
+					# The interface sub-directive of totem is optional for
+					# UDP and knet transports. Only support write 1 interface
+					if path[2] == "0":
+						if get_interface(0) == None:
+							totem_options["interface"].append({})
 
-					if i != None:
-						if path[3] == "bindnetaddr":
-							i["bindnetaddr"] = args
+						if path[3] in ("bindnetaddr", "mcastaddr"):
+							totem_options["interface"][0][path[3]] = args
 							return "true"
-						elif path[3] == "mcastaddr":
-							i["mcastaddr"] = args
-							return "true"
-						elif path[3] == "mcastport":
+						elif path[3] in ("mcastport", "ttl"):
 							try:
-								i["mcastport"] = int(args)
+								totem_options["interface"][0][path[3]] = int(args)
 								return "true"
 							except ValueError:
 								return "false"
@@ -1020,38 +1028,78 @@ class OpenAISConf_Parser(object):
 			else:
 				return "false"
 		elif path[0] == "nodelist":
+			if len(path) == 2 and args == "":
+				nodelist_options["node"] = []
+				return "true"
+
+			if len(path) == 4 and path[1] == "node" and path[2].isdigit():
+				if int(path[2]) < len(nodelist_options["node"]):
+					node = nodelist_options["node"][int(path[2])]
+				elif int(path[2]) == len(nodelist_options["node"]):
+					node = {}
+					nodelist_options["node"].append(node)
+				else:
+					return "false"
+
+			if path[3] == "IPs":
+				# Initialize ringX_addr
+				for ring in ring_list:
+					if ring in node:
+						del(node[ring])
+					else:
+						break
+				if args == "":
+					return "false"
+
+				iplist = args.split(";")
+				for index in range(len(iplist)):
+					node[ring_list[index]] = iplist[index]
+				return "true"
+			elif path[3] in node_option_table.keys():
+				node[path[3]] = args
+				return "true"
+			else:
+				return "false"
+
+		elif path[0] == "logging":
 			if len(path[0]) == 1:
 				return "nil"
-			elif len(path) == 2:
-				if path[1] == 'node':
-					member_addr_set = []
-					# emtry string 's split will cause a [''] not []
-					if args == "":
-						nodelist_options["node"] = member_addr_set
-						return "nil"
-					for member_address in args.strip().split(" "):
-						pipe_pos = member_address.find("|")
-						if (pipe_pos > -1):
-							tmpid = member_address[pipe_pos+1:]
-							semicolon_pos = member_address[:pipe_pos].find(";")
-							if (semicolon_pos > -1):
-								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:pipe_pos],"nodeid":member_address[pipe_pos+1:]})
-							else:
-								member_addr_set.append({"ring0_addr":member_address[:pipe_pos],"nodeid":member_address[pipe_pos+1:]})
-						else:
-							semicolon_pos = member_address[:pipe_pos].find(";")
-							if (semicolon_pos > -1):
-								member_addr_set.append({"ring0_addr":member_address[:semicolon_pos],"ring1_addr":member_address[semicolon_pos+1:]})
-							else:
-								member_addr_set.append({"ring0_addr":member_address})
-					nodelist_options["node"] = member_addr_set
-					return "true"
-				else:
-					return "nil"
+			elif len(path) == 2 and path[1] in logging_option_table.keys():
+				logging_options[path[1]] = args
+				return "true"
+			elif len(path) == 3 and path[1] == "logger_subsys" and \
+				path[2] in logger_subsys_option_table.keys():
+				logging_subsys_options[path[2]] = args
+				return "true"
 			else:
+				return "false"
+		elif path[0] == "system":
+			if len(path[0]) == 1:
 				return "nil"
+			elif len(path) == 2 and path[1] in system_option_table.keys():
+				system_options[path[1]] = args
+				return "true"
+			else:
+				return "false"
+		elif path[0] == "resources":
+			if len(path[0]) == 1:
+				return "nil"
+			elif len(path) == 2 and path[1] in resources_option_table.keys():
+				resources_options[path[1]] = args
+				return "true"
+			else:
+				return "false"
+		elif path[0] == "nozzle":
+			if len(path[0]) == 1:
+				return "nil"
+			elif len(path) == 2 and path[1] in nozzle_option_table.keys():
+				nozzle_options[path[1]] = args
+				return "true"
+			else:
+				return "false"
 		else:
 			return "false"
+
 		return "false"
 
 class SCR_Agent(object):
