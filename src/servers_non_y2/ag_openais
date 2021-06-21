@@ -56,20 +56,6 @@ totem_option_table = {
 		   "type":"int",
 		   "default_value":2,
 		   "suggested_value":2},
-	"linknumber":{"doc":"This specifies the link number for the interface. UDP only supported number is 0",
-				"type":"int", "default_value":0},
-	"knet_link_priority":{"doc":"This specifies the priority for the link when knet is used in 'passive' mode",
-				"type":"int", "default_value":1},
-	"knet_ping_interval":{"doc":"This specifies the interval between knet link pings",
-				"type":"int", "default_value":750},
-	"knet_ping_timeout":{"doc":"If no ping is received within this time, the knet link is declared dead",
-				"type":"int", "default_value":1500},
-	"knet_ping_precision":{"doc":"How many values of latency are used to calculate the average link latency",
-				"type":"int", "default_value":2048},
-	"knet_pong_count":{"doc":"How many valid ping/pongs before a link is marked UP",
-				"type":"int", "default_value":2},
-	"knet_transport":{"doc":"Which IP transport knet should use",
-				"type":"select[udp, sctp]", "default_value":"udp"},
 	"crypto_model":{"doc":"This specifies which cryptographic library should be used by knet",
 		"type":"select[nss, openssl]","default_value":"nss",
 		},
@@ -139,18 +125,29 @@ totem_option_table = {
 			"suggested_value":20},
 	"transport":{"doc":"This directive controls the transport mechanism used. The default is knet", "type":"select[kent, udpu, udp]","default_value":"knet"},
 	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv6-4, ipv4-6, ipv4,ipv6]","default_value":"ipv6-4"},
-	# corosync3: udp only. With UDP, linknumber must set to 0
-	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
-	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
-	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
-	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
 }
 
 interface_option_table = {
+	"linknumber":{"doc":"This specifies the link number for the interface. UDP only supported number is 0",
+				"type":"int", "default_value":0},
+	"knet_link_priority":{"doc":"This specifies the priority for the link when knet is used in 'passive' mode",
+				"type":"int", "default_value":1},
+	"knet_ping_interval":{"doc":"This specifies the interval between knet link pings",
+				"type":"int", "default_value":750},
+	"knet_ping_timeout":{"doc":"If no ping is received within this time, the knet link is declared dead",
+				"type":"int", "default_value":1500},
+	"knet_ping_precision":{"doc":"How many values of latency are used to calculate the average link latency",
+				"type":"int", "default_value":2048},
+	"knet_pong_count":{"doc":"How many valid ping/pongs before a link is marked UP",
+				"type":"int", "default_value":2},
+	"knet_transport":{"doc":"Which IP transport knet should use",
+				"type":"select[udp, sctp]", "default_value":"udp"},
+	# corosync3: udp only. With UDP, linknumber must set to 0
 	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
+	"broadcast":{"doc":"This is optional.", "type":"string", "default_value":""},
 	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
-	"mcastport":{"doc":"The multicast port to be used", "default_value":0, "type":"int"},
-	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1}
+	"mcastport":{"doc":"The multicast port to be used", "default_value":5405, "type":"int"},
+	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1},
 	}
 
 ring_list = ("ring0_addr", "ring1_addr", "ring2_addr", "ring3_addr",
@@ -615,19 +612,6 @@ def opt_parser(file, options, parent):
 
 	return result.copy()
 
-def get_interface(index):
-	'''
-	The interface sub-directive of totem is optional for UDP and knet transports.
-	For knet, multiple interface subsections define parameters for each knet link
-	on the system.
-	For UDPU an interface section is not needed and it is recommended that
-	the nodelist is used to define cluster nodes.
-	'''
-	if len(totem_options["interface"]) > index:
-		return totem_options["interface"][index]
-	else:
-		return None
-
 # BNC#871970,combine ring0 ... ringX of one node into one struct
 # ring0_addr;ring1_addr;ring2_addr
 def generateMemberString(node):
@@ -644,10 +628,6 @@ def generateMemberString(node):
 			break
 
 	return '"%s"' % member_str.strip()
-
-def del_interface(index):
-	if len(totem_options["interface"]) > index:
-		totem_options["interface"].pop(index)
 
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
@@ -715,8 +695,8 @@ class OpenAISConf_Parser(object):
 						return _return_str_list(range(interface_num))
 					else:
 						if len(path_arr) == 3:
-							i = get_interface(int(path_arr[2]))
-							if  i != None:
+							if len(totem_options["interface"]) > int(path_arr[2]):
+								i = totem_options["interface"][int(path_arr[2])]
 								return _return_str_list(i.keys())
 							else:
 								return '[]'
@@ -829,20 +809,16 @@ class OpenAISConf_Parser(object):
 					if path[2] == "member":
 						return '"%s"' % check_conf_format()
 					elif path[2].isdigit():
-						i = get_interface(int(path[2]))
-						if i == None:
-							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
+						if len(totem_options["interface"]) > int(path[2]):
+							i = totem_options["interface"][int(path[2])]
+
+							if path[3] in interface_option_table.keys():
+								return '"%s"' % i.get(path[3],
+									interface_option_table[path[3]]["default_value"])
 							else:
 								return "nil"
+						else:
+							return "nil"
 					else:
 						return "nil"
 				else:
@@ -925,6 +901,7 @@ class OpenAISConf_Parser(object):
 	def doWrite(self, path, args):
 		global quorum_qdevice_options
 		global nodelist_options
+		global totem_options
 
 		if path[0] == "":
 			self.saveFile()
@@ -988,39 +965,25 @@ class OpenAISConf_Parser(object):
 				elif path[1] in totem_option_table.keys():
 					totem_options[path[1]] = args
 					return "true"
-				else:
-					return "false"
-			elif len(path) == 3:
-				if path[1] == "interface":
-					if args == "":
-						if path[2].isdigit():
-							del_interface(int(path[2]))
-							return "true"
-						else:
-							return "false"
-					else:
-						return "false"
+				# (.totem.interface, "") to delete all interfaces
+				elif path[1] == "interface" and args == "":
+					totem_options["interface"] = []
+					return "true"
 				else:
 					return "false"
 			elif len(path) == 4:
-				if path[1] == "interface":
-					# The interface sub-directive of totem is optional for
-					# UDP and knet transports. Only support write 1 interface
-					if path[2] == "0":
-						if get_interface(0) == None:
-							totem_options["interface"].append({})
+				if path[1] == "interface" and path[2].isdigit():
+					if int(path[2]) < len(totem_options["interface"]):
+						interface = totem_options["interface"][int(path[2])]
+					elif int(path[2]) == len(totem_options["interface"]):
+						interface = {}
+						totem_options["interface"].append(interface)
+					else:
+						return "false"
 
-						if path[3] in ("bindnetaddr", "mcastaddr"):
-							totem_options["interface"][0][path[3]] = args
-							return "true"
-						elif path[3] in ("mcastport", "ttl"):
-							try:
-								totem_options["interface"][0][path[3]] = int(args)
-								return "true"
-							except ValueError:
-								return "false"
-						else:
-							return "false"
+					if path[3] in interface_option_table.keys():
+						interface[path[3]] = args
+						return "true"
 					else:
 						return "false"
 				else:
@@ -1028,10 +991,12 @@ class OpenAISConf_Parser(object):
 			else:
 				return "false"
 		elif path[0] == "nodelist":
+			# nodelist.node with args "" will delete all
 			if len(path) == 2 and args == "":
 				nodelist_options["node"] = []
 				return "true"
 
+			# The node number is continuous
 			if len(path) == 4 and path[1] == "node" and path[2].isdigit():
 				if int(path[2]) < len(nodelist_options["node"]):
 					node = nodelist_options["node"][int(path[2])]
@@ -1119,7 +1084,7 @@ class SCR_Agent(object):
 
 		#y2debug ("newline: %s" % scr_command)
 
-		# eg. Read(.totem.interface.interface0.binnetaddr,"args")  Write(.)
+		# eg. Read(.totem.interface.0.binnetaddr,"args")  Write(.)
 		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
 		r = p.match(scr_command)
 		if (r):
