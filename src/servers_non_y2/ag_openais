@@ -715,7 +715,9 @@ class OpenAISConf_Parser(object):
 				return _return_str_list(range(node_num))
 			elif len(path_arr) == 3 and path_arr[1] == "node" and \
 				path_arr[2].isdigit() and int(path_arr[2]) < len(nodelist_options["node"]):
-				return _return_str_list(nodelist_options["node"][int(path_arr[2])].keys())
+				node_keys = list(nodelist_options["node"][int(path_arr[2])].keys())
+				node_keys.append("IPs")
+				return str(node_keys)
 			else:
 				return 'nil\n'
 		elif path_arr[0] == 'quorum':
