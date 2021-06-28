@@ -174,7 +174,7 @@ node_option_table = {
 		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":""},
 		"name":{"doc":"This option is used mainly with knet transport to identify local node.",
                         "type":"string", "default_value":""},
-		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string"},
+		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string", "default_value":0},
 		"quorum_votes":{"doc":"Quorum votes of a node","type":"int", "default_value":1},
 }
 
@@ -667,14 +667,18 @@ def safe_return_str(obj):
 	'''
 	return str(obj).replace('"', '\\"')
 
+def _add_wrapper(obj):
+    return '"'+str(obj)+'"'
+
 def _return_str_list(obj):
 	'''
 	input: listable object
 	return: a string of list. Each element of the "list" is string.
+               each element should with "
 	'''
 	lobj = list(obj)
-	dummy = list(map(str, lobj))
-	return str(dummy)
+	dummy = list(map(_add_wrapper, lobj))
+	return '[' + ",".join(dummy) + ']'
 
 class OpenAISConf_Parser(object):
 	def __init__(self):
@@ -717,7 +721,7 @@ class OpenAISConf_Parser(object):
 				path_arr[2].isdigit() and int(path_arr[2]) < len(nodelist_options["node"]):
 				node_keys = list(nodelist_options["node"][int(path_arr[2])].keys())
 				node_keys.append("IPs")
-				return str(node_keys)
+				return _return_str_list(node_keys)
 			else:
 				return 'nil\n'
 		elif path_arr[0] == 'quorum':
