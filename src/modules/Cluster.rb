@@ -681,8 +681,11 @@ module Yast
 
       # Work with firewalld
       udp_ports = []
-      udp_ports << @mcastport1 if @mcastport1 != ""
-      udp_ports << @mcastport2 if @enable2 && @mcastport2 != ""
+      for interface in interface_list
+        if interface.has_key?("mcastport") and not udp_ports.include?(interface["mcastport"])
+          udp_ports << interface["mcastport"]
+        end
+      end
 
       # 30865 for csync2
       # 5560 for mgmtd
