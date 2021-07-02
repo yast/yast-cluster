@@ -647,14 +647,74 @@ module Yast
           ip4 = false
           ip4 = IP.Check4(ip)
           if ip4
-            existing_ips = Builtins.add(
-              existing_ips,
+            ips = Builtins.add(
+              ips,
               calc_network_addr(ip, mask)
             )
           end
         end
       end
 
+      deep_copy(ips)
+    end
+
+    def _get_nodelist_table_items()
+      table_items = []
+      index = 0
+
+      Cluster.node_list.each do |node|
+        iplist = Ops.get(node, "IPs")
+
+        if iplist.empty?
+          next
+        end
+        items = Item(Id(index))
+
+        node.default = ""
+        items = Builtins.add(items, node["name"])
+        items = Builtins.add(items, node["nodeid"])
+
+        ip_number = 0
+        iplist.each do |ip|
+          ip_number += 1
+          if ip_number > 2
+            items = Builtins.add(items, "...")
+            break
+          end
+          items = Builtins.add(items, ip)
+        end
+
+        index += 1
+        table_items.push(items)
+      end
+
+      deep_copy(table_items)
+    end
+
+    def _get_interface_table_items
+      table_items = []
+      num = 0
+
+      Cluster.interface_list.each do |iface|
+        items = Item(Id(num))
+
+        iface.default = ""
+        items = Builtins.add(items, iface["linknumber"])
+        items = Builtins.add(items, iface["knet_transport"])
+        items = Builtins.add(items, iface["knet_link_priority"])
+        items = Builtins.add(items, iface["bindnetaddr"])
+        items = Builtins.add(items, iface["mcastaddr"])
+        items = Builtins.add(items, iface["mcastport"])
+
+        table_items.push(items)
+        num += 1
+      end
+
+      deep_copy(table_items)
+    end
+
+    # BNC#871970, change member address struct to memberaddr
+    def CommunicationLayout
       hid = VBox(
         HBox(
           ComboBox(
@@ -989,9 +1049,9 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.memberaddr.size <= 0
+      if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.node_list.size <= 0
         # Intent not return false since address is in another dialog.
-        Popup.Message(_("Member Address is required when enable corosync qdevice"))
+        Popup.Message(_("Node addresses is required when enable corosync qdevice"))
       end
 
       if UI.QueryWidget(Id(:heuristics_mode), :Value) != "off"
