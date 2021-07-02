@@ -40,7 +40,8 @@ debug = False
 
 #the option table is used to parse and write suggested_value if no options are read
 
-#type is used for verification of values. "string", "int" and "dict"
+#type is used for verification of values. "string", "int", "select" and "dict"
+#"select" is a list of valid values
 #"dict" is for store the flexible key:value pair of a section. eg. quorum.device.heuristics.executables
 #       store in "other"(executables) dict, so doList(Dir) need to query the dict(executables)
 
@@ -56,10 +57,10 @@ totem_option_table = {
 		   "default_value":2,
 		   "suggested_value":2},
 	"crypto_cipher":{"doc":"Used for mutual node authentication",
-		"type":"select[aes256, aes192, aes128 and 3des,none]","default_value":"none",
+		"type":"select[aes256, aes192, aes128, 3des, none]","default_value":"aes256",
 		},
 	"crypto_hash":{"doc":"Used for mutual node authentication",
-		"type":"select[none,md5,sha1,sha256,sha384,sha512]","default_value":"none",
+		"type":"select[none, md5, sha1, sha256, sha384, sha512]","default_value":"sha1",
 		},
 	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
 			       "default_value":"yes"},
@@ -493,12 +494,22 @@ def opt_parser(file, options, parent):
 			others[opt[0]] = opt[1]
 
 		else:
-			#Available types: "string", "int".
+			#Available types: "string", "int" and "select".
 			if options[opt[0]].get("type", "string") == "int":
 				try:
 					result[opt[0]] = int(opt[1])
 				except ValueError:
 					#y2warning("Invalid option %s found, default to %s" % (opt[0], options[opt[0]]["default_value"]))
+					result[opt[0]] = options[opt[0]]["default_value"]
+			elif options[opt[0]].get("type", "string").startswith("select["):
+				tmpstr = options[opt[0]].get("type", "string").lstrip('select[').rstrip(']')
+				vlist = tmpstr.split(',')
+
+				for v in vlist:
+					if opt[1] == v.strip():
+						result[opt[0]] = opt[1]
+						break
+				else:
 					result[opt[0]] = options[opt[0]]["default_value"]
 			else:
 				result[opt[0]] = opt[1]
