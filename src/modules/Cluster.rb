@@ -227,86 +227,38 @@ module Yast
       @config_format = SCR.Read(path(".openais.totem.interface.member.memberaddr")).to_s
 
       @transport = SCR.Read(path(".openais.totem.transport"))
-      @transport = "udp" if @transport == nil
-      @address = SCR.Read(path(".openais.nodelist.node")).split(" ")
+      @transport = "knet" if @transport == nil
 
       interfaces = SCR.Dir(path(".openais.totem.interface"))
-      if interfaces.nil? or interfaces.empty?
-          @mcastaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
-          )
-          @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.bindnetaddr"))
-          )
-          @mcastaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
-          )
-          @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.bindnetaddr"))
-          )
-          @mcastport1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastport"))
-          )
-          @mcastport2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastport"))
-          )
+      interfaces.each do |index|
+        ikeys = SCR.Dir(path(".openais.totem.interface." + index))
+        interface = {}
+        ikeys.each do |key|
+          interface[key] = SCR.Read(path(".openais.totem.interface." + index + "." + key))
+        end
+        @interface_list.push(interface)
       end
-      Builtins.foreach(interfaces) do |interface|
-        if interface == "interface0"
-          if @address != []
-            # BNC#871970, change member addresses to nodelist structure
-            # memberaddr of udpu only read in interface0
-            # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
-            # 123.3.21.44;156.32.123.9"
-            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
-            address.each do |addr|
-              p = addr.split("|")
-              if p[1] != nil
-                q = p[0].split(";")
-                if q[1] != nil
-                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1],:nodeid=>p[1]})
-                else
-                  @memberaddr.push({:addr1=>q[0],:nodeid=>p[1]})
-                end
-              else
-                q = p[0].split(";")
-                if q[1] != nil
-                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1]})
-                else
-                  @memberaddr.push({:addr1=>q[0]})
-                end
-              end
-            end  # end address.each 
+
+      nodes = SCR.Dir(path(".openais.nodelist.node"))
+      nodes.each do |index|
+        nkeys = SCR.Dir(path(".openais.nodelist.node." + index))
+        node = {}
+        nkeys.each do |key|
+          # Ignore ring0_addr..ringX_addr. Use IPs as a list only
+          if key.match?("ring")
+            next
           end
 
-          if @transport == "udp"
-            @mcastaddr1 = Convert.to_string(
-              SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
-            )
+          # corosync3: addresses is like "123.3.21.32;156.32.123.1;123.3.21.54;156.32.123.4"
+          if key == "IPs"
+            address_list = SCR.Read(path(".openais.nodelist.node." + index + "." + key)).split(";")
+            node[key] = address_list
+            next
           end
-          @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.bindnetaddr"))
-          )
-          @mcastport1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastport"))
-          )
-        end
-        if interface == "interface1"
-          # member address only get in interface0
-          if @transport == "udp"
-            @mcastaddr2 = Convert.to_string(
-              SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
-            )
-          end
-          @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.bindnetaddr"))
-          )
-          @mcastport2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastport"))
-          )
 
-          @enable2 = true
+          node[key] = SCR.Read(path(".openais.nodelist.node." + index + "." + key))
         end
+        @node_list.push(node)
       end
 
       ai = Convert.to_string(SCR.Read(path(".openais.totem.autoid")))
@@ -317,34 +269,9 @@ module Yast
         @autoid = false
       end
 
-      @rrpmode = Convert.to_string(SCR.Read(path(".openais.totem.rrpmode")))
-      if @enable2 == false
-        @rrpmode = "none"
-      else
-        @rrpmode = "passive" if @rrpmode != "passive" && @rrpmode != "active"
-      end
-
       LoadCorosyncQdeviceConfig()
 
       nil
-    end
-
-
-    # BNC#871970, generate string like "123.3.21.32;156.32.123.1|1"
-    def generateMemberString(memberaddr)
-      address_string = ""
-      memberaddr.each do |i|
-        address_string << i[:addr1]
-        if i[:addr2]
-          address_string << ";#{i[:addr2]}"
-          address_string << "|#{i[:nodeid]}" if i [:nodeid]
-        else 
-          address_string << "|#{i[:nodeid]}" if i[:nodeid]
-        end
-        address_string << " "
-      end
-
-      return address_string
     end
 
     def generateDictString(obj)
@@ -392,47 +319,77 @@ module Yast
 
     def SaveClusterConfig
 
-      if @secauth == true
+      if @secauth == true and @transport == "knet"
         SCR.Write(path(".openais.totem.secauth"), "on")
+        SCR.Write(path(".openais.totem.crypto_model"), @crypto_model)
         SCR.Write(path(".openais.totem.crypto_hash"), @crypto_hash)
         SCR.Write(path(".openais.totem.crypto_cipher"), @crypto_cipher)
       else
         SCR.Write(path(".openais.totem.secauth"), "off")
-        SCR.Write(path(".openais.totem.crypto_hash"), "none")
-        SCR.Write(path(".openais.totem.crypto_cipher"), "none")
+        SCR.Write(path(".openais.totem.crypto_model"), "")
+        SCR.Write(path(".openais.totem.crypto_hash"), "")
+        SCR.Write(path(".openais.totem.crypto_cipher"), "")
       end
 
       SCR.Write(path(".openais.totem.transport"), @transport)
       SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".openais.totem.ip_version"), @ip_version)
-      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
-
-      # BNC#871970, only write member address when interface0  
-      if @memberaddr != []
-
-        SCR.Write(
-          path(".openais.nodelist.node"),
-          generateMemberString(@memberaddr)
-        )
+      SCR.Write(path(".openais.totem.link_mode"), @link_mode)
+      # FIXME: if support no nodelist in corosync3
+      # Only write expected_votes when no node list
+      if @node_list.empty?
+        SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
       else
-        SCR.Write(path(".openais.nodelist.node"), "")
+        SCR.Write(path(".openais.quorum.expected_votes"), "")
       end
-      if @transport == "udp"
-        SCR.Write(
-          path(".openais.totem.interface.interface0.mcastaddr"),
-          @mcastaddr1
-        )
-        SCR.Write(
-          path(".openais.totem.interface.interface0.bindnetaddr"),
-          @bindnetaddr1
-        )
-      else
-        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
-        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
+
+      # Initialize totem.interface list
+      SCR.Write(path(".openais.totem.interface"), "")
+      if @interface_list != []
+        for i in 0..(interface_list.length() - 1)
+          for k in interface_list[i].keys()
+            # Do not write knet_parameters when udp/udpe
+            if @transport != "knet"
+              ignore_list = ["knet_link_priority", "knet_ping_interval",
+                             "knet_ping_timeout", "knet_ping_precision",
+                             "knet_pong_count", "knet_transport"]
+
+              if ignore_list.include?(k)
+                next
+              end
+            end
+
+            SCR.Write(
+              path(".openais.totem.interface." + i.to_s + "." + k),
+              interface_list[i][k]
+            )
+          end
+        end
+      end
+
+      # Initialize nodelist.node list
+      SCR.Write(path(".openais.nodelist.node"), "")
+      if @node_list!= []
+        for i in 0..(node_list.length() - 1)
+          for k in node_list[i].keys()
+            if k == "IPs"
+              SCR.Write(
+                path(".openais.nodelist.node." + i.to_s + ".IPs"),
+				node_list[i]["IPs"].join(";")
+              )
+              next
+            end
+
+            SCR.Write(
+              path(".openais.nodelist.node." + i.to_s + "." + k),
+              node_list[i][k]
+            )
+          end
+        end
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if ((@expected_votes == "2") or (@memberaddr.size == 2)) and (!@corosync_qdevice)
+      if ((@expected_votes == "2") or (@node_list.size == 2)) and (!@corosync_qdevice)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end
@@ -443,40 +400,11 @@ module Yast
       end
       SCR.Write(path(".openais.quorum.two_node"), @two_node)
 
-      SCR.Write(
-        path(".openais.totem.interface.interface0.mcastport"),
-        @mcastport1
-      )
-
-      if @enable2 == false
-        SCR.Write(path(".openais.totem.interface.interface1"), "")
-      else
-        if @transport == "udpu"
-          SCR.Write(path(".openais.totem.interface.interface1.mcastaddr"), "")
-          SCR.Write(path(".openais.totem.interface.interface1.bindnetaddr"), "")
-        else
-          SCR.Write(
-            path(".openais.totem.interface.interface1.mcastaddr"),
-            @mcastaddr2
-          )
-          SCR.Write(
-            path(".openais.totem.interface.interface1.bindnetaddr"),
-            @bindnetaddr2
-          )
-        end
-        SCR.Write(
-          path(".openais.totem.interface.interface1.mcastport"),
-          @mcastport2
-        )
-      end
-
-      #FIXME TODO
       if @autoid == true
         SCR.Write(path(".openais.totem.autoid"), "yes")
       else
         SCR.Write(path(".openais.totem.autoid"), "no")
       end
-      SCR.Write(path(".openais.totem.rrpmode"), @rrpmode)
 
       if @corosync_qdevice
         SaveCorosyncQdeviceConfig()
@@ -535,13 +463,12 @@ module Yast
       # Cluster read dialog caption
       caption = _("Initializing cluster Configuration")
 
-      # TODO FIXME Set the right number of stages
-      steps = 4
+      # Set the right number of stages
+      steps = 3
 
       sl = 500
       Builtins.sleep(sl)
 
-      # TODO FIXME Names of real stages
       # We do not set help text here, because it was set outside
       Progress.New(
         caption,
@@ -575,7 +502,10 @@ module Yast
         "conntrack-tools",
         "hawk2",
         "crmsh",
-        "corosync-qdevice"
+        "corosync",
+        "corosync-qdevice",
+        "libknet1",
+        "libknet1-plugins-all",
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
       if ret == false
@@ -643,12 +573,12 @@ module Yast
       # Cluster read dialog caption
       caption = _("Saving cluster Configuration")
 
-      # TODO FIXME And set the right number of stages
+      # Set the right number of stages
       steps = 2
 
       sl = 500
 
-      # TODO FIXME Names of real stages
+      # Names of real stages
       # We do not set help text here, because it was set outside
       Progress.New(
         caption,
@@ -867,24 +797,9 @@ module Yast
     def Summary
       # Configuration summary text for autoyast
       configured = ""
-      if @bindnetaddr1 != ""
+      if @transport != ""
         configured = "Corosync is configured<br/>\n"
-        configured = Ops.add(
-          Ops.add(
-            Ops.add(configured, "Ring 1 is configued to use "),
-            @bindnetaddr1
-          ),
-          "<br/>\n"
-        )
-      end
-      if @bindnetaddr2 != ""
-        configured = Ops.add(
-          Ops.add(
-            Ops.add(configured, "Ring 2 is configured to use "),
-            @bindnetaddr2
-          ),
-          "<br/>\n"
-        )
+        configured += "Corosync is configued to use " + @transport + "<br/>\n"
       end
 
       configured = "Change the configuration of HAE here..." if configured == ""
@@ -903,7 +818,8 @@ module Yast
     # installed.
     # @return [Hash] with 2 lists.
     def AutoPackages
-      { "install" => ["csync2", "pacemaker"], "remove" => [] }
+      { "install" => ["csync2", "pacemaker", "corosync", "corosync-qdevice",
+					  "hawk2", "libknet1"], "remove" => [] }
     end
 
     publish :variable => :csync2_key_file, :type => "string"
