@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Jul  2 09:27:57 UTC 2021 - nick wang <nwang@suse.com>
+
+- FIXME: Support corosync3
+- Version 9.1 (Test and local demo done)
+
+-------------------------------------------------------------------
 Thu Jun 10 06:43:10 UTC 2021 - nick wang <nwang@suse.com>
 
 - bsc#1187157, add "none" for "crypto_hash" and "crypto_cipher"

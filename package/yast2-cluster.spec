@@ -1,7 +1,7 @@
 #
 # spec file for package yast2-cluster
 #
-# Copyright (c) 2020 SUSE LLC
+# Copyright (c) 2021 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -15,29 +15,24 @@
 # Please submit bugfixes or comments via https://bugs.opensuse.org/
 #
 
-%define _fwdefdir %{_prefix}/lib/firewalld/services
 
+%define _fwdefdir %{_prefix}/lib/firewalld/services
 Name:           yast2-cluster
-Version:        4.4.1
+Version:        9.1
 Release:        0
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
 Group:          System/YaST
 URL:            https://github.com/yast/yast-cluster
-
 Source0:        %{name}-%{version}.tar.bz2
 Source1:        cluster.firewalld.xml
-
 BuildRequires:  firewall-macros
-BuildRequires:  rubygem(%{rb_default_ruby_abi}:yast-rake)
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2-devtools >= 4.2.2
-
-Requires:       yast2-ruby-bindings >= 1.0.0
+BuildRequires:  rubygem(%{rb_default_ruby_abi}:yast-rake)
 Requires:       yast2 >= 4.1.3
-
+Requires:       yast2-ruby-bindings >= 1.0.0
 Supplements:    autoyast(cluster)
-
 BuildArch:      noarch
 
 %description
