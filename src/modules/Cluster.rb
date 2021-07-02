@@ -69,27 +69,30 @@ module Yast
       @cluster_name = ""
       @link_mode = "passive"
       @ip_version = "ipv6-4"
+      @autoid = true
+      @transport = "knet"
+
+      # example:
+      # [{"ttl"=>"190", "mcastport"=>"9999", "mcastaddr"=>"23.45.67.89", "linknumber"=>"9", "knet_link_priority"=>"1"},
+      # {"ttl"=>"180", "mcastport"=>"8888", "mcastaddr"=>"1.2.3.4", "linknumber"=>"8"}]
+      @interface_list = []
+
+      # example:
+      # [{"name"=>"node1", "nodeid"=>"1", "IPs"=>["1.2.3.4", "33:44:11::ff"]},
+      # {"name"=>"node2", "nodeid"=>"3", "IPs"=>["ff::11", "ff::11"]},
+      # {"name"=>"node3", "nodeid"=>"12", "IPs"=>["22::ee", "11::ff", "aa::44"]},
+      # {"name"=>"dummy", "IPs"=>["ff::ff"]}]
+      @node_list = []
+
       @expected_votes = ""
       @two_node = "0"
-      @config_format = ""
 
-      @autoid = true
+      @config_format = ""
 
       @corokey = ""
       @csync2key = ""
       @global_startopenais = false
       @global_startcsync2 = false
-
-      @transport = ""
-
-      # example:
-      # [{:addr1=>"10.16.35.101",:addr2=>"192.168.0.1", :nodeid=>"1"}, 
-      # {:addr1=>"10.16.35.102",:addr2=>"192.168.0.2", :nodeid=>"2"},
-      # {:addr1=>"10.16.35.103",:addr2=>"192.168.0.3" },
-      # {:addr1=>"10.16.35.104",:nodeid=>"4" },
-      # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
-      @memberaddr = []
-      @address = []
 
       @corosync_qdevice = false
 
@@ -212,14 +215,15 @@ module Yast
 
       if Convert.to_string(SCR.Read(path(".openais.totem.secauth"))) == "on"
         @secauth = true
+        @crypto_model = SCR.Read(path(".openais.totem.crypto_model"))
         @crypto_hash = SCR.Read(path(".openais.totem.crypto_hash"))
         @crypto_cipher = SCR.Read(path(".openais.totem.crypto_cipher"))
       else
         @secauth = false
       end
 
+      @link_mode = SCR.Read(path(".openais.totem.link_mode"))
       @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
-
       @ip_version = SCR.Read(path(".openais.totem.ip_version"))
 
       @expected_votes = SCR.Read(path(".openais.quorum.expected_votes")).to_s
@@ -684,23 +688,18 @@ module Yast
     def Import(settings)
       settings = deep_copy(settings)
       @secauth = Ops.get_boolean(settings, "secauth", false)
+      @crypto_model = settings["crypto_model"] || "nss"
       @crypto_hash = settings["crypto_hash"] || "none"
       @crypto_cipher = settings["crypto_cipher"] || "none"
+      @link_mode = settings["link_mode"] || "passive"
       @transport = Ops.get_string(settings, "transport", "udp")
-      @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
-      @memberaddr = Ops.get_list(settings, "memberaddr", [])
-      @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
       @ip_version  = settings["ip_version"] || "ipv4"
       @expected_votes = settings["expected_votes"] || ""
       @two_node = settings["two_node"] || ""
-      @mcastport2 = Ops.get_string(settings, "mcastport1", "")
-      @enable2 = Ops.get_boolean(settings, "enable2", false)
-      @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
-      @mcastaddr2 = Ops.get_string(settings, "mcastaddr2", "")
-      @mcastport2 = Ops.get_string(settings, "mcastport2", "")
       @autoid = Ops.get_boolean(settings, "autoid", true)
-      @rrpmode = Ops.get_string(settings, "rrpmode", "")
+      @interface_list = settings["interface_list"] || []
+      @node_list = settings["node_list"] || []
 
       @corosync_qdevice = settings["corosync_qdevice"] || false
       @qdevice_model = settings["qdevice_model"] || "net"
@@ -735,23 +734,18 @@ module Yast
     def Export
       result = {}
       Ops.set(result, "secauth", @secauth)
+      result["crypto_model"] = @crypto_model
       Ops.set(result, "crypto_hash", @crypto_hash)
       Ops.set(result, "crypto_cipher", @crypto_cipher)
       Ops.set(result, "transport", @transport)
-      Ops.set(result, "bindnetaddr1", @bindnetaddr1)
-      Ops.set(result, "memberaddr", @memberaddr)
-      Ops.set(result, "mcastaddr1", @mcastaddr1)
+      result["link_mode"] = @link_mode
       result["cluster_name"] = @cluster_name
       result["ip_version"] = @ip_version
       result["expected_votes"] = @expected_votes
       result["two_node"] = @two_node
-      Ops.set(result, "mcastport1", @mcastport1)
-      Ops.set(result, "enable2", @enable2)
-      Ops.set(result, "bindnetaddr2", @bindnetaddr2)
-      Ops.set(result, "mcastaddr2", @mcastaddr2)
-      Ops.set(result, "mcastport2", @mcastport2)
       Ops.set(result, "autoid", true)
-      Ops.set(result, "rrpmode", @rrpmode)
+      result["interface_list"] = @interface_list
+      result["node_list"] = @node_list
 
       result["corosync_qdevice"] = @corosync_qdevice
       result["qdevice_model"] = @qdevice_model
@@ -835,10 +829,10 @@ module Yast
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
     publish :variable => :secauth, :type => "boolean"
+    publish :variable => :crypto_model, :type => "string"
     publish :variable => :crypto_hash, :type => "string"
     publish :variable => :crypto_cipher, :type => "string"
-    publish :variable => :bindnetaddr1, :type => "string"
-    publish :variable => :mcastaddr1, :type => "string"
+    publish :variable => :link_mode, :type => "string"
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :ip_version, :type => "string"
     publish :variable => :expected_votes, :type => "string"
@@ -857,20 +851,14 @@ module Yast
     publish :variable => :heuristics_executables, :type => "map <string, string>"
     publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"
-    publish :variable => :mcastport1, :type => "string"
-    publish :variable => :enable2, :type => "boolean"
-    publish :variable => :bindnetaddr2, :type => "string"
-    publish :variable => :mcastaddr2, :type => "string"
-    publish :variable => :mcastport2, :type => "string"
     publish :variable => :autoid, :type => "boolean"
-    publish :variable => :nodeid, :type => "string"
-    publish :variable => :rrpmode, :type => "string"
     publish :variable => :corokey, :type => "string"
     publish :variable => :csync2key, :type => "string"
     publish :variable => :global_startopenais, :type => "boolean"
     publish :variable => :global_startcsync2, :type => "boolean"
     publish :variable => :transport, :type => "string"
-    publish :variable => :memberaddr, :type => "list <string>"
+    publish :variable => :interface_list, :type => "list <string>"
+    publish :variable => :node_list, :type => "list <string>"
     publish :function => :SaveClusterConfig, :type => "void ()"
     publish :function => :SaveCorosyncQdeviceConfig, :type => "void ()"
     publish :variable => :csync2_host, :type => "list <string>"
