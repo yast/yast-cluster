@@ -974,14 +974,43 @@ module Yast
     end
 
     def ValidateSecurity
-      ret = true
-      ret
+      if Cluster.transport == "knet"
+        if UI.QueryWidget(Id(:secauth), :Value)
+          if UI.QueryWidget(Id(:crypto_hash), :Value) == "none"
+            Popup.Message(_("Should use valid value of crypto hash to encrypt"))
+            UI.SetFocus(:crypto_hash)
+            return false
+          end
+
+          if UI.QueryWidget(Id(:crypto_cipher), :Value) == "none"
+            Popup.Message(_("Should use valid value of crypto cipher to encrypt"))
+            UI.SetFocus(:crypto_cipher)
+            return false
+          end
+        end
+      else
+        if UI.QueryWidget(Id(:secauth), :Value)
+          Popup.Message(_("Encrypted transmission is only supported for the knet transport"))
+          UI.SetFocus(:secauth)
+          return false
+        end
+      end
+
+      true
     end
 
     def SaveSecurity
-      Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
-      Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
-      Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
+      if Cluster.transport == "knet"
+        Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
+        Cluster.crypto_model = UI.QueryWidget(Id(:crypto_model), :Value).to_s
+        Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
+        Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
+      else
+        Cluster.secauth = false
+        Cluster.crypto_model = "nss"
+        Cluster.crypto_hash = "none"
+        Cluster.crypto_cipher = "none"
+      end
 
       nil
     end
@@ -1317,6 +1346,21 @@ module Yast
       deep_copy(ret)
     end
 
+    def switch_secauth_button(enable)
+      if enable
+        if UI.QueryWidget(Id(:crypto_hash), :Value) == "none"
+          UI.ChangeWidget(Id(:crypto_hash), :Value, "sha256")
+        end
+
+        if UI.QueryWidget(Id(:crypto_cipher), :Value) == "none"
+          UI.ChangeWidget(Id(:crypto_cipher), :Value, "aes256")
+        end
+      else
+        UI.ChangeWidget(Id(:crypto_hash), :Value, "none")
+        UI.ChangeWidget(Id(:crypto_cipher), :Value, "none")
+      end
+    end
+
     def SecurityDialog
       ret = nil
 
@@ -1331,8 +1375,13 @@ module Yast
             HBox(
               HSpacing(20),
               Left(ComboBox(
+                Id(:crypto_model), Opt(:hstretch, :notify), _("Crypto Model:"),
+                ["nss", "openssl"]
+              )),
+              HSpacing(5),
+              Left(ComboBox(
                 Id(:crypto_hash), Opt(:hstretch, :notify), _("Crypto Hash:"),
-                ["sha1", "sha256", "sha384", "sha512", "md5", "none"]
+                ["sha256", "sha1", "sha384", "sha512", "md5", "none"]
               )),
               HSpacing(5),
               Left(ComboBox(
@@ -1360,10 +1409,13 @@ module Yast
       my_SetContents("security", contents)
 
       UI.ChangeWidget(Id(:secauth), :Value, Cluster.secauth)
+      UI.ChangeWidget(Id(:crypto_model), :Value, Cluster.crypto_model)
       UI.ChangeWidget(Id(:crypto_hash), :Value, Cluster.crypto_hash)
       UI.ChangeWidget(Id(:crypto_cipher), :Value, Cluster.crypto_cipher)
 
       while true
+        switch_secauth_button(UI.QueryWidget(Id(:secauth), :Value))
+
         ret = UI.UserInput
 
         if ret == :genf
@@ -1382,7 +1434,7 @@ module Yast
           next
         end
 
-        if ret == :secauth || ret == :crypto_cipher || ret == :crypto_hash
+        if ret == :secauth || ret == :crypto_model || ret == :crypto_cipher || ret == :crypto_hash
           if UI.QueryWidget(Id(:secauth), :Value) == true
             next
           end
