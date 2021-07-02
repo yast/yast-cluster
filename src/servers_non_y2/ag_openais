@@ -189,9 +189,9 @@ logging_option_table = {
 	"fileline":{"doc":"Logging file line in the source code as well", "default_value":"off",
 		    "suggested_value":"off"},
 	"function_name":{"doc":"This specifies that the code function name should be printed",
-                    "default_value":"off", "suggested_value":"off"},
+                    "default_value":"off"},
 	"blackbox":{"doc":"This specifies that blackbox functionality should be enabled",
-                    "default_value":"on", "suggested_value":"on"},
+                    "default_value":"on"},
 	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
 		     "suggested_value":"yes"},
 	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
@@ -447,11 +447,13 @@ def print_logging_options(f):
 	f.write("logging {\n")
 	for key in logging_options.keys():
 		if key == "logger_subsys":
-			f.write("\tlogger_subsys {\n")
-			for l in logging_subsys_options.keys():
-				f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
-				f.write("\t\t%s:\t%s\n\n" % (l, logging_subsys_options[l]))
-			f.write("\t}\n")
+			if len(logging_subsys_options):
+				f.write(str(len(logging_subsys_options)))
+				f.write("\tlogger_subsys {\n")
+				for l in logging_subsys_options.keys():
+					f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
+					f.write("\t\t%s:\t%s\n\n" % (l, logging_subsys_options[l]))
+				f.write("\t}\n")
 		else:
 			f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
 			f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
