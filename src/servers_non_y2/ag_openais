@@ -75,6 +75,8 @@ totem_option_table = {
 	"key":{"doc":"Shared key stored in configuration instead of authkey file", "type":"string", "default_value":""},
 	"link_mode":{"doc":"This specifies the Kronosnet mode",
 				"type":"select[passive, active, rr]", "default_value":"passive"},
+	"rrp_mode":{"doc":"This is deprecated in corosync3",
+				"type":"select[none, active, passive]", "default_value":"none"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
 	"token":{"doc":"Timeout for a token lost. in ms",
 		 "type":"int", "default_value":3000,
@@ -453,6 +455,9 @@ def print_logging_options(f):
 def print_totem_options(f):
 	f.write("totem {\n")
 	for key in totem_options.keys():
+		# Used to check corosync2 format
+		if key == "rrp_mode":
+			continue
 		if key == "interface":
 			for inf in totem_options["interface"]:
 				f.write("\tinterface {\n")
@@ -633,10 +638,13 @@ def generateMemberString(node):
 
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
+	if "rrp_mode" in totem_options:
+		return "corosync2"
+
 	for x in range(len(totem_options["interface"])):
 		if "oldlist" in totem_options["interface"][x]:
-			return "old"
-	return "new"
+			return "openais"
+	return "latest"
 
 def load_ais_conf(filename):
 	try:
