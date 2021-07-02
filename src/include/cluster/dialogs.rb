@@ -76,8 +76,49 @@ module Yast
 
     # IP check between address and IP Version
     def ip_matching_check(ip_address, ip_version)
-      return (ip_version.to_s == "ipv4" && IP.Check4(ip_address.to_s)) ||
-        (ip_version.to_s == "ipv6" && IP.Check6(ip_address.to_s))
+      if ip_version.to_s == "ipv6-4" || ip_version.to_s == "ipv4-6"
+        return IP.Check4(ip_address.to_s) || IP.Check6(ip_address.to_s)
+      elsif ip_version.to_s == "ipv4"
+        return IP.Check4(ip_address.to_s)
+      elsif ip_version.to_s == "ipv6"
+        return IP.Check6(ip_address.to_s)
+      else
+        return false
+      end
+
+    end
+
+    def _has_ipv6_addr()
+      has_ipv6 = false
+
+      if not Cluster.node_list.empty?
+        Cluster.node_list.each do |node|
+          node.default = []
+          iplist = node["IPs"]
+
+          iplist.each do |ip|
+            if IP.Check6(ip)
+              has_ipv6 = true
+              break
+            end
+          end # end iplist loop
+        end # end node loop
+      end # end node_list check
+
+      if not Cluster.interface_list.empty?
+        Cluster.interface_list.each do |iface|
+          ["bindnetaddr", "mcastaddr"].each do |ele|
+            if iface.has_key?(ele)
+              if IP.Check6(iface[ele])
+                has_ipv6 = true
+                break
+              end
+            end
+          end
+        end # end interface loop
+      end # end interface_list check
+
+      has_ipv6
     end
 
     # return `cancel or a string
@@ -107,23 +148,101 @@ module Yast
       deep_copy(ret)
     end
 
-    def addr_input_dialog(value, autoid, dual)
-      ret = nil
+    def _get_ip_table_items(iplist=[])
+      index = 0
+      table_items = []
 
-      value.default=""
+      iplist.each do |ip|
+        items = Item(Id(index))
+        items = Builtins.add(items, ip)
+        index += 1
 
-      # BNC#871970, change member address struct
+        table_items.push(items)
+      end
+
+      deep_copy(table_items)
+    end
+
+    def fill_node_ips(iplist=[])
+      current = 0
+
+      table_items = _get_ip_table_items(iplist)
+
+      current = UI.QueryWidget(:iplist_table, :CurrentItem).to_i
+      current = 0 if current == nil
+      current = table_items.size - 1 if current >= table_items.size
+
+      UI.ChangeWidget(:iplist_table, :Items, table_items)
+      UI.ChangeWidget(:iplist_table, :CurrentItem, current)
+
+      nil
+    end
+
+    def _valid_iplist(iplist=[], ip_version="ipv6-4")
+      if iplist.empty?
+        Popup.Message(_("At least one IP address has to be fulfilled"))
+        return false
+      end
+
+      if iplist.size > 8
+        Popup.Message(_("Support at most 8 rings."))
+        return false
+      end
+
+      iplist.each do |ip|
+        if !ip_matching_check(ip, ip_version)
+          Popup.Message(_("Invalid IP address found."))
+          return false
+        end
+      end
+
+      true
+    end
+
+    def switch_iplist_button(iplist=[])
+      haveip = true
+
+      if iplist.empty?
+        haveip = false
+      end
+
+      UI.ChangeWidget(Id(:ip_add), :Enabled, true)
+      UI.ChangeWidget(Id(:ip_edit), :Enabled, haveip)
+      UI.ChangeWidget(Id(:ip_del), :Enabled, haveip)
+
+      nil
+    end
+
+    def nodelist_input_dialog(value={}, ip_version="ipv6-4")
+      value.default = ""
+
       UI.OpenDialog(
         MarginBox(
           1,
           1,
           VBox(
             HBox(
-            MinWidth(40, InputField(Id(:addr1), _("IP Address"), value[:addr1])),
+            MinWidth(40, InputField(Id(:mynodename), Opt(:hstretch), _("Node Name:"), value["name"])),
             HSpacing(1),
-            MinWidth(40, InputField(Id(:addr2), _("Redundant IP Address"), value[:addr2])),
-            HSpacing(1),
-            MinWidth(20, InputField(Id(:mynodeid), _("Node ID") , value[:nodeid]))
+            MinWidth(20, InputField(Id(:mynodeid), Opt(:hstretch), _("Node ID:"), value["nodeid"])),
+            ),
+            VSpacing(1),
+            VBox(
+              Opt(:hvstretch),
+              MinSize(20, 10,
+                Table(
+                  Id(:iplist_table),
+                  Opt(:hstretch, :vstretch),
+                  Header("IP addresses"),
+                  []
+                ),
+              ),
+              VSpacing(1),
+              HBox(
+                PushButton(Id(:ip_add), _("Add")),
+                PushButton(Id(:ip_edit), _("Edit")),
+                PushButton(Id(:ip_del), _("Del")),
+              )
             ),
             VSpacing(1),
             Right(
@@ -2099,5 +2218,6 @@ module Yast
     def firewalld
       Y2Firewall::Firewalld.instance
     end
+
   end
 end
