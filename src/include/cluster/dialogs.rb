@@ -255,58 +255,183 @@ module Yast
         )
       )
 
-      if (autoid)
-        UI.ChangeWidget(:mynodeid, :Enabled, false)
+      value.default = []
+      iplist = deep_copy(value["IPs"])
+
+      while true
+        switch_iplist_button(iplist)
+        fill_node_ips(iplist)
+
+        ret = UI.UserInput
+
+        if ret == :ip_add
+          ret = text_input_dialog(_("Add a IP address"), "")
+          next if ret == :cancel
+          iplist.push(ret)
+        end
+
+        if ret == :ip_edit
+          current = 0
+
+          current = UI.QueryWidget(:iplist_table, :CurrentItem).to_i
+          ret = text_input_dialog(
+            _("Edit the IP address"),
+            iplist[current]
+          )
+          next if ret == :cancel
+          iplist[current] = ret.to_s
+        end
+
+        if ret == :ip_del
+          current = 0
+          current = UI.QueryWidget(:iplist_table, :CurrentItem).to_i
+          iplist.delete_at(current)
+        end
+
+        if ret == :ok
+          if !_valid_iplist(iplist, ip_version)
+            UI.SetFocus(:iplist_table)
+            next
+          end
+
+          ret = {}
+
+          if UI.QueryWidget(:mynodename, :Value) != ""
+            ret["name"] = UI.QueryWidget(:mynodename, :Value)
+          end
+
+          if UI.QueryWidget(:mynodeid, :Value) != ""
+            ret["nodeid"] = UI.QueryWidget(:mynodeid, :Value)
+          end
+
+          ret["IPs"] = iplist
+          break
+
+        elsif ret == :cancel
+          break
+        end
+
       end
 
-      if (!dual)
-        UI.ChangeWidget(:addr2, :Enabled, false)
+      UI.CloseDialog
+      deep_copy(ret)
+    end
+
+    def interface_input_dialog(value)
+      existing_ips = _get_bind_address()
+      if value.has_key?("bindnetaddr")
+        tmp = [value["bindnetaddr"], ""]
+
+        if existing_ips.include?(value["bindnetaddr"])
+          existing_ips.delete(value["bindnetaddr"])
+        end
+      else
+        tmp = [""]
       end
+      bindaddr = tmp + existing_ips
+
+      value.default=""
+
+      UI.OpenDialog(
+        MarginBox(
+          1,
+          1,
+          VBox(
+            HBox(
+              MinWidth(40, InputField(Id(:linknumber), _("Line Number"), value["linknumber"])),
+              HSpacing(1),
+              ComboBox(
+                Id(:knet_transport), Opt(:hstretch), _("Knet Transport"),
+                [
+                Item(Id(""), ""),
+                Item(Id("udp"), "udp"),
+                Item(Id("sctp"), "sctp"),
+                ]
+              ),
+              HSpacing(1),
+              MinWidth(40, InputField(Id(:knet_link_priority), _("Knet Link Priority"),
+                                      value["knet_link_priority"])),
+            ),
+            VSpacing(1),
+            HBox(
+              ComboBox(
+                Id(:bindnetaddr),
+                Opt(:editable, :hstretch),
+                _("Bind Network Address:"),
+                bindaddr
+              ),
+              HSpacing(1),
+              MinWidth(40, InputField(Id(:mcastaddr), _("Mcast Address"), value["mcastaddr"])),
+              HSpacing(1),
+              MinWidth(20, InputField(Id(:mcastport), _("Mcast Port") , value["mcastport"])),
+            ),
+            VSpacing(1),
+            Right(
+              HBox(
+                PushButton(Id(:ok), _("OK")),
+                PushButton(Id(:cancel), _("Cancel"))
+              )
+            )
+          )
+        )
+      )
+
+      UI.ChangeWidget(:linknumber, :ValidChars, "0123456789")
+      UI.ChangeWidget(:mcastport, :ValidChars, "0123456789")
+      UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
 
       ret = UI.UserInput
       if ret == :ok
-        if ( UI.QueryWidget(:mynodeid, :Value) != "" ) && ( UI.QueryWidget(:addr2, :Value) != "" )
-          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :addr2 => UI.QueryWidget(:addr2, :Value), :nodeid => UI.QueryWidget(:mynodeid, :Value)}
-        elsif ( UI.QueryWidget(:mynodeid, :Value) == "" ) && ( UI.QueryWidget(:addr2, :Value) != "" )
-          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :addr2 => UI.QueryWidget(:addr2, :Value)}
-        elsif ( UI.QueryWidget(:mynodeid, :Value) != "" ) && ( UI.QueryWidget(:addr2, :Value) == "" )
-          ret = {:addr1 => UI.QueryWidget(:addr1, :Value), :nodeid => UI.QueryWidget(:mynodeid, :Value)}
-        else
-          ret = {:addr1 => UI.QueryWidget(:addr1, :Value)}
+        ret = {}
+
+        ret["linknumber"] = UI.QueryWidget(:linknumber, :Value)
+        ret["knet_transport"] = UI.QueryWidget(:knet_transport, :Value)
+        ret["knet_link_priority"] = UI.QueryWidget(:knet_link_priority, :Value)
+        ret["bindnetaddr"] = UI.QueryWidget(:bindnetaddr, :Value)
+        ret["mcastaddr"] = UI.QueryWidget(:mcastaddr, :Value)
+        ret["mcastport"] = UI.QueryWidget(:mcastport, :Value)
+
+        ret.each_key do |key|
+          if ret[key] == ""
+            ret.delete(key)
+          end
         end
+
       end
+
       UI.CloseDialog
       deep_copy(ret)
     end
 
     def ValidNodeID
-      if Cluster.memberaddr.size <= 0
-        UI.SetFocus(:nodeid)
-        Popup.Message(_("Auto Generate Node ID has to be selected"))
-        return false
-      end
-
       i = 0
       # Set need to require 'set'
       idset = Set[]
 
-      Builtins.foreach(Cluster.memberaddr) do |value|
-        if value[:nodeid].to_i <= 0
-          Popup.Message(_("Node ID has to be fulfilled with a positive integer or select Auto Generate Node ID"))
-          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+      Cluster.node_list.each do |node|
+        if !node.has_key?("nodeid")
+          Popup.Message(_("Node ID has to be fulfilled or select Auto Generate Node ID when allowed"))
+          UI.ChangeWidget(:nodelist, :CurrentItem, i)
           i = 0
-          raise Break
+          break
         end
 
-        if idset.include?(value[:nodeid].to_i)
+        if node["nodeid"].to_i <= 0
+          Popup.Message(_("Node ID has to be fulfilled with a positive integer or select Auto Generate Node ID when allowed"))
+          UI.ChangeWidget(:nodelist, :CurrentItem, i)
+          i = 0
+          break
+        end
+
+        if idset.include?(node["nodeid"].to_i)
           Popup.Message(_("Node ID must be unique"))
-          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
+          UI.ChangeWidget(:nodelist, :CurrentItem, i)
           i = 0
-          raise Break
+          break
         end
 
-        idset << value[:nodeid].to_i
-        i = Ops.add(i, 1)
+        idset << node["nodeid"].to_i
+        i += 1
       end
 
       if i == 0
@@ -319,214 +444,174 @@ module Yast
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
-      ip_version = UI.QueryWidget(Id(:ip_version), :Value)
 
+      # Must have cluster name
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
         Popup.Message(_("The cluster name has to be fulfilled"))
         UI.SetFocus(:cluster_name)
         return false
       end
 
-      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
-        i = 0
-        Builtins.foreach(Cluster.memberaddr) do |value|
-          if  ( UI.QueryWidget(Id(:addr1), :Value) == "" ) ||
-            ( UI.QueryWidget(Id(:enable2), :Value) && ( UI.QueryWidget(Id(:addr2), :Value) == "" ) )
-            UI.ChangeWidget(:memberaddr, :CurrentItem, i)
-            i = 0
-            raise Break
-          end
-          i = Ops.add(i, 1)
-        end
-        if i == 0
-          UI.SetFocus(:memberaddr)
-          Popup.Message(_("The Member Address has to be fulfilled"))
-          return false
-        end
-      else
-        #BNC#880242, expected_votes must have value when "udp"
-        if UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured"))
-          UI.SetFocus(:expected_votes)
-          return false
-        end
-
-        if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr1), :Value), ip_version)
-          Popup.Message(_("IP Version doesn't match with Bind Network Address in Channel"))
-          UI.SetFocus(:bindnetaddr1)
-          return false
-        end
-
-        if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr1), :Value), ip_version)
-          Popup.Message(_("IP Version doesn't match with Multicast Address in Channel"))
-          UI.SetFocus(:mcastaddr1)
-          return false
-        end
-      end
-
-      if Cluster.memberaddr.size <= 0
-        if UI.QueryWidget(Id(:transport), :Value) == "udpu" || ip_version.to_s == "ipv6"
-          Popup.Message(_("Member address is required"))
-          return false
-          #BNC#880242, expected_votes must have value when "udp" without nodelist
-        elsif UI.QueryWidget(Id(:expected_votes), :Value) == ""
-          Popup.Message(_("The Expected Votes has to be fulfilled when multicast transport is configured without nodelist"))
-          UI.SetFocus(:expected_votes)
-          return false
-        end
-      end
-
-      if !Builtins.regexpmatch(
-          Convert.to_string(UI.QueryWidget(Id(:mcastport1), :Value)),
-          "^[0-9]+$"
-        )
-        Popup.Message(_("The Multicast port must be a positive integer"))
-        UI.SetFocus(Id(:mcastport1))
+      # Only one ring supported for Unicast or Multicast
+      if (UI.QueryWidget(Id(:transport), :Value) == "udp" ||
+          UI.QueryWidget(Id(:transport), :Value) == "udpu") && Cluster.interface_list.size > 1
+        Popup.Message(_("Limited to a single ring when Unicast or Multicast"))
+        UI.SetFocus(:ifacelist)
         return false
       end
 
-      if UI.QueryWidget(Id(:enable2), :Value)
+      # FIXME: if multicast still support no node list?
+      if Cluster.node_list.size <= 0
+        Popup.Message(_("The node list has to be fulfilled"))
+        UI.SetFocus(:nodelist)
+        return false
+      end
+
+      # Interface number must be either 0 or match ring number
+      ringnum = Cluster.node_list[0]["IPs"].size
+      if ringnum == 0
+        Popup.Message(_("Every node must have at least one ring address filled"))
+        UI.SetFocus(:nodelist)
+        return false
+      elsif ringnum > 8
+        Popup.Message(_("At most support 8 rings"))
+        UI.SetFocus(:nodelist)
+        return false
+      elsif ringnum > 1 && UI.QueryWidget(Id(:transport), :Value) != "knet"
+        Popup.Message(_("Muiticast and Unicast no longer support more that one ring"))
+        UI.SetFocus(:transport)
+        return false
+      elsif ringnum == 1 && UI.QueryWidget(Id(:linkmode), :Value) != "passive"
+        Popup.Message(_("Only one interface is specified, passive linkmode is automatically chosen"))
+        UI.ChangeWidget(Id(:linkmode), :Value, "passive")
+        UI.SetFocus(:linkmode)
+      end
+
+      if UI.QueryWidget(Id(:transport), :Value) == "knet"
+        # Kronosnet must assign node ID
+        if UI.QueryWidget(Id(:autoid), :Value)
+          Popup.Message(_("Should not use auto generate Node ID when Kronosnet"))
+          UI.SetFocus(:autoid)
+          return false
+        end
+
+        # FIXME: Kronosnet must assign node name?
+        Cluster.node_list.each do |node|
+          if !node.has_key?("name")
+            Popup.Message(_("Need to assign each node a name when Kronosnet"))
+            UI.SetFocus(:nodelist)
+            return false
+          end
+        end
+
+        # Kronosnet transport should be udp/sctp
+        if not Cluster.interface_list.empty?
+          Cluster.interface_list.each do |iface|
+            if iface.has_key?("knet_transport")
+              if !["udp", "sctp"].include?(iface["knet_transport"])
+                Popup.Message(_("Kronosnet transport should either udp or sctp"))
+                UI.SetFocus(:ifacelist)
+                return false
+              end
+            end
+          end # end iface loop
+        end
+
+      else # transport != "knet"
+        # Should not have knet parameters in Unicast or Multicast
+        if not Cluster.interface_list.empty?
+          Cluster.interface_list.each do |iface|
+            if iface.has_key?("knet_transport") || iface.has_key?("knet_link_priority")
+              Popup.Message(_("Should not config knet parameters when not using Kronosnet"))
+              UI.SetFocus(:ifacelist)
+              return false
+            end
+          end
+        end
+      end # end :transport check
+
+      # No duplicate ring number
+      Cluster.node_list.each do |node|
+        if node["IPs"].size != ringnum
+          Popup.Message(_("Ring number must identical between nodes"))
+          UI.SetFocus(:nodelist)
+          return false
+        end
+      end
+
+      # Interface number should match ring number
+      if not Cluster.interface_list.empty?
+        if Cluster.interface_list.size != ringnum
+          Popup.Message(_("Interface number match the ring number"))
+          UI.SetFocus(:ifacelist)
+          return false
+        end
+
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
-          if !ip_matching_check(UI.QueryWidget(Id(:bindnetaddr2), :Value), ip_version)
-            Popup.Message(_("IP Version doesn't match with Bind Network Address in Redundant Channel"))
-            UI.SetFocus(:bindnetaddr2)
-            return false
+          Cluster.interface_list.each do |iface|
+            if iface["linknumber"].to_i != 0
+              Popup.Message(_("For UDP the only supported linknumber is 0"))
+              UI.SetFocus(:ifacelist)
+              return false
+            end
           end
 
-          if !ip_matching_check(UI.QueryWidget(Id(:mcastaddr2), :Value), ip_version)
-            Popup.Message(_("IP Version doesn't match with Multicast Address in Redundant Channel"))
-            UI.SetFocus(:mcastaddr2)
-            return false
-          end
-        end
+        else
+          linkset = Set[]
+          Cluster.interface_list.each do |iface|
+            # Link number must be unique
+            if linkset.include?(iface["linknumber"].to_i)
+              Popup.Message(_("Interface Link number must be unique"))
+              UI.SetFocus(:ifacelist)
+              return false
+            end
 
-        if !Builtins.regexpmatch(
-            Convert.to_string(UI.QueryWidget(Id(:mcastport2), :Value)),
-            "^[0-9]+$"
-          )
-          Popup.Message(_("The Multicast port must be a positive integer"))
-          UI.SetFocus(Id(:mcastport2))
+            linkset << iface["linknumber"].to_i
+
+          end # end interface_list loop
+        end # end :transport
+      end # end interface_list not empty
+
+      if _has_ipv6_addr()
+        if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
+          Popup.Message(_("IPv6 address configured but IP version is ipv4"))
+          UI.SetFocus(:ip_version)
           return false
         end
 
-        if UI.QueryWidget(Id(:rrpmode), :Value) == "none"
-          Popup.Message(_("Only passive or active can be chosen if multiple interface used. Set to passive."))
-          UI.ChangeWidget(Id(:rrpmode), :Value, "passive")
-          UI.SetFocus(Id(:rrpmode))
+        # IPv6 should add node ID manually
+        if UI.QueryWidget(Id(:autoid), :Value)
+          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address configured"))
+          UI.SetFocus(:autoid)
           return false
-        elsif UI.QueryWidget(Id(:rrpmode), :Value) == "active"
-          Popup.Message(_("rrp mode active is deprecated, better use passive."))
         end
       end
 
-      Builtins.foreach(Cluster.memberaddr) do |value|
-        if !ip_matching_check(value[:addr1], ip_version) ||
-            (UI.QueryWidget(Id(:enable2), :Value) && !ip_matching_check(value[:addr2], ip_version))
-          UI.ChangeWidget(:memberaddr, :CurrentItem, i)
-          if Cluster.memberaddr.size <= 0 && (UI.QueryWidget(Id(:transport), :Value) == "udp" && ip_version.to_s == "ipv4")
-            raise Break
-          else
-            UI.SetFocus(:memberaddr)
-            Popup.Message(_("IP Version doesn't match with addresses within Member Address"))
-            i = 0
-            return false
-          end
-        end
-        i += 1
-      end
-
-      if !UI.QueryWidget(Id(:autoid), :Value )
+      if !UI.QueryWidget(Id(:autoid), :Value)
         ret = ValidNodeID()
         if !ret
-           UI.SetFocus(Id(:memberaddr))
+           UI.SetFocus(Id(:nodelist))
            return false
         end
       end
+
       true
     end
 
-    def SaveCommunicationToConf
-      SCR.Write(
-        path(".openais.totem.interface.interface0.bindnetaddr"),
-        Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))
-      )
-      SCR.Write(
-        path(".openais.totem.interface.interface0.mcastaddr"),
-        Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value))
-      )
-      SCR.Write(
-        path(".openais.totem.interface.interface0.mcastport"),
-        Convert.to_string(UI.QueryWidget(Id(:mcastport1), :Value))
-      )
-
-      if !UI.QueryWidget(Id(:enable2), :Value)
-        SCR.Write(path(".openais.totem.interface.interface1"), "")
-      else
-        SCR.Write(
-          path(".openais.totem.interface.interface1.bindnetaddr"),
-          Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
-        )
-        SCR.Write(
-          path(".openais.totem.interface.interface1.mcastaddr"),
-          Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
-        )
-        SCR.Write(
-          path(".openais.totem.interface.interface1.mcastport"),
-          Convert.to_string(UI.QueryWidget(Id(:mcastport2), :Value))
-        )
-      end
-
-      if UI.QueryWidget(Id(:autoid), :Value)
-        SCR.Write(path(".openais.totem.autoid"), "yes")
-      else
-        SCR.Write(path(".openais.totem.autoid"), "no")
-      end
-
-      SCR.Write(
-        path(".openais.totem.rrpmode"),
-        Convert.to_string(UI.QueryWidget(Id(:rrpmode), :Value))
-      )
-
-      nil
-    end
-
     def SaveCommunication
-      Cluster.bindnetaddr1 = Convert.to_string(
-        UI.QueryWidget(Id(:bindnetaddr1), :Value)
-      )
-      Cluster.bindnetaddr2 = Convert.to_string(
-        UI.QueryWidget(Id(:bindnetaddr2), :Value)
-      )
-      Cluster.mcastaddr1 = Convert.to_string(
-        UI.QueryWidget(Id(:mcastaddr1), :Value)
-      )
-      Cluster.mcastaddr2 = Convert.to_string(
-        UI.QueryWidget(Id(:mcastaddr2), :Value)
-      )
-      Cluster.mcastport1 = Convert.to_string(
-        UI.QueryWidget(Id(:mcastport1), :Value)
-      )
-      Cluster.mcastport2 = Convert.to_string(
-        UI.QueryWidget(Id(:mcastport2), :Value)
-      )
-      Cluster.enable2 = Convert.to_boolean(UI.QueryWidget(Id(:enable2), :Value))
+      ringnum = Cluster.node_list[0]["IPs"].size
+      if ringnum == 1
+        Cluster.link_mode = "passive"
+      else
+        Cluster.link_mode = UI.QueryWidget(Id(:linkmode), :Value).to_s
+      end
+
       Cluster.autoid = Convert.to_boolean(UI.QueryWidget(Id(:autoid), :Value))
-      Cluster.rrpmode = Convert.to_string(UI.QueryWidget(Id(:rrpmode), :Value))
       Cluster.cluster_name = UI.QueryWidget(Id(:cluster_name), :Value)
-      Cluster.expected_votes = UI.QueryWidget(Id(:expected_votes), :Value).to_s
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
       )
       Cluster.ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
-
-      #BNC#871970, clear second IP when redundant channel is disabled
-      if !UI.QueryWidget(Id(:enable2), :Value)
-        Cluster.memberaddr.each { |member| member[:addr2] = "" }
-      end
-
-      if UI.QueryWidget(Id(:autoid), :Value)
-        Cluster.memberaddr.each  { |member| member[:nodeid] = "" }
-      end
 
       nil
     end
@@ -541,49 +626,7 @@ module Yast
       )
     end
 
-    def expectedvotes_switch
-      if Cluster.memberaddr.size <= 0 &&
-          UI.QueryWidget(Id(:ip_version), :Value).to_s == "ipv4" &&
-          UI.QueryWidget(Id(:transport), :Value) == "udp"
-        UI.ChangeWidget(Id(:expected_votes), :Enabled, true)
-      else
-        UI.ChangeWidget(Id(:expected_votes), :Value, "")
-        UI.ChangeWidget(Id(:expected_votes), :Enabled, false)
-      end
-    end
-
-
-    # BNC#871970, change member address struct to memberaddr
-    def transport_switch
-      udp = UI.QueryWidget(Id(:transport), :Value) == "udp"
-      enable2 = UI.QueryWidget(Id(:enable2), :Value)
-
-      UI.ChangeWidget(Id(:enable2_vbox), :Enabled, enable2)
-      UI.ChangeWidget(Id(:mcastport2), :Enabled, enable2)
-
-      enable1_addr = udp
-      enable2_addr = udp && enable2
-
-      UI.ChangeWidget(Id(:mcastaddr1), :Enabled, enable1_addr)
-      UI.ChangeWidget(Id(:mcastaddr2), :Enabled, enable2_addr)
-
-      UI.ChangeWidget(Id(:bindnetaddr1), :Enabled, enable1_addr)
-      UI.ChangeWidget(Id(:bindnetaddr2), :Enabled, enable2_addr)
-
-      ip = UI.QueryWidget(Id(:ip_version), :Value).to_s
-      if ip == "ipv6"
-        UI.ChangeWidget(Id(:autoid), :Value, false)
-        UI.ChangeWidget(Id(:autoid), :Enabled, false)
-      else
-        UI.ChangeWidget(Id(:autoid), :Enabled, true)
-      end
-
-      nil
-    end
-
-
-    # BNC#871970, change member address struct to memberaddr
-    def CommunicationLayout
+    def _get_bind_address
       result = {}
 
       result = Convert.to_map(
@@ -593,7 +636,7 @@ module Yast
         )
       )
 
-      existing_ips = []
+      ips = []
       if Builtins.size(Ops.get_string(result, "stdout", "")) != 0
         ip_masks = Builtins.splitstring(
           Ops.get_string(result, "stdout", ""),
@@ -621,6 +664,7 @@ module Yast
             Opt(:hstretch, :notify),
             _("Transport:"),
             [
+            Item(Id("knet"), "Kronosnet"),
             Item(Id("udp"), "Multicast"),
             Item(Id("udpu"), "Unicast")
             ]
@@ -630,60 +674,53 @@ module Yast
             Opt(:hstretch, :notify),
             _("IP Version:"),
             [
-              Item(Id("ipv4"), "IPv4"),
-              Item(Id("ipv6"), "IPv6")
+              Item(Id("ipv6-4"), "ipv6-4"),
+              Item(Id("ipv4-6"), "ipv4-6"),
+              Item(Id("ipv4"), "ipv4"),
+              Item(Id("ipv6"), "ipv6")
             ]
           )
         )
       )
 
-      iface = Frame(
-        _("Channel"),
-        VBox(
-          ComboBox(
-            Id(:bindnetaddr1),
-            Opt(:editable, :hstretch, :notify),
-            _("Bind Network Address:"),
-            Builtins.toset(existing_ips)
-          ),
-          InputField(
-            Id(:mcastaddr1),
-            Opt(:hstretch, :notify),
-            _("Multicast Address:")
-          ),
-          InputField(Id(:mcastport1), Opt(:hstretch), _("Port:")),
-        )
+      # Initialize node list
+      table_items = _get_nodelist_table_items()
+
+      nodelist_table = VBox(
+        Left(Label(_("Node List:"))),
+        Table(Id(:nodelist), Opt(:hstretch),
+              Header(_("Name"), _("Node ID"), _("IP1"),
+                     _("IP2"), _("More IP...")), table_items),
+        Right(HBox(
+          PushButton(Id(:nodelist_add), "Add"),
+          PushButton(Id(:nodelist_edit), "Edit"),
+          PushButton(Id(:nodelist_del), "Del"),
+        )),
       )
 
-      #Refer to https://bugzilla.suse.com/show_bug.cgi?id=1179007
-      #for the reason of option ":noAutoEnable"
-      riface = CheckBoxFrame(
-        Id(:enable2),
-        Opt(:noAutoEnable, :notify),
-        _("Redundant Channel"),
-        false,
-        VBox(
-          Id(:enable2_vbox),
-          ComboBox(
-            Id(:bindnetaddr2),
-            Opt(:editable, :hstretch, :notify),
-            _("Bind Network Address:"),
-            existing_ips
-          ),
-          InputField(Id(:mcastaddr2), Opt(:hstretch), _("Multicast Address:")),
-          InputField(Id(:mcastport2), Opt(:hstretch), _("Port:")),
-        )
+      # Initialize interface list
+      table_items = _get_interface_table_items()
+
+      iface_table = VBox(
+        Left(Label(_("Interface List: (Optional)"))),
+        Table(Id(:ifacelist), Opt(:hstretch),
+              Header(_("Link Number"), _("Knet Transport"), _("Knet Link Priority"),
+                     _("Bind Address"), _("Mcast Addr"), _("Mcast port")), table_items),
+        Right(HBox(
+          PushButton(Id(:ifacelist_add), "Add"),
+          PushButton(Id(:ifacelist_edit), "Edit"),
+          PushButton(Id(:ifacelist_del), "Del"),
+        )),
       )
 
       nid = VBox(
         HBox(
-          Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"),"hacluster")),
-          Left(InputField(Id(:expected_votes),Opt(:hstretch), _("Expected Votes:"),"")),
+          Left(InputField(Id(:cluster_name),Opt(:hstretch, :notify), _("Cluster Name:"),"hacluster")),
           ComboBox(
-            Id(:rrpmode),
-            Opt(:hstretch),
-            _("rrp mode:"),
-            ["none", "active", "passive"]
+            Id(:linkmode),
+            Opt(:hstretch, :notify),
+            _("link mode:"),
+            ["passive", "active", "rr"]
           )
         ),
         Left(
@@ -691,83 +728,85 @@ module Yast
         )
       )
 
-      ip_table = VBox(
-        Left(Label(_("Member Address:"))),
-        Table(Id(:memberaddr), Header(_("IP"), _("Redundant IP"), _("Node ID")), []),
-        Right(HBox(
-          PushButton(Id(:memberaddr_add), "Add"),
-          PushButton(Id(:memberaddr_del), "Del"),
-          PushButton(Id(:memberaddr_edit), "Edit"))
-        ))
-
       contents = VBox(
         HBox(hid),
-        HBox(HWeight(1, VBox(iface)), HWeight(1, VBox(riface))),
-        ip_table,
+        nodelist_table,
+        iface_table,
         HBox(nid),
       )
 
       my_SetContents("communication", contents)
 
-      UI.ChangeWidget(Id(:bindnetaddr1), :Value, Cluster.bindnetaddr1)
-      UI.ChangeWidget(Id(:mcastaddr1), :Value, Cluster.mcastaddr1)
-      UI.ChangeWidget(Id(:mcastport1), :Value, Cluster.mcastport1)
-      UI.ChangeWidget(Id(:enable2), :Value, Cluster.enable2)
-      UI.ChangeWidget(Id(:bindnetaddr2), :Value, Cluster.bindnetaddr2)
-      UI.ChangeWidget(Id(:mcastaddr2), :Value, Cluster.mcastaddr2)
-      UI.ChangeWidget(Id(:mcastport2), :Value, Cluster.mcastport2)
-
       UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
-      UI.ChangeWidget(Id(:expected_votes), :Value, Cluster.expected_votes)
-      UI.ChangeWidget(:expected_votes, :ValidChars, "0123456789")
 
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
       UI.ChangeWidget(Id(:ip_version), :Value, Cluster.ip_version)
 
-      UI.ChangeWidget(Id(:rrpmode), :Value, Cluster.rrpmode)
-      if "none" == Cluster.rrpmode
-        UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
-      else
-        UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
-      end
+      UI.ChangeWidget(Id(:linkmode), :Value, Cluster.link_mode)
 
       if UI.QueryWidget(Id(:transport), :Value) == "udpu"
         UI.SetFocus(:memberaddr_add)
       end
       # BNC#879596, check the corosync.conf format
-      if Cluster.config_format == "old"
-        Popup.Message(_(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings."))
+      if Cluster.config_format == "corosync2"
+        Popup.Message(_(" NOTICE: Detected old corosync2 configuration.\n Please reconfigure the node/interface list and confirm all other settings."))
+        Cluster.config_format = "showed"
+      elsif Cluster.config_format == "openais"
+        Popup.Message(_(" NOTICE: Detected old(SLE11) openais/corosync configuration.\n Please reconfigure the node list and confirm all other settings."))
         Cluster.config_format = "showed"
       end
-
-      transport_switch
 
       nil
     end
 
-
-    def fill_memberaddr_entries
-      i = 0
+    def fill_interface_entries
       current = 0
-      items = []
 
-      # BNC#871970,change structure
-      # remove duplicated elements
-      Cluster.memberaddr = Ops.add(Cluster.memberaddr, [])
+      table_items = _get_interface_table_items()
 
-      i = 0
-      items = []
-      Builtins.foreach(Cluster.memberaddr) do |value|
-          items.push(Item(Id(i), value[:addr1],value[:addr2], value[:nodeid]))
-          i += 1
+      current = UI.QueryWidget(:ifacelist, :CurrentItem).to_i
+      current = 0 if current == nil
+      current = table_items.size - 1 if current >= table_items.size
+
+      UI.ChangeWidget(:ifacelist, :Items, table_items)
+      UI.ChangeWidget(:ifacelist, :CurrentItem, current)
+
+      nil
+    end
+
+    def fill_nodelist_entries
+      current = 0
+
+      table_items = _get_nodelist_table_items()
+
+      current = UI.QueryWidget(:nodelist, :CurrentItem).to_i
+      current = 0 if current == nil
+      current = table_items.size - 1 if current >= table_items.size
+
+      UI.ChangeWidget(:nodelist, :Items, table_items)
+      UI.ChangeWidget(:nodelist, :CurrentItem, current)
+
+      nil
+    end
+
+    def switch_totem_button(transport)
+      if transport == "knet"
+        UI.ChangeWidget(Id(:linkmode), :Enabled, true)
+
+        UI.ChangeWidget(Id(:autoid), :Value, false)
+        UI.ChangeWidget(Id(:autoid), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:linkmode), :Value, "passive")
+        UI.ChangeWidget(Id(:linkmode), :Enabled, false)
+
+        UI.ChangeWidget(Id(:autoid), :Enabled, true)
       end
 
-      current = Convert.to_integer(UI.QueryWidget(:memberaddr, :CurrentItem))
-      current = 0 if current == nil
-      current = Ops.subtract(i, 1) if Ops.greater_or_equal(current, i)
-      UI.ChangeWidget(:memberaddr, :Items, items)
-      UI.ChangeWidget(:memberaddr, :CurrentItem, current)
+      if _has_ipv6_addr()
+        UI.ChangeWidget(Id(:autoid), :Value, false)
+        UI.ChangeWidget(Id(:autoid), :Enabled, false)
+      end
 
       nil
     end
@@ -777,52 +816,64 @@ module Yast
 
       CommunicationLayout()
 
-
       while true
-        fill_memberaddr_entries
-        transport_switch
-        expectedvotes_switch
+        fill_nodelist_entries()
+        fill_interface_entries()
+        switch_totem_button(UI.QueryWidget(Id(:transport), :Value))
+
+        ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
 
         ret = UI.UserInput
 
-        if ret == :enable2
-          if UI.QueryWidget(Id(:enable2), :Value)
-            # Changewidget items will change value to first one automatically
-            rrpvalue = UI.QueryWidget(Id(:rrpmode), :Value)
-            UI.ChangeWidget(Id(:rrpmode), :Items, ["passive","active"])
-            UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
-            UI.ChangeWidget(Id(:rrpmode), :Value, rrpvalue) if rrpvalue != "none"
-          else
-            UI.ChangeWidget(Id(:rrpmode), :Items, ["none"])
-            UI.ChangeWidget(Id(:rrpmode), :Value, "none")
-            UI.ChangeWidget(Id(:rrpmode), :Enabled, false)
+        if ret == :nodelist_add
+          ret = nodelist_input_dialog({}, ip_version)
+
+          next if ret == :cancel
+          Cluster.node_list.push(ret)
+        end
+
+        if ret == :nodelist_edit
+          current = 0
+          current = UI.QueryWidget(:nodelist, :CurrentItem).to_i
+          ret = nodelist_input_dialog(Cluster.node_list[current] || {}, ip_version)
+
+          next if ret == :cancel
+          Cluster.node_list[current] = ret
+        end
+
+        if ret == :nodelist_del
+          current = 0
+          current = UI.QueryWidget(:nodelist, :CurrentItem).to_i
+          Cluster.node_list.delete_at(current)
+        end
+
+        if ret == :ifacelist_add
+          ret = interface_input_dialog({})
+
+          next if ret == :cancel
+          Cluster.interface_list.push(ret)
+        end
+
+        if ret == :ifacelist_edit
+          current = 0
+          current = UI.QueryWidget(:ifacelist, :CurrentItem).to_i
+          ret = interface_input_dialog(Cluster.interface_list[current] || {})
+
+          next if ret == :cancel
+          # Clear the interface_input_dialog support key in case not configured
+          ["linknumber", "knet_transport", "knet_link_priority",
+           "bindnetaddr", "mcastaddr", "mcastport"].each do |ele|
+            Cluster.interface_list[current].delete(ele)
           end
+
+          # Use merge! since not all parameters show in UI
+          Cluster.interface_list[current].merge!(ret)
         end
 
-        if ret == :memberaddr_add
-          ret = addr_input_dialog({}, UI.QueryWidget(Id(:autoid), :Value), UI.QueryWidget(Id(:enable2), :Value))
-          next if ret == :cancel
-          Cluster.memberaddr.push(ret)
-        end
-
-        if ret == :memberaddr_edit
+        if ret == :ifacelist_del
           current = 0
-
-          # The value will be nil if the list is empty, however nil.to_i is 0
-          current = UI.QueryWidget(:memberaddr, :CurrentItem).to_i
-
-          ret = addr_input_dialog(Cluster.memberaddr[current] || {} ,UI.QueryWidget(Id(:autoid), :Value ), UI.QueryWidget(Id(:enable2), :Value))
-          next if ret == :cancel
-          Cluster.memberaddr[current]= ret
-        end
-
-        if ret == :memberaddr_del
-          current = 0
-          current = Convert.to_integer(
-            UI.QueryWidget(:memberaddr, :CurrentItem)
-          )
-          # Notice, current could be "nil" if the list is empty.
-          Cluster.memberaddr = Builtins.remove(Cluster.memberaddr, current)
+          current = UI.QueryWidget(:ifacelist, :CurrentItem).to_i
+          Cluster.interface_list.delete_at(current)
         end
 
         if ret == :next || ret == :back
