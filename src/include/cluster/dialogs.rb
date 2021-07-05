@@ -453,7 +453,7 @@ module Yast
       # Only one ring supported for Unicast or Multicast
       if (UI.QueryWidget(Id(:transport), :Value) == "udp" ||
           UI.QueryWidget(Id(:transport), :Value) == "udpu") && Cluster.interface_list.size > 1
-        Popup.Message(_("Limited to a single ring when Unicast or Multicast"))
+        Popup.Message(_("Limited to a single ring when Unicast or Multicast.\nPlease use Kronosnet"))
         UI.SetFocus(:ifacelist)
         return false
       end
@@ -476,13 +476,24 @@ module Yast
         UI.SetFocus(:nodelist)
         return false
       elsif ringnum > 1 && UI.QueryWidget(Id(:transport), :Value) != "knet"
-        Popup.Message(_("Muiticast and Unicast no longer support more that one ring"))
+        Popup.Message(_("Muiticast and Unicast no longer support more that one ring.\nPlease use Kronosnet"))
         UI.SetFocus(:transport)
         return false
       elsif ringnum == 1 && UI.QueryWidget(Id(:linkmode), :Value) != "passive"
-        Popup.Message(_("Only one interface is specified, passive linkmode is automatically chosen"))
+        Popup.Message(_("Only one interface is specified, passive linkmode is automatically be chosen"))
         UI.ChangeWidget(Id(:linkmode), :Value, "passive")
         UI.SetFocus(:linkmode)
+      end
+
+      # node name must be unique if assigned
+      nameset = Set[]
+      Cluster.node_list.each do |node|
+        if node.has_key?("name") && nameset.include?(node["name"])
+          Popup.Message(_("Node name must be unique"))
+          UI.SetFocus(:nodelist)
+          return false
+        end
+        nameset << node["name"]
       end
 
       if UI.QueryWidget(Id(:transport), :Value) == "knet"
@@ -520,7 +531,7 @@ module Yast
         if not Cluster.interface_list.empty?
           Cluster.interface_list.each do |iface|
             if iface.has_key?("knet_transport") || iface.has_key?("knet_link_priority")
-              Popup.Message(_("Should not config knet parameters when not using Kronosnet"))
+              Popup.Message(_("Should not config ket link priority/transport when using Unicast or Multicast"))
               UI.SetFocus(:ifacelist)
               return false
             end
@@ -548,7 +559,7 @@ module Yast
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
           Cluster.interface_list.each do |iface|
             if iface["linknumber"].to_i != 0
-              Popup.Message(_("For UDP the only supported linknumber is 0"))
+              Popup.Message(_("For Multicast the only supported linknumber is 0"))
               UI.SetFocus(:ifacelist)
               return false
             end
@@ -569,7 +580,7 @@ module Yast
             # Should not have ["bindnetaddr", "mcastaddr", "mcastport"] configured
             iface.each_key do |key|
               if ["bindnetaddr", "mcastaddr", "mcastport"].include?(key)
-                Popup.Message(_("Should only configure bind address/multicast address/multicast port in Multicast"))
+                Popup.Message(_("Should not configure bind address/multicast address/multicast port in Unicast or Kronosnet"))
                 UI.SetFocus(:ifacelist)
                 return false
               end
@@ -581,7 +592,7 @@ module Yast
 
       if _has_ipv6_addr()
         if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
-          Popup.Message(_("IPv6 address configured but IP version is ipv4"))
+          Popup.Message(_("Found IPv6 address but IP version is ipv4"))
           UI.SetFocus(:ip_version)
           return false
         end
@@ -779,7 +790,7 @@ module Yast
 
       nid = VBox(
         HBox(
-          Left(InputField(Id(:cluster_name),Opt(:hstretch, :notify), _("Cluster Name:"),"hacluster")),
+          Left(InputField(Id(:cluster_name),Opt(:hstretch), _("Cluster Name:"),"hacluster")),
           ComboBox(
             Id(:linkmode),
             Opt(:hstretch, :notify),
