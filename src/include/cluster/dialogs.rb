@@ -674,9 +674,6 @@ module Yast
       Cluster.node_list.each do |node|
         iplist = Ops.get(node, "IPs")
 
-        if iplist.empty?
-          next
-        end
         items = Item(Id(index))
 
         node.default = ""
