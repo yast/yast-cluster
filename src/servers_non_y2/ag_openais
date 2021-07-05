@@ -441,7 +441,6 @@ def print_logging_options(f):
 	for key in logging_options.keys():
 		if key == "logger_subsys":
 			if len(logging_subsys_options):
-				f.write(str(len(logging_subsys_options)))
 				f.write("\tlogger_subsys {\n")
 				for l in logging_subsys_options.keys():
 					f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
