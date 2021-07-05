@@ -566,6 +566,15 @@ module Yast
 
             linkset << iface["linknumber"].to_i
 
+            # Should not have ["bindnetaddr", "mcastaddr", "mcastport"] configured
+            iface.each_key do |key|
+              if ["bindnetaddr", "mcastaddr", "mcastport"].include?(key)
+                Popup.Message(_("Should only configure bind address/multicast address/multicast port in Multicast"))
+                UI.SetFocus(:ifacelist)
+                return false
+              end
+            end
+
           end # end interface_list loop
         end # end :transport
       end # end interface_list not empty
@@ -767,7 +776,7 @@ module Yast
         Right(HBox(
           PushButton(Id(:ifacelist_add), "Add"),
           PushButton(Id(:ifacelist_edit), "Edit"),
-          PushButton(Id(:ifacelist_del), "Del"),
+          PushButton(Id(:ifacelist_del), "De&l"),
         )),
       )
 
