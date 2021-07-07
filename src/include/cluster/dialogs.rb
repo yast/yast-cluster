@@ -180,18 +180,18 @@ module Yast
 
     def _valid_iplist(iplist=[], ip_version="ipv6-4")
       if iplist.empty?
-        Popup.Message(_("At least one IP address has to be fulfilled"))
+        Popup.Message(_("At least one ring/IP has to be fulfilled"))
         return false
       end
 
       if iplist.size > 8
-        Popup.Message(_("Support at most 8 rings."))
+        Popup.Message(_("Support at most 8 rings"))
         return false
       end
 
       iplist.each do |ip|
         if !ip_matching_check(ip, ip_version)
-          Popup.Message(_("Invalid IP address found."))
+          Popup.Message(_("Invalid IP address found: ") + ip)
           return false
         end
       end
@@ -338,7 +338,7 @@ module Yast
           1,
           VBox(
             HBox(
-              MinWidth(40, InputField(Id(:linknumber), _("Line Number"), value["linknumber"])),
+              MinWidth(40, InputField(Id(:linknumber), _("Link Number"), value["linknumber"])),
               HSpacing(1),
               ComboBox(
                 Id(:knet_transport), Opt(:hstretch), _("Knet Transport"),
@@ -455,7 +455,7 @@ module Yast
       # Only one ring supported for Unicast or Multicast
       if (UI.QueryWidget(Id(:transport), :Value) == "udp" ||
           UI.QueryWidget(Id(:transport), :Value) == "udpu") && Cluster.interface_list.size > 1
-        Popup.Message(_("Limited to a single ring when Unicast or Multicast.\nPlease use Kronosnet"))
+        Popup.Message(_("Limited to one ring when Unicast or Multicast.\nPlease use Kronosnet"))
         UI.SetFocus(:ifacelist)
         return false
       end
@@ -474,11 +474,11 @@ module Yast
         UI.SetFocus(:nodelist)
         return false
       elsif ringnum > 8
-        Popup.Message(_("At most support 8 rings"))
+        Popup.Message(_("Support at most 8 rings"))
         UI.SetFocus(:nodelist)
         return false
       elsif ringnum > 1 && UI.QueryWidget(Id(:transport), :Value) != "knet"
-        Popup.Message(_("Muiticast and Unicast no longer support more that one ring.\nPlease use Kronosnet"))
+        Popup.Message(_("Muiticast and Unicast no longer support multiple rings.\nPlease use Kronosnet"))
         UI.SetFocus(:transport)
         return false
       elsif ringnum == 1 && UI.QueryWidget(Id(:linkmode), :Value) != "passive"
@@ -553,7 +553,7 @@ module Yast
       # Interface number should match ring number
       if not Cluster.interface_list.empty?
         if Cluster.interface_list.size != ringnum
-          Popup.Message(_("Interface number match the ring number"))
+          Popup.Message(_("Interface number should match the ring number"))
           UI.SetFocus(:ifacelist)
           return false
         end
@@ -561,7 +561,7 @@ module Yast
         if UI.QueryWidget(Id(:transport), :Value) == "udp"
           Cluster.interface_list.each do |iface|
             if iface["linknumber"].to_i != 0
-              Popup.Message(_("For Multicast the only supported linknumber is 0"))
+              Popup.Message(_("Multicast the only supported linknumber is 0"))
               UI.SetFocus(:ifacelist)
               return false
             end
@@ -570,6 +570,17 @@ module Yast
         else
           linkset = Set[]
           Cluster.interface_list.each do |iface|
+            if iface["linknumber"].to_i > 7
+              Popup.Message(_("Maximum allowed interface ring number is 7"))
+              UI.SetFocus(:ifacelist)
+              return false
+            elsif iface["linknumber"].to_i > ringnum - 1
+              Popup.Message(_("Interface link number should smaller than rings number: ") +
+                            (ringnum - 1).to_s)
+              UI.SetFocus(:ifacelist)
+              return false
+            end
+
             # Link number must be unique
             if linkset.include?(iface["linknumber"].to_i)
               Popup.Message(_("Interface Link number must be unique"))
@@ -594,14 +605,14 @@ module Yast
 
       if _has_ipv6_addr()
         if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
-          Popup.Message(_("Found IPv6 address but IP version is ipv4"))
+          Popup.Message(_("Found IPv6 address configured with IP version ipv4"))
           UI.SetFocus(:ip_version)
           return false
         end
 
         # IPv6 should add node ID manually
         if UI.QueryWidget(Id(:autoid), :Value)
-          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address configured"))
+          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address assigned"))
           UI.SetFocus(:autoid)
           return false
         end
