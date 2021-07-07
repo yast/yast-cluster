@@ -458,7 +458,7 @@ module Yast
         return false
       end
 
-      # FIXME: if multicast still support no node list?
+      # FIXME: if multicast still support not configure node list?
       if Cluster.node_list.size <= 0
         Popup.Message(_("The node list has to be fulfilled"))
         UI.SetFocus(:nodelist)
@@ -504,10 +504,10 @@ module Yast
           return false
         end
 
-        # FIXME: Kronosnet must assign node name?
+        # Multiple links/rings must assign node name
         Cluster.node_list.each do |node|
-          if !node.has_key?("name")
-            Popup.Message(_("Need to assign each node a name when Kronosnet"))
+          if !node.has_key?("name") && ringnum > 1
+            Popup.Message(_("Need to assign each node a name when multiple rings/links"))
             UI.SetFocus(:nodelist)
             return false
           end
@@ -550,8 +550,8 @@ module Yast
 
       # Interface number should match ring number
       if not Cluster.interface_list.empty?
-        if Cluster.interface_list.size != ringnum
-          Popup.Message(_("Interface number should match the ring number"))
+        if Cluster.interface_list.size <= ringnum
+          Popup.Message(_("Interface number should match or smaller than the ring number"))
           UI.SetFocus(:ifacelist)
           return false
         end
@@ -641,6 +641,8 @@ module Yast
         UI.QueryWidget(Id(:transport), :Value)
       )
       Cluster.ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
+
+      # FIXME: if need to notify user will disable secauth automatically when udp/udpu
 
       nil
     end
