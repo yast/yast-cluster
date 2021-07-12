@@ -601,7 +601,7 @@ module Yast
 
       # Interface number should match ring number
       if not Cluster.interface_list.empty?
-        if Cluster.interface_list.size <= ringnum
+        if Cluster.interface_list.size > ringnum
           Popup.Message(_("Interface number should match or smaller than the ring number"))
           UI.SetFocus(:ifacelist)
           return false
