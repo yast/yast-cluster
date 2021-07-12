@@ -152,6 +152,7 @@ module Yast
 
       iplist.each do |ip|
         items = Item(Id(index))
+        items = Builtins.add(items, index)
         items = Builtins.add(items, ip)
         index += 1
 
@@ -231,7 +232,7 @@ module Yast
                 Table(
                   Id(:iplist_table),
                   Opt(:hstretch, :vstretch),
-                  Header("IP addresses"),
+                  Header(_("Link number"), _("IP addresses")),
                   []
                 ),
               ),
@@ -328,6 +329,16 @@ module Yast
       end
       bindaddr = tmp + existing_ips
 
+      links = [value["linknumber"], ""]
+      if !Cluster.node_list.empty?
+        tmp = Cluster.node_list[0]["IPs"].size
+        tmp.times do |index|
+          if !links.include?(index)
+            links.push(index.to_s)
+          end
+        end
+      end
+
       value.default=""
 
       UI.OpenDialog(
@@ -336,7 +347,12 @@ module Yast
           1,
           VBox(
             HBox(
-              MinWidth(40, InputField(Id(:linknumber), _("Link Number"), value["linknumber"])),
+              ComboBox(
+                Id(:linknumber),
+                Opt(:editable, :hstretch),
+                _("Link Number"),
+                links
+              ),
               HSpacing(1),
               ComboBox(
                 Id(:knet_transport), Opt(:hstretch), _("Knet Transport"),
@@ -600,7 +616,7 @@ module Yast
       # Interface number should match ring number
       if not Cluster.interface_list.empty?
         if Cluster.interface_list.size > ringnum
-          Popup.Message(_("Interface number should match or smaller than the ring number"))
+          Popup.Message(_("Number of interfaces should match or smaller than number of rings"))
           UI.SetFocus(:ifacelist)
           return false
         end
@@ -617,13 +633,13 @@ module Yast
         else
           linkset = Set[]
           Cluster.interface_list.each do |iface|
-            if iface["linknumber"].to_i > 7
-              Popup.Message(_("Maximum allowed interface ring number is 7"))
-              UI.SetFocus(:ifacelist)
-              return false
-            elsif iface["linknumber"].to_i > ringnum - 1
+            if iface["linknumber"].to_i > ringnum - 1
               Popup.Message(_("Interface link number should smaller than rings number: ") +
                             (ringnum - 1).to_s)
+              UI.SetFocus(:ifacelist)
+              return false
+            elsif iface["linknumber"].to_i > 7
+              Popup.Message(_("Maximum allowed interface ring number is 7"))
               UI.SetFocus(:ifacelist)
               return false
             end
