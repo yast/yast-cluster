@@ -401,6 +401,55 @@ module Yast
       deep_copy(ret)
     end
 
+    def ValidIPFamily
+      if _has_ipv6_addr()
+        if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
+          Popup.Message(_("Found IPv6 address configured with IP version ipv4"))
+          UI.SetFocus(:ip_version)
+          return false
+        end
+
+        # IPv6 should add node ID manually
+        if UI.QueryWidget(Id(:autoid), :Value)
+          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address assigned"))
+          UI.SetFocus(:autoid)
+          return false
+        end
+
+        # All nodes on the same link have the same IP family
+        ipverlist = []
+        Cluster.node_list[0]["IPs"].each do |ip|
+          ipverlist.push(IP.Check4(ip))
+        end
+        ringnum = ipverlist.size
+
+        # Ring number is identical between nodes
+        Cluster.node_list.each do |node|
+          ret = true
+
+          ringnum.times do |index|
+            if ipverlist[index]
+              if IP.Check6(node["IPs"][index])
+                ret = false
+              end
+            else
+              if IP.Check4(node["IPs"][index])
+                ret = false
+              end
+            end
+          end
+
+          if !ret
+            Popup.Message(_("All nodes on the same link should have the same IP family"))
+            UI.SetFocus(:nodelist)
+            return false
+          end
+        end
+      end # end _has_ipv6_addr()
+
+      true
+    end
+
     def ValidNodeID
       i = 0
       # Set need to require 'set'
@@ -601,19 +650,9 @@ module Yast
         end # end :transport
       end # end interface_list not empty
 
-      if _has_ipv6_addr()
-        if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
-          Popup.Message(_("Found IPv6 address configured with IP version ipv4"))
-          UI.SetFocus(:ip_version)
-          return false
-        end
-
-        # IPv6 should add node ID manually
-        if UI.QueryWidget(Id(:autoid), :Value)
-          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address assigned"))
-          UI.SetFocus(:autoid)
-          return false
-        end
+      ret = ValidIPFamily()
+      if !ret
+         return false
       end
 
       if !UI.QueryWidget(Id(:autoid), :Value)
