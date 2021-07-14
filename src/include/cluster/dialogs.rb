@@ -329,7 +329,11 @@ module Yast
       end
       bindaddr = tmp + existing_ips
 
-      links = [value["linknumber"], ""]
+      if value.has_key?("linknumber")
+        links = [value["linknumber"], ""]
+      else
+        links = [""]
+      end
       if !Cluster.node_list.empty?
         tmp = Cluster.node_list[0]["IPs"].size
         tmp.times do |index|
@@ -393,6 +397,7 @@ module Yast
       UI.ChangeWidget(:linknumber, :ValidChars, "0123456789")
       UI.ChangeWidget(:mcastport, :ValidChars, "0123456789")
       UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
+      UI.ChangeWidget(Id(:knet_transport), :Value, value["knet_transport"])
 
       ret = UI.UserInput
       if ret == :ok
@@ -762,7 +767,7 @@ module Yast
         ip_number = 0
         iplist.each do |ip|
           ip_number += 1
-          if ip_number > 2
+          if ip_number > 3
             items = Builtins.add(items, "...")
             break
           end
@@ -832,8 +837,8 @@ module Yast
       nodelist_table = VBox(
         Left(Label(_("Node List:"))),
         Table(Id(:nodelist), Opt(:hstretch),
-              Header(_("Name"), _("Node ID"), _("IP1"),
-                     _("IP2"), _("More IP...")), table_items),
+              Header(_("Name"), _("Node ID"), _("IP1"), _("IP2"),
+                     _("IP3"), _("More IPs...")), table_items),
         Right(HBox(
           PushButton(Id(:nodelist_add), "Add"),
           PushButton(Id(:nodelist_edit), "Edit"),
