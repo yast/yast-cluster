@@ -638,9 +638,6 @@ def generateMemberString(node):
 			if member_str != "":
 				member_str += ";"
 			member_str += IPaddress
-		else:
-			# ringX number should continues exist from 0
-			break
 
 	return '"%s"' % member_str.strip()
 
