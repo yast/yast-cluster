@@ -318,7 +318,24 @@ module Yast
       deep_copy(ret)
     end
 
-    def interface_input_dialog(value)
+    def switch_interface_button(transport)
+      # transport "udpu" should not reach here
+      knet = true
+      if transport != "knet"
+        knet = false
+      end
+
+      UI.ChangeWidget(Id(:knet_link_priority), :Enabled, knet)
+      UI.ChangeWidget(Id(:knet_transport), :Enabled, knet)
+
+      UI.ChangeWidget(Id(:bindnetaddr), :Enabled, !knet)
+      UI.ChangeWidget(Id(:mcastaddr), :Enabled, !knet)
+      UI.ChangeWidget(Id(:mcastport), :Enabled, !knet)
+
+      nil
+    end
+
+    def interface_input_dialog(value, transport="knet")
       existing_ips = _get_bind_address()
       if value.has_key?("bindnetaddr")
         tmp = [value["bindnetaddr"], ""]
@@ -401,16 +418,21 @@ module Yast
       UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
       UI.ChangeWidget(Id(:knet_transport), :Value, value["knet_transport"])
 
+      switch_interface_button(transport)
+
       ret = UI.UserInput
       if ret == :ok
         ret = {}
 
         ret["linknumber"] = UI.QueryWidget(:linknumber, :Value)
-        ret["knet_transport"] = UI.QueryWidget(:knet_transport, :Value)
-        ret["knet_link_priority"] = UI.QueryWidget(:knet_link_priority, :Value)
-        ret["bindnetaddr"] = UI.QueryWidget(:bindnetaddr, :Value)
-        ret["mcastaddr"] = UI.QueryWidget(:mcastaddr, :Value)
-        ret["mcastport"] = UI.QueryWidget(:mcastport, :Value)
+        if transport == "knet"
+          ret["knet_transport"] = UI.QueryWidget(:knet_transport, :Value)
+          ret["knet_link_priority"] = UI.QueryWidget(:knet_link_priority, :Value)
+        elsif transport == "udp"
+          ret["bindnetaddr"] = UI.QueryWidget(:bindnetaddr, :Value)
+          ret["mcastaddr"] = UI.QueryWidget(:mcastaddr, :Value)
+          ret["mcastport"] = UI.QueryWidget(:mcastport, :Value)
+        end
 
         ret.each_key do |key|
           if ret[key] == ""
@@ -598,8 +620,9 @@ module Yast
           end # end iface loop
         end
 
-      else # transport != "knet"
-        # Should not have knet parameters in Unicast or Multicast
+      elsif UI.QueryWidget(Id(:transport), :Value) == "udp"
+        # Should not have knet parameters in Multicast
+        # Won't save interface list in Unicast anyway
         if not Cluster.interface_list.empty?
           Cluster.interface_list.each do |iface|
             if iface.has_key?("knet_transport") || iface.has_key?("knet_link_priority")
@@ -660,12 +683,14 @@ module Yast
 
             linkset << iface["linknumber"].to_i
 
-            # Should not have ["bindnetaddr", "mcastaddr", "mcastport"] configured
-            iface.each_key do |key|
-              if ["bindnetaddr", "mcastaddr", "mcastport"].include?(key)
-                Popup.Message(_("Should not configure bind address/multicast address/multicast port in Unicast or Kronosnet"))
-                UI.SetFocus(:ifacelist)
-                return false
+            if UI.QueryWidget(Id(:transport), :Value) == "knet"
+              # Should not have ["bindnetaddr", "mcastaddr", "mcastport"] configured
+              iface.each_key do |key|
+                if ["bindnetaddr", "mcastaddr", "mcastport"].include?(key)
+                  Popup.Message(_("Should not configure bind address/multicast address/multicast port in Kronosnet"))
+                  UI.SetFocus(:ifacelist)
+                  return false
+                end
               end
             end
 
@@ -690,6 +715,7 @@ module Yast
     end
 
     def SaveCommunication
+      # FIXME: if need to notify user will disable secauth automatically when udp/udpu
       ringnum = Cluster.node_list[0]["IPs"].size
       if ringnum == 1
         Cluster.link_mode = "passive"
@@ -704,7 +730,10 @@ module Yast
       )
       Cluster.ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
 
-      # FIXME: if need to notify user will disable secauth automatically when udp/udpu
+      # For UDPU an interface section is not needed
+      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
+        Cluster.interface_list = []
+      end
 
       nil
     end
@@ -953,6 +982,19 @@ module Yast
         UI.ChangeWidget(Id(:autoid), :Enabled, true)
       end
 
+      # For UDPU an interface section is not needed
+      if transport == "udpu"
+        UI.ChangeWidget(Id(:ifacelist), :Enabled, false)
+        UI.ChangeWidget(Id(:ifacelist_add), :Enabled, false)
+        UI.ChangeWidget(Id(:ifacelist_edit), :Enabled, false)
+        UI.ChangeWidget(Id(:ifacelist_del), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:ifacelist), :Enabled, true)
+        UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
+        UI.ChangeWidget(Id(:ifacelist_edit), :Enabled, true)
+        UI.ChangeWidget(Id(:ifacelist_del), :Enabled, true)
+      end
+
       if _has_ipv6_addr()
         UI.ChangeWidget(Id(:autoid), :Value, false)
         UI.ChangeWidget(Id(:autoid), :Enabled, false)
@@ -971,6 +1013,7 @@ module Yast
         fill_interface_entries()
         switch_totem_button(UI.QueryWidget(Id(:transport), :Value))
 
+        transport = UI.QueryWidget(Id(:transport), :Value).to_s
         ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
 
         ret = UI.UserInput
@@ -998,7 +1041,7 @@ module Yast
         end
 
         if ret == :ifacelist_add
-          ret = interface_input_dialog({})
+          ret = interface_input_dialog({}, transport)
 
           next if ret == :cancel
           Cluster.interface_list.push(ret)
@@ -1007,7 +1050,7 @@ module Yast
         if ret == :ifacelist_edit
           current = 0
           current = UI.QueryWidget(:ifacelist, :CurrentItem).to_i
-          ret = interface_input_dialog(Cluster.interface_list[current] || {})
+          ret = interface_input_dialog(Cluster.interface_list[current] || {}, transport)
 
           next if ret == :cancel
           # Clear the interface_input_dialog support key in case not configured
