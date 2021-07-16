@@ -226,7 +226,7 @@ module Yast
       nil
     end
 
-    def nodelist_input_dialog(value={}, ip_version="ipv6-4")
+    def nodelist_input_dialog(value={}, transport = "knet", ip_version="ipv6-4")
       value.default = ""
 
       UI.OpenDialog(
@@ -304,6 +304,12 @@ module Yast
         if ret == :ok
           if !_valid_iplist(iplist, ip_version)
             UI.SetFocus(:iplist_table)
+            next
+          end
+
+          if transport == "knet" && UI.QueryWidget(:mynodeid, :Value).to_i <= 0
+            Popup.Message(_("Node ID is required with a positive integer for Kronosnet mode."))
+            UI.SetFocus(:mynodeid)
             next
           end
 
@@ -410,9 +416,9 @@ module Yast
                 bindaddr
               ),
               HSpacing(1),
-              MinWidth(40, InputField(Id(:mcastaddr), _("Mcast Address"), value["mcastaddr"])),
+              MinWidth(40, InputField(Id(:mcastaddr), _("Multicast Address"), value["mcastaddr"])),
               HSpacing(1),
-              MinWidth(20, InputField(Id(:mcastport), _("Mcast Port") , value["mcastport"])),
+              MinWidth(20, InputField(Id(:mcastport), _("Multicast Port") , value["mcastport"])),
             ),
             VSpacing(1),
             Right(
@@ -904,7 +910,7 @@ module Yast
         Left(Label(_("Interface List: (Optional)"))),
         Table(Id(:ifacelist), Opt(:hstretch),
               Header(_("Link Number"), _("Knet Transport"), _("Knet Link Priority"),
-                     _("Bind Address"), _("Mcast Addr"), _("Mcast port")), table_items),
+                     _("Bind Net Addr"), _("Mulitcast Addr"), _("Multicast Port")), table_items),
         Right(HBox(
           PushButton(Id(:ifacelist_add), "Add"),
           PushButton(Id(:ifacelist_edit), "Edit"),
@@ -1036,7 +1042,7 @@ module Yast
         ret = UI.UserInput
 
         if ret == :nodelist_add
-          ret = nodelist_input_dialog({}, ip_version)
+          ret = nodelist_input_dialog({}, transport, ip_version)
 
           next if ret == :cancel
           Cluster.node_list.push(ret)
@@ -1045,7 +1051,7 @@ module Yast
         if ret == :nodelist_edit
           current = 0
           current = UI.QueryWidget(:nodelist, :CurrentItem).to_i
-          ret = nodelist_input_dialog(Cluster.node_list[current] || {}, ip_version)
+          ret = nodelist_input_dialog(Cluster.node_list[current] || {}, transport, ip_version)
 
           next if ret == :cancel
           Cluster.node_list[current] = ret
