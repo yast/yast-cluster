@@ -174,7 +174,7 @@ node_option_table = {
 		"ring5_addr":{"doc":"ring5 address","type":"string", "default_value":""},
 		"ring6_addr":{"doc":"ring6 address","type":"string", "default_value":""},
 		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":""},
-		"name":{"doc":"This option is used mainly with knet transport to identify local node.",
+		"name":{"doc":"This option is used mainly with multiple rings to identify local node.",
                         "type":"string", "default_value":""},
 		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string", "default_value":0},
 		"quorum_votes":{"doc":"Quorum votes of a node","type":"int", "default_value":1},
