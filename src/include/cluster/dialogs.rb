@@ -88,8 +88,8 @@ module Yast
 
     end
 
-    def _has_ipv6_addr()
-      has_ipv6 = false
+    def _has_ipfamily_addr(version="ipv6")
+      has_ip = false
 
       if not Cluster.node_list.empty?
         Cluster.node_list.each do |node|
@@ -97,9 +97,16 @@ module Yast
           iplist = node["IPs"]
 
           iplist.each do |ip|
-            if IP.Check6(ip)
-              has_ipv6 = true
-              break
+            if version == "ipv4"
+              if IP.Check4(ip)
+                has_ip = true
+                break
+              end
+            else
+              if IP.Check6(ip)
+                has_ip = true
+                break
+              end
             end
           end # end iplist loop
         end # end node loop
@@ -109,16 +116,23 @@ module Yast
         Cluster.interface_list.each do |iface|
           ["bindnetaddr", "mcastaddr"].each do |ele|
             if iface.has_key?(ele)
-              if IP.Check6(iface[ele])
-                has_ipv6 = true
-                break
+              if version == "ipv4"
+                if IP.Check4(iface[ele])
+                  has_ip = true
+                  break
+                end
+              else
+                if IP.Check6(iface[ele])
+                  has_ip = true
+                  break
+                end
               end
             end
           end
         end # end interface loop
       end # end interface_list check
 
-      has_ipv6
+      has_ip
     end
 
     # return `cancel or a string
@@ -447,9 +461,9 @@ module Yast
     end
 
     def ValidIPFamily
-      if _has_ipv6_addr()
+      if _has_ipfamily_addr("ipv6")
         if UI.QueryWidget(Id(:ip_version), :Value) == "ipv4"
-          Popup.Message(_("Found IPv6 address configured with IP version ipv4"))
+          Popup.Message(_("Found IPv6 address, but configured with IP version ipv4"))
           UI.SetFocus(:ip_version)
           return false
         end
@@ -490,7 +504,15 @@ module Yast
             return false
           end
         end
-      end # end _has_ipv6_addr()
+      end # end _has_ipfamily_addr()
+
+      if _has_ipfamily_addr("ipv4")
+        if UI.QueryWidget(Id(:ip_version), :Value) == "ipv6"
+          Popup.Message(_("Found IPv4 address, but configured with IP version ipv6"))
+          UI.SetFocus(:ip_version)
+          return false
+        end
+      end
 
       true
     end
@@ -995,7 +1017,7 @@ module Yast
         UI.ChangeWidget(Id(:ifacelist_del), :Enabled, true)
       end
 
-      if _has_ipv6_addr()
+      if _has_ipfamily_addr("ipv6")
         UI.ChangeWidget(Id(:autoid), :Value, false)
         UI.ChangeWidget(Id(:autoid), :Enabled, false)
       end
