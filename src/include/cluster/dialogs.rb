@@ -281,20 +281,24 @@ module Yast
 
         if ret == :ip_add
           ret = text_input_dialog(_("Add a IP address"), "")
-          next if ret == :cancel
+          next if ret == :cancel || ret.empty?
           iplist.push(ret)
         end
 
         if ret == :ip_edit
           current = 0
-
           current = UI.QueryWidget(:iplist_table, :CurrentItem).to_i
+
           ret = text_input_dialog(
             _("Edit the IP address"),
             iplist[current]
           )
           next if ret == :cancel
-          iplist[current] = ret.to_s
+          if ret.empty?
+            iplist.delete_at(current)
+          else
+            iplist[current] = ret.to_s
+          end
         end
 
         if ret == :ip_del
@@ -665,7 +669,7 @@ module Yast
       # No duplicate ring number
       Cluster.node_list.each do |node|
         if node["IPs"].size != ringnum
-          Popup.Message(_("Ring number must identical between nodes"))
+          Popup.Message(_("The total number of rings must be identical between nodes"))
           UI.SetFocus(:nodelist)
           return false
         end
@@ -693,7 +697,7 @@ module Yast
           Cluster.interface_list.each do |iface|
             if iface["linknumber"].to_i > ringnum - 1
               Popup.Message(_("Interface link number should smaller than rings number: ") +
-                            (ringnum - 1).to_s)
+                            (ringnum).to_s)
               UI.SetFocus(:ifacelist)
               return false
             elsif iface["linknumber"].to_i > 7
@@ -896,8 +900,8 @@ module Yast
       nodelist_table = VBox(
         Left(Label(_("Node List:"))),
         Table(Id(:nodelist), Opt(:hstretch),
-              Header(_("Name"), _("Node ID"), _("IP1"), _("IP2"),
-                     _("IP3"), _("More IPs...")), table_items),
+              Header(_("Name"), _("Node ID"), _("IP0"), _("IP1"),
+                     _("IP2"), _("More IPs...")), table_items),
         Right(HBox(
           PushButton(Id(:nodelist_add), "Add"),
           PushButton(Id(:nodelist_edit), "Edit"),
@@ -1071,7 +1075,7 @@ module Yast
         if ret == :ifacelist_add
           ret = interface_input_dialog({}, transport)
 
-          next if ret == :cancel
+          next if ret == :cancel || ret.empty?
           Cluster.interface_list.push(ret)
         end
 
@@ -1089,6 +1093,10 @@ module Yast
 
           # Use merge! since not all parameters show in UI
           Cluster.interface_list[current].merge!(ret)
+
+          if ret.empty? && !Cluster.interface_list[current].empty?
+            Popup.Message(_("Found interface parameter configured manually but not support in UI"))
+          end
         end
 
         if ret == :ifacelist_del
@@ -1545,7 +1553,7 @@ module Yast
               HSpacing(5),
               Left(ComboBox(
                 Id(:crypto_cipher), Opt(:hstretch, :notify), _("Crypto Cipher:"),
-                ["aes256", "aes192", "aes128", "3des", "none"]
+                ["aes256", "aes192", "aes128", "none"]
               )),
               HSpacing(20),
             ),
