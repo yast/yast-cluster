@@ -102,6 +102,7 @@ totem_option_table = {
 				"type":"int", "default_value":5},
 	"block_unlisted_ips":{"doc":"Allow UDPU and KNET to drop packets from IP addresses that are not known",
 				"type":"select[yes, no]", "default_value":"yes"},
+	"cancel_hold_on_retransmit":{"doc":"Allows Corosync to hold token by representative when there is too much retransmit messages.", "type":"select[no, yes]", "default_value":"no"},
 	"join":{"doc":"How long to wait for join messages in membership protocol. in ms",
 		"type":"int", "default_value":50,
 		"suggested_value":60},
