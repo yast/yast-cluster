@@ -62,7 +62,9 @@ module Yast
         "/etc/sysconfig/nfs",
         "/etc/csync2/csync2.cfg",
         "/etc/csync2/key_hagroup",
-        "/etc/modules-load.d/watchdog.conf"
+        "/etc/modules-load.d/watchdog.conf",
+        "/etc/crm/crm.conf",
+        "/etc/crm/profiles.yml"
       ]
 
       @csync2_port = "30865"
