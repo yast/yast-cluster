@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Sat Oct 29 14:15:06 UTC 2022 - XinLiang <XLiang@suse.com>
+
+- bsc#1204530, set crypto_hash as "sha1" and set crypto_cipher as "aes256",
+- Set transport as "udpu" when detect in cloud,
+- Set default values for mcastaddr/mcastport/bindnedaddr when cluster firstly configured
+- Set focus on "Generate Auth Key File" when secauth is true
+- Implement ValidateSecurity method
+- Set focus on memberaddr add when using udpu
+- Version 3.4.3
+
+-------------------------------------------------------------------
 Tue Jan  5 08:24:53 UTC 2021 - nick wang <nwang@suse.com>
 
 - bsc#1180424, add watchdog.conf to csync2 default list
