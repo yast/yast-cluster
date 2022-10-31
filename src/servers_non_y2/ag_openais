@@ -36,6 +36,14 @@ textdomain("openais")
 import copy
 import sys
 import subprocess
+import random
+
+
+def gen_mcastaddr():
+	return "239.%d.%d.%d" % (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(1, 255))
 
 
 def get_stdout_stderr(cmd, input_s=None, shell=True):
@@ -565,34 +573,18 @@ class OpenAISConf_Parser:
 					return "nil"
 			elif len(path) == 4:
 				if path[1] == "interface":
-					if path[2] == "interface0":
-						i = get_interface(0)
-						if i == None:
-							return "nil"
+					if path[2] in ["interface0", "interface1"]:
+						i = get_interface(0 if path[2] == "interface0" else 1)
+						if path[3] == "bindnetaddr":
+                                                        return "nil" if i is None else '"%s"' % i.get("bindnetaddr", "")
+						elif path[3] == "mcastaddr":
+                                                        maddr = gen_mcastaddr()
+                                                        return '"%s"' % maddr if i is None else '"%s"' % i.get("mcastaddr", maddr)
+						elif path[3] == "mcastport":
+                                                        mport = 5405 if path[2] == "interface0" else 5407
+                                                        return '"%d"' % mport if i is None else '"%d"' % i.get("mcastport", mport)
 						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							if path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
-							else:
-								return "nil"
-					elif path[2] == "interface1":
-						i = get_interface(1)
-						if i == None:
 							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							else:
-								return "nil"
 					elif path[2] == "member":
 						return '"%s"' % check_conf_format()
 					else:
