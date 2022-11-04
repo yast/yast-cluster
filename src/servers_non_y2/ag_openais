@@ -35,8 +35,17 @@ textdomain("openais")
 #from ycp import *
 import copy
 import sys
+import random
 
 debug = False
+
+
+def gen_mcastaddr():
+	return "239.%d.%d.%d" % (
+		random.randint(0, 255),
+		random.randint(0, 255),
+		random.randint(1, 255))
+
 
 #the option table is used to parse and write suggested_value if no options are read
 
@@ -56,16 +65,16 @@ totem_option_table = {
 		   "default_value":2,
 		   "suggested_value":2},
 	"crypto_cipher":{"doc":"Used for mutual node authentication",
-		"type":"select[aes256, aes192, aes128 and 3des,none]","default_value":"none",
+		"type":"select[aes256, aes192, aes128, 3des, none]","default_value":"aes256",
 		},
 	"crypto_hash":{"doc":"Used for mutual node authentication",
-		"type":"select[none,md5,sha1,sha256,sha384,sha512]","default_value":"none",
+		"type":"select[none, md5, sha1, sha256, sha384, sha512]","default_value":"sha1",
 		},
 	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
 			       "default_value":"yes"},
 	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"hacluster"},
 	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message",
-		   "default_value":"off"},
+		   "default_value":"on"},
 	"rrp_mode":{"doc":"The mode for redundant ring. None is used when only 1 interface specified, otherwise, only active or passive may be choosen",
 		    "type":"select[none,active,passive]", "default_value":"none"},
 	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
@@ -108,7 +117,7 @@ totem_option_table = {
 	"rrp_problem_count_threshhold":{"doc":"The number of times a problem is detected with a link before setting the link faulty.",
 					"type":"int", "default_value":10},
 	"rrp_token_expired_timeout":{"doc":"This specifies the time in milliseconds to increment the problem counter for the redundant ring protocol after not having received a token from all rings for a particular processor.", "type":"int", "default_value":47},
-	"transport":{"doc":"Transport protocol", "type":"select[udp,udpu]","default_value":"udp"},
+	"transport":{"doc":"Transport protocol", "type":"select[udp,udpu]","default_value":"udpu"},
 	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv4,ipv6]","default_value":"ipv4"},
 }
 
@@ -583,13 +592,7 @@ def load_ais_conf(filename):
 			os.rename(filename, "/etc/corosync/corosync.conf.corrupted");
 		except:
 			pass
-		try:
-			f = open(filename+".example", "r")
-			file_parser(f)
-			f.close()
-			return
-		except:
-			pass
+
 
 def safe_return_str(obj):
 	'''
@@ -690,11 +693,11 @@ class OpenAISConf_Parser(object):
 				return "nil"
 			elif len(path) == 2:
 				if path[1] == "secauth":
-					return '"%s"' % totem_options.get("secauth", "")
+					return '"%s"' % totem_options.get("secauth", "on")
 				elif path[1] == "crypto_hash":
-					return '"%s"' % totem_options.get("crypto_hash", "none")
+					return '"%s"' % totem_options.get("crypto_hash", "sha1")
 				elif path[1] == "crypto_cipher":
-					return '"%s"' % totem_options.get("crypto_cipher", "none")
+					return '"%s"' % totem_options.get("crypto_cipher", "aes256")
 				elif path[1] == "autoid":
 					#FIXME, check nodelist has nodeid
 					for i in nodelist_options.get('node'):
@@ -704,7 +707,7 @@ class OpenAISConf_Parser(object):
 				elif path[1] == "rrpmode":
 					return '"%s"' % totem_options.get("rrp_mode", "none")
 				elif path[1] == "transport":
-					return '"%s"' % totem_options.get("transport", "udp")
+					return '"%s"' % totem_options.get("transport", "udpu")
 				elif path[1] == "cluster_name":
 					return '"%s"' % totem_options.get("cluster_name", "hacluster")
 				elif path[1] == "ip_version":
@@ -713,40 +716,22 @@ class OpenAISConf_Parser(object):
 					return "nil"
 			elif len(path) == 4:
 				if path[1] == "interface":
-					if path[2] == "interface0":
-						i = get_interface(0)
-						if i == None:
-							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
-							else:
-								return "nil"
-					elif path[2] == "interface1":
-						i = get_interface(1)
-						if i == None:
-							return "nil"
-						else:
-							if path[3] == "bindnetaddr":
-								return '"%s"' % i.get("bindnetaddr", "")
-							elif path[3] == "mcastaddr":
-								return '"%s"' % i.get("mcastaddr", "")
-							elif path[3] == "mcastport":
-								return '"%d"' % i.get("mcastport", 5405)
-							elif path[3] == "ttl":
-								return '"%d"' % i.get("ttl", 1)
-							else:
-								return "nil"
-					elif path[2] == "member":
-						return '"%s"' % check_conf_format()
-					else:
-						return "nil"
+                                        if path[2] in ["interface0", "interface1"]:
+                                                i = get_interface(0 if path[2] == "interface0" else 1)
+                                                if path[3] == "bindnetaddr":
+                                                        return "nil" if i is None else '"%s"' % i.get("bindnetaddr", "")
+                                                elif path[3] == "mcastaddr":
+                                                        maddr = gen_mcastaddr()
+                                                        return '"%s"' % maddr if i is None else '"%s"' % i.get("mcastaddr", maddr)
+                                                elif path[3] == "mcastport":
+                                                        mport = 5405 if path[2] == "interface0" else 5407
+                                                        return '"%d"' % mport if i is None else '"%d"' % i.get("mcastport", mport)
+                                                elif path[3] == "ttl":
+                                                        return '"%d"' % i.get("ttl", 1)
+                                        elif path[2] == "member":
+                                                return '"%s"' % check_conf_format()
+                                        else:
+                                                return "nil"
 				else:
 					return "nil"
 			else:
