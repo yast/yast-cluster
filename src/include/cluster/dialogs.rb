@@ -611,6 +611,9 @@ module Yast
         UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
       end
 
+      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
+        UI.SetFocus(:memberaddr_add)
+      end
       # BNC#879596, check the corosync.conf format
       if Cluster.config_format == "old"
         Popup.Message(_(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings."))
