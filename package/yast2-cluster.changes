@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Fri Nov  4 14:59:10 UTC 2022 - XinLiang <XLiang@suse.com>
+
+- bsc#1204530, set crypto_hash as "sha1" and set crypto_cipher as "aes256",
+- set transport as "udpu" by default,
+- set default values for mcastaddr/mcastport/bindnedaddr when cluster firstly configured
+- Set focus on "Generate Auth Key File" when secauth is true
+- Implement ValidateSecurity method
+- Set focus on memberaddr add when using udpu
+- Version 4.4.3
+
+-------------------------------------------------------------------
 Tue Sep 14 07:09:49 UTC 2021 - nick wang <nwang@suse.com>
 
 - bsc#1190466, add /etc/crm/crm.conf and /etc/crm/profiles.yml
