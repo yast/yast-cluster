@@ -7,7 +7,7 @@ Thu Nov  3 06:08:28 UTC 2022 - XinLiang <XLiang@suse.com>
 - Set focus on "Generate Auth Key File" when secauth is true
 - Implement ValidateSecurity method
 - Set focus on memberaddr add when using udpu
-- Version 4.2.12
+- Version 4.3.7
 
 -------------------------------------------------------------------
 Tue Jan  5 08:24:53 UTC 2021 - nick wang <nwang@suse.com>
