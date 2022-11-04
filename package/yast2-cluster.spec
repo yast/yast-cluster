@@ -18,7 +18,7 @@
 %define _fwdefdir %{_libexecdir}/firewalld/services
 
 Name:           yast2-cluster
-Version:        4.2.11
+Version:        4.2.12
 Release:        0
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
