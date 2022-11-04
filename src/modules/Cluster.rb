@@ -240,6 +240,26 @@ module Yast
       @address = SCR.Read(path(".openais.nodelist.node")).split(" ")
 
       interfaces = SCR.Dir(path(".openais.totem.interface"))
+      if interfaces.nil? or interfaces.empty?
+          @mcastaddr1 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
+          )
+          @bindnetaddr1 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface0.bindnetaddr"))
+          )
+          @mcastaddr2 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
+          )
+          @bindnetaddr2 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface1.bindnetaddr"))
+          )
+          @mcastport1 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface0.mcastport"))
+          )
+          @mcastport2 = Convert.to_string(
+            SCR.Read(path(".openais.totem.interface.interface1.mcastport"))
+          )
+      end
       Builtins.foreach(interfaces) do |interface|
         if interface == "interface0"
           if @address != []

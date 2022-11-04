@@ -613,6 +613,9 @@ module Yast
         UI.ChangeWidget(Id(:rrpmode), :Enabled, true)
       end
 
+      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
+        UI.SetFocus(:memberaddr_add)
+      end
       # BNC#879596, check the corosync.conf format
       if Cluster.config_format == "old"
         Popup.Message(_(" NOTICE: Detected old corosync configuration.\n Please reconfigure the member list and confirm all other settings."))
@@ -745,8 +748,13 @@ module Yast
       deep_copy(ret)
     end
 
-    def ValidateSecurity
-      ret = true
+    def ValidateSecurity(authkey_created=false)
+      if UI.QueryWidget(Id(:secauth), :Value) == true and authkey_created == false
+        Popup.Message(_("Need to press \"Generate Auth Key File\""))
+	ret = false
+      else
+        ret = true
+      end
       ret
     end
 
@@ -1135,6 +1143,13 @@ module Yast
       UI.ChangeWidget(Id(:crypto_hash), :Value, Cluster.crypto_hash)
       UI.ChangeWidget(Id(:crypto_cipher), :Value, Cluster.crypto_cipher)
 
+      if UI.QueryWidget(Id(:secauth), :Value) == true
+	if UI.QueryWidget(Id(:crypto_cipher), :Value) != "none" or UI.QueryWidget(Id(:crypto_hash), :Value) != "none"
+	  UI.SetFocus(:genf)
+	end
+      end
+
+      authkey_created = false
       while true
         ret = UI.UserInput
 
@@ -1150,6 +1165,7 @@ module Yast
             Popup.Message(_("Failed to create /etc/corosync/authkey"))
           else
             Popup.Message(_("Create /etc/corosync/authkey succeeded"))
+	    authkey_created = true
           end
           next
         end
@@ -1161,7 +1177,7 @@ module Yast
         end
 
         if ret == :next || ret == :back
-          val = ValidateSecurity()
+          val = ValidateSecurity(authkey_created)
           if val == true
             SaveSecurity()
             break
@@ -1185,7 +1201,7 @@ module Yast
 
         if Builtins.contains(@DIALOG, Convert.to_string(ret))
           ret = Builtins.symbolof(Builtins.toterm(ret))
-          val = ValidateSecurity()
+          val = ValidateSecurity(authkey_created)
           if val == true
             SaveSecurity()
             break
