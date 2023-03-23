@@ -27,7 +27,6 @@
 
 import gettext, os, re
 from gettext import textdomain
-textdomain("corosync")
 
 # python bindings will be droped
 # delete all python bindings
