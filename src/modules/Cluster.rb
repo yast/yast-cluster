@@ -531,13 +531,10 @@ module Yast
       SCR.Write(path(".csync2_ha.value.ha_group.host"), @csync2_host)
       SCR.Write(path(".csync2_ha.value.ha_group.include"), @csync2_include)
       SCR.Write(path(".csync2_ha.value.ha_group.key"), [@csync2_key_file])
+      SCR.Write(path(".csync2_ha"), nil)
 
       SCR.Write(path(".sysconfig.pacemaker.LRMD_MAX_CHILDREN"), 4)
-      SCR.Write(
-        path(".sysconfig.openais.COROSYNC_DEFAULT_CONFIG_IFACE"),
-        "openaisserviceenableexperimental:corosync_parser"
-      )
-
+      SCR.Write(path(".sysconfig.pacemaker"), nil)
       nil
     end
 
@@ -747,7 +744,7 @@ module Yast
         SCR.Execute(path(".target.bash_output"), "systemctl enable corosync.service")
       end
       if @global_startcsync2 == true
-        SCR.Execute(path(".target.bash_output"), "systemctl enable csync2")
+        SCR.Execute(path(".target.bash_output"), "systemctl enable csync2.socket")
       end
 
       return false if Abort()
