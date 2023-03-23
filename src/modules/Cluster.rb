@@ -86,7 +86,7 @@ module Yast
 
       @corokey = ""
       @csync2key = ""
-      @global_startopenais = false
+      @global_startcorosync = false
       @global_startcsync2 = false
 
       @transport = ""
@@ -175,7 +175,7 @@ module Yast
 
     def LoadQdeviceHeuristicsExecutables
       executables = {}
-      executables_str = SCR.Read(path(".openais.quorum.device.heuristics.executables"))
+      executables_str = SCR.Read(path(".corosync.quorum.device.heuristics.executables"))
 
       if executables_str
         executables_ori = eval(executables_str)
@@ -191,25 +191,25 @@ module Yast
     end
 
     def LoadCorosyncQdeviceConfig
-      if SCR.Read(path(".openais.quorum.device"))
+      if SCR.Read(path(".corosync.quorum.device"))
         @corosync_qdevice = true
       end
 
       if @corosync_qdevice
-        @qdevice_model = SCR.Read(path(".openais.quorum.device.model"))
-        @qdevice_votes = SCR.Read(path(".openais.quorum.device.votes")).to_s
+        @qdevice_model = SCR.Read(path(".corosync.quorum.device.model"))
+        @qdevice_votes = SCR.Read(path(".corosync.quorum.device.votes")).to_s
 
-        @qdevice_host = SCR.Read(path(".openais.quorum.device.net.host"))
-        @qdevice_port = SCR.Read(path(".openais.quorum.device.net.port")).to_s
-        @qdevice_tls = SCR.Read(path(".openais.quorum.device.net.tls"))
-        @qdevice_algorithm = SCR.Read(path(".openais.quorum.device.net.algorithm"))
-        @qdevice_tie_breaker = SCR.Read(path(".openais.quorum.device.net.tie_breaker"))
+        @qdevice_host = SCR.Read(path(".corosync.quorum.device.net.host"))
+        @qdevice_port = SCR.Read(path(".corosync.quorum.device.net.port")).to_s
+        @qdevice_tls = SCR.Read(path(".corosync.quorum.device.net.tls"))
+        @qdevice_algorithm = SCR.Read(path(".corosync.quorum.device.net.algorithm"))
+        @qdevice_tie_breaker = SCR.Read(path(".corosync.quorum.device.net.tie_breaker"))
 
-        @heuristics_mode = SCR.Read(path(".openais.quorum.device.heuristics.mode"))
+        @heuristics_mode = SCR.Read(path(".corosync.quorum.device.heuristics.mode"))
         if @heuristics_mode
-          @heuristics_timeout = SCR.Read(path(".openais.quorum.device.heuristics.timeout")).to_s
-          @heuristics_sync_timeout = SCR.Read(path(".openais.quorum.device.heuristics.sync_timeout")).to_s
-          @heuristics_interval = SCR.Read(path(".openais.quorum.device.heuristics.interval")).to_s
+          @heuristics_timeout = SCR.Read(path(".corosync.quorum.device.heuristics.timeout")).to_s
+          @heuristics_sync_timeout = SCR.Read(path(".corosync.quorum.device.heuristics.sync_timeout")).to_s
+          @heuristics_interval = SCR.Read(path(".corosync.quorum.device.heuristics.interval")).to_s
           @heuristics_executables = LoadQdeviceHeuristicsExecutables()
         end
       end
@@ -219,45 +219,45 @@ module Yast
 
     def LoadClusterConfig
 
-      if Convert.to_string(SCR.Read(path(".openais.totem.secauth"))) == "on"
+      if Convert.to_string(SCR.Read(path(".corosync.totem.secauth"))) == "on"
         @secauth = true
-        @crypto_hash = SCR.Read(path(".openais.totem.crypto_hash"))
-        @crypto_cipher = SCR.Read(path(".openais.totem.crypto_cipher"))
+        @crypto_hash = SCR.Read(path(".corosync.totem.crypto_hash"))
+        @crypto_cipher = SCR.Read(path(".corosync.totem.crypto_cipher"))
       else
         @secauth = false
       end
 
-      @cluster_name = SCR.Read(path(".openais.totem.cluster_name"))
+      @cluster_name = SCR.Read(path(".corosync.totem.cluster_name"))
 
-      @ip_version = SCR.Read(path(".openais.totem.ip_version"))
+      @ip_version = SCR.Read(path(".corosync.totem.ip_version"))
 
-      @expected_votes = SCR.Read(path(".openais.quorum.expected_votes")).to_s
+      @expected_votes = SCR.Read(path(".corosync.quorum.expected_votes")).to_s
 
-      @config_format = SCR.Read(path(".openais.totem.interface.member.memberaddr")).to_s
+      @config_format = SCR.Read(path(".corosync.totem.interface.member.memberaddr")).to_s
 
-      @transport = SCR.Read(path(".openais.totem.transport"))
+      @transport = SCR.Read(path(".corosync.totem.transport"))
       @transport = "udp" if @transport == nil
-      @address = SCR.Read(path(".openais.nodelist.node")).split(" ")
+      @address = SCR.Read(path(".corosync.nodelist.node")).split(" ")
 
-      interfaces = SCR.Dir(path(".openais.totem.interface"))
+      interfaces = SCR.Dir(path(".corosync.totem.interface"))
       if interfaces.nil? or interfaces.empty?
           @mcastaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface0.mcastaddr"))
           )
           @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.bindnetaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface0.bindnetaddr"))
           )
           @mcastaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface1.mcastaddr"))
           )
           @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.bindnetaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface1.bindnetaddr"))
           )
           @mcastport1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastport"))
+            SCR.Read(path(".corosync.totem.interface.interface0.mcastport"))
           )
           @mcastport2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastport"))
+            SCR.Read(path(".corosync.totem.interface.interface1.mcastport"))
           )
       end
       Builtins.foreach(interfaces) do |interface|
@@ -267,7 +267,7 @@ module Yast
             # memberaddr of udpu only read in interface0
             # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
             # 123.3.21.44;156.32.123.9"
-            address = SCR.Read(path(".openais.nodelist.node")).split(" ")
+            address = SCR.Read(path(".corosync.nodelist.node")).split(" ")
             address.each do |addr|
               p = addr.split("|")
               if p[1] != nil
@@ -290,35 +290,35 @@ module Yast
 
           if @transport == "udp"
             @mcastaddr1 = Convert.to_string(
-              SCR.Read(path(".openais.totem.interface.interface0.mcastaddr"))
+              SCR.Read(path(".corosync.totem.interface.interface0.mcastaddr"))
             )
           end
           @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.bindnetaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface0.bindnetaddr"))
           )
           @mcastport1 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface0.mcastport"))
+            SCR.Read(path(".corosync.totem.interface.interface0.mcastport"))
           )
         end
         if interface == "interface1"
           # member address only get in interface0
           if @transport == "udp"
             @mcastaddr2 = Convert.to_string(
-              SCR.Read(path(".openais.totem.interface.interface1.mcastaddr"))
+              SCR.Read(path(".corosync.totem.interface.interface1.mcastaddr"))
             )
           end
           @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.bindnetaddr"))
+            SCR.Read(path(".corosync.totem.interface.interface1.bindnetaddr"))
           )
           @mcastport2 = Convert.to_string(
-            SCR.Read(path(".openais.totem.interface.interface1.mcastport"))
+            SCR.Read(path(".corosync.totem.interface.interface1.mcastport"))
           )
 
           @enable2 = true
         end
       end
 
-      ai = Convert.to_string(SCR.Read(path(".openais.totem.autoid")))
+      ai = Convert.to_string(SCR.Read(path(".corosync.totem.autoid")))
 
       if ai == "yes"
         @autoid = true
@@ -326,7 +326,7 @@ module Yast
         @autoid = false
       end
 
-      @rrpmode = Convert.to_string(SCR.Read(path(".openais.totem.rrpmode")))
+      @rrpmode = Convert.to_string(SCR.Read(path(".corosync.totem.rrpmode")))
       if @enable2 == false
         @rrpmode = "none"
       else
@@ -375,25 +375,25 @@ module Yast
     end
 
     def SaveCorosyncQdeviceConfig
-      SCR.Write(path(".openais.quorum.device.model"), @qdevice_model)
-      SCR.Write(path(".openais.quorum.device.votes"), @qdevice_votes)
+      SCR.Write(path(".corosync.quorum.device.model"), @qdevice_model)
+      SCR.Write(path(".corosync.quorum.device.votes"), @qdevice_votes)
 
-      SCR.Write(path(".openais.quorum.device.net.host"), @qdevice_host)
-      SCR.Write(path(".openais.quorum.device.net.port"), @qdevice_port)
-      SCR.Write(path(".openais.quorum.device.net.tls"), @qdevice_tls)
-      SCR.Write(path(".openais.quorum.device.net.algorithm"), @qdevice_algorithm)
-      SCR.Write(path(".openais.quorum.device.net.tie_breaker"), @qdevice_tie_breaker)
+      SCR.Write(path(".corosync.quorum.device.net.host"), @qdevice_host)
+      SCR.Write(path(".corosync.quorum.device.net.port"), @qdevice_port)
+      SCR.Write(path(".corosync.quorum.device.net.tls"), @qdevice_tls)
+      SCR.Write(path(".corosync.quorum.device.net.algorithm"), @qdevice_algorithm)
+      SCR.Write(path(".corosync.quorum.device.net.tie_breaker"), @qdevice_tie_breaker)
 
       if @heuristics_mode != "off"
-        SCR.Write(path(".openais.quorum.device.heuristics.mode"), @heuristics_mode)
+        SCR.Write(path(".corosync.quorum.device.heuristics.mode"), @heuristics_mode)
         # For @heuristics_xxx doesn't have suggested_value, skip record when empty?
-        SCR.Write(path(".openais.quorum.device.heuristics.timeout"), @heuristics_timeout)
-        SCR.Write(path(".openais.quorum.device.heuristics.sync_timeout"), @heuristics_sync_timeout)
-        SCR.Write(path(".openais.quorum.device.heuristics.interval"), @heuristics_interval)
+        SCR.Write(path(".corosync.quorum.device.heuristics.timeout"), @heuristics_timeout)
+        SCR.Write(path(".corosync.quorum.device.heuristics.sync_timeout"), @heuristics_sync_timeout)
+        SCR.Write(path(".corosync.quorum.device.heuristics.interval"), @heuristics_interval)
         executables_str = generateDictString(@heuristics_executables)
-        SCR.Write(path(".openais.quorum.device.heuristics.executables"), executables_str)
+        SCR.Write(path(".corosync.quorum.device.heuristics.executables"), executables_str)
       else
-        SCR.Write(path(".openais.quorum.device.heuristics"), "")
+        SCR.Write(path(".corosync.quorum.device.heuristics"), "")
       end
 
       nil
@@ -402,42 +402,42 @@ module Yast
     def SaveClusterConfig
 
       if @secauth == true
-        SCR.Write(path(".openais.totem.secauth"), "on")
-        SCR.Write(path(".openais.totem.crypto_hash"), @crypto_hash)
-        SCR.Write(path(".openais.totem.crypto_cipher"), @crypto_cipher)
+        SCR.Write(path(".corosync.totem.secauth"), "on")
+        SCR.Write(path(".corosync.totem.crypto_hash"), @crypto_hash)
+        SCR.Write(path(".corosync.totem.crypto_cipher"), @crypto_cipher)
       else
-        SCR.Write(path(".openais.totem.secauth"), "off")
-        SCR.Write(path(".openais.totem.crypto_hash"), "none")
-        SCR.Write(path(".openais.totem.crypto_cipher"), "none")
+        SCR.Write(path(".corosync.totem.secauth"), "off")
+        SCR.Write(path(".corosync.totem.crypto_hash"), "none")
+        SCR.Write(path(".corosync.totem.crypto_cipher"), "none")
       end
 
-      SCR.Write(path(".openais.totem.transport"), @transport)
-      SCR.Write(path(".openais.totem.cluster_name"), @cluster_name)
-      SCR.Write(path(".openais.totem.ip_version"), @ip_version)
-      SCR.Write(path(".openais.quorum.expected_votes"), @expected_votes)
+      SCR.Write(path(".corosync.totem.transport"), @transport)
+      SCR.Write(path(".corosync.totem.cluster_name"), @cluster_name)
+      SCR.Write(path(".corosync.totem.ip_version"), @ip_version)
+      SCR.Write(path(".corosync.quorum.expected_votes"), @expected_votes)
 
       # BNC#871970, only write member address when interface0  
       if @memberaddr != []
 
         SCR.Write(
-          path(".openais.nodelist.node"),
+          path(".corosync.nodelist.node"),
           generateMemberString(@memberaddr)
         )
       else
-        SCR.Write(path(".openais.nodelist.node"), "")
+        SCR.Write(path(".corosync.nodelist.node"), "")
       end
       if @transport == "udp"
         SCR.Write(
-          path(".openais.totem.interface.interface0.mcastaddr"),
+          path(".corosync.totem.interface.interface0.mcastaddr"),
           @mcastaddr1
         )
         SCR.Write(
-          path(".openais.totem.interface.interface0.bindnetaddr"),
+          path(".corosync.totem.interface.interface0.bindnetaddr"),
           @bindnetaddr1
         )
       else
-        SCR.Write(path(".openais.totem.interface.interface0.mcastaddr"), "")
-        SCR.Write(path(".openais.totem.interface.interface0.bindnetaddr"), "")
+        SCR.Write(path(".corosync.totem.interface.interface0.mcastaddr"), "")
+        SCR.Write(path(".corosync.totem.interface.interface0.bindnetaddr"), "")
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
@@ -450,50 +450,50 @@ module Yast
         # two_node can not be used with qdevice
         @two_node = "0"
       end
-      SCR.Write(path(".openais.quorum.two_node"), @two_node)
+      SCR.Write(path(".corosync.quorum.two_node"), @two_node)
 
       SCR.Write(
-        path(".openais.totem.interface.interface0.mcastport"),
+        path(".corosync.totem.interface.interface0.mcastport"),
         @mcastport1
       )
 
       if @enable2 == false
-        SCR.Write(path(".openais.totem.interface.interface1"), "")
+        SCR.Write(path(".corosync.totem.interface.interface1"), "")
       else
         if @transport == "udpu"
-          SCR.Write(path(".openais.totem.interface.interface1.mcastaddr"), "")
-          SCR.Write(path(".openais.totem.interface.interface1.bindnetaddr"), "")
+          SCR.Write(path(".corosync.totem.interface.interface1.mcastaddr"), "")
+          SCR.Write(path(".corosync.totem.interface.interface1.bindnetaddr"), "")
         else
           SCR.Write(
-            path(".openais.totem.interface.interface1.mcastaddr"),
+            path(".corosync.totem.interface.interface1.mcastaddr"),
             @mcastaddr2
           )
           SCR.Write(
-            path(".openais.totem.interface.interface1.bindnetaddr"),
+            path(".corosync.totem.interface.interface1.bindnetaddr"),
             @bindnetaddr2
           )
         end
         SCR.Write(
-          path(".openais.totem.interface.interface1.mcastport"),
+          path(".corosync.totem.interface.interface1.mcastport"),
           @mcastport2
         )
       end
 
       #FIXME TODO
       if @autoid == true
-        SCR.Write(path(".openais.totem.autoid"), "yes")
+        SCR.Write(path(".corosync.totem.autoid"), "yes")
       else
-        SCR.Write(path(".openais.totem.autoid"), "no")
+        SCR.Write(path(".corosync.totem.autoid"), "no")
       end
-      SCR.Write(path(".openais.totem.rrpmode"), @rrpmode)
+      SCR.Write(path(".corosync.totem.rrpmode"), @rrpmode)
 
       if @corosync_qdevice
         SaveCorosyncQdeviceConfig()
       else
-        SCR.Write(path(".openais.quorum.device"), "")
+        SCR.Write(path(".corosync.quorum.device"), "")
       end
 
-      SCR.Write(path(".openais"), "")
+      SCR.Write(path(".corosync"), "")
 
       nil
     end
@@ -593,7 +593,7 @@ module Yast
       end
       # read database
       return false if Abort()
-      SCR.Dir(path(".openais"))
+      SCR.Dir(path(".corosync"))
       ret = false
       ret = LoadClusterConfig()
       if ret == false
@@ -740,7 +740,7 @@ module Yast
       end
       # is that necessary? since enable pacemaker will trigger corosync/csync2?
       # FIXME if not necessary
-      if @global_startopenais == true
+      if @global_startcorosync == true
         SCR.Execute(path(".target.bash_output"), "systemctl enable corosync.service")
       end
       if @global_startcsync2 == true
@@ -799,7 +799,7 @@ module Yast
       @csync2_host = Ops.get_list(settings, "csync2_host", [])
       @csync2_include = Ops.get_list(settings, "csync2_include", [])
 
-      @global_startopenais = true
+      @global_startcorosync = true
       @global_startcsync2 = true
       true
     end
@@ -957,7 +957,7 @@ module Yast
     publish :variable => :rrpmode, :type => "string"
     publish :variable => :corokey, :type => "string"
     publish :variable => :csync2key, :type => "string"
-    publish :variable => :global_startopenais, :type => "boolean"
+    publish :variable => :global_startcorosync, :type => "boolean"
     publish :variable => :global_startcsync2, :type => "boolean"
     publish :variable => :transport, :type => "string"
     publish :variable => :memberaddr, :type => "list <string>"

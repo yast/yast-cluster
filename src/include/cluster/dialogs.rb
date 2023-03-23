@@ -328,43 +328,43 @@ module Yast
 
     def SaveCommunicationToConf
       SCR.Write(
-        path(".openais.totem.interface.interface0.bindnetaddr"),
+        path(".corosync.totem.interface.interface0.bindnetaddr"),
         Convert.to_string(UI.QueryWidget(Id(:bindnetaddr1), :Value))
       )
       SCR.Write(
-        path(".openais.totem.interface.interface0.mcastaddr"),
+        path(".corosync.totem.interface.interface0.mcastaddr"),
         Convert.to_string(UI.QueryWidget(Id(:mcastaddr1), :Value))
       )
       SCR.Write(
-        path(".openais.totem.interface.interface0.mcastport"),
+        path(".corosync.totem.interface.interface0.mcastport"),
         Convert.to_string(UI.QueryWidget(Id(:mcastport1), :Value))
       )
 
       if !UI.QueryWidget(Id(:enable2), :Value)
-        SCR.Write(path(".openais.totem.interface.interface1"), "")
+        SCR.Write(path(".corosync.totem.interface.interface1"), "")
       else
         SCR.Write(
-          path(".openais.totem.interface.interface1.bindnetaddr"),
+          path(".corosync.totem.interface.interface1.bindnetaddr"),
           Convert.to_string(UI.QueryWidget(Id(:bindnetaddr2), :Value))
         )
         SCR.Write(
-          path(".openais.totem.interface.interface1.mcastaddr"),
+          path(".corosync.totem.interface.interface1.mcastaddr"),
           Convert.to_string(UI.QueryWidget(Id(:mcastaddr2), :Value))
         )
         SCR.Write(
-          path(".openais.totem.interface.interface1.mcastport"),
+          path(".corosync.totem.interface.interface1.mcastport"),
           Convert.to_string(UI.QueryWidget(Id(:mcastport2), :Value))
         )
       end
 
       if UI.QueryWidget(Id(:autoid), :Value)
-        SCR.Write(path(".openais.totem.autoid"), "yes")
+        SCR.Write(path(".corosync.totem.autoid"), "yes")
       else
-        SCR.Write(path(".openais.totem.autoid"), "no")
+        SCR.Write(path(".corosync.totem.autoid"), "no")
       end
 
       SCR.Write(
-        path(".openais.totem.rrpmode"),
+        path(".corosync.totem.rrpmode"),
         Convert.to_string(UI.QueryWidget(Id(:rrpmode), :Value))
       )
 
