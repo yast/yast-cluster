@@ -5,7 +5,7 @@ Thu Mar 23 07:55:52 UTC 2023 - Peter Varkoly <varkoly@suse.com>
 - Remove sensless call to sysconfig.openais
 - Remove sensless sysconfig.openais agent
 - Enable csync2.socket
-- Add SCR.Writ(PATH,nil) to save the configuration inmediately
+- Add SCR.Write(PATH,nil) to save the configuration inmediately
 - Version 4.4.4
 
 -------------------------------------------------------------------
