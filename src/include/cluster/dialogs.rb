@@ -144,7 +144,7 @@ module Yast
           1,
           1,
           VBox(
-            MinWidth(100, InputField(Id(:text), title, value)),
+            MinWidth(50, InputField(Id(:text), title, value)),
             VSpacing(1),
             Right(
               HBox(
@@ -237,14 +237,14 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(40, InputField(Id(:mynodename), Opt(:hstretch), _("Node Name:"), value["name"])),
-            HSpacing(1),
             MinWidth(20, InputField(Id(:mynodeid), Opt(:hstretch), _("Node ID:"), value["nodeid"])),
+            HSpacing(1),
+            MinWidth(40, InputField(Id(:mynodename), Opt(:hstretch), _("Node Name:"), value["name"])),
             ),
             VSpacing(1),
             VBox(
               Opt(:hvstretch),
-              MinSize(20, 10,
+              MinSize(20, 12,
                 Table(
                   Id(:iplist_table),
                   Opt(:hstretch, :vstretch),
@@ -280,7 +280,7 @@ module Yast
         ret = UI.UserInput
 
         if ret == :ip_add
-          ret = text_input_dialog(_("Add a IP address"), "")
+          ret = text_input_dialog(_("Add an IP address"), "")
           next if ret == :cancel || ret.empty?
           iplist.push(ret)
         end
@@ -393,6 +393,7 @@ module Yast
           1,
           1,
           VBox(
+            Left(Label(_("Kronosnet:"))),
             HBox(
               ComboBox(
                 Id(:linknumber),
@@ -410,10 +411,13 @@ module Yast
                 ]
               ),
               HSpacing(1),
-              MinWidth(40, InputField(Id(:knet_link_priority), _("Knet Link Priority"),
+              MinWidth(20, InputField(Id(:knet_link_priority), _("Knet Link Priority"),
                                       value["knet_link_priority"])),
+              HSpacing(1),
+              MinWidth(20, InputField(Id(:knet_mcastport), _("Multicast Port") , value["mcastport"])),
             ),
             VSpacing(1),
+            Left(Label(_("Multicast:"))),
             HBox(
               ComboBox(
                 Id(:bindnetaddr),
@@ -422,9 +426,9 @@ module Yast
                 bindaddr
               ),
               HSpacing(1),
-              MinWidth(40, InputField(Id(:mcastaddr), _("Multicast Address"), value["mcastaddr"])),
+              MinWidth(20, InputField(Id(:mcastaddr), _("Multicast Address"), value["mcastaddr"])),
               HSpacing(1),
-              MinWidth(20, InputField(Id(:mcastport), _("Multicast Port") , value["mcastport"])),
+              MinWidth(20, InputField(Id(:udp_mcastport), _("Multicast Port") , value["mcastport"])),
             ),
             VSpacing(1),
             Right(
@@ -438,7 +442,8 @@ module Yast
       )
 
       UI.ChangeWidget(:linknumber, :ValidChars, "0123456789")
-      UI.ChangeWidget(:mcastport, :ValidChars, "0123456789")
+      UI.ChangeWidget(:knet_mcastport, :ValidChars, "0123456789")
+      UI.ChangeWidget(:udp_mcastport, :ValidChars, "0123456789")
       UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
       UI.ChangeWidget(Id(:knet_transport), :Value, value["knet_transport"])
 
@@ -586,7 +591,7 @@ module Yast
 
       # FIXME: if multicast still support not configure node list?
       if Cluster.node_list.size <= 0
-        Popup.Message(_("The node list has to be fulfilled"))
+        Popup.Message(_("The Node List has to be fulfilled"))
         UI.SetFocus(:nodelist)
         return false
       end
@@ -666,7 +671,7 @@ module Yast
         end
       end # end :transport check
 
-      # No duplicate ring number
+      # Make sure the ring numbers are the same
       Cluster.node_list.each do |node|
         if node["IPs"].size != ringnum
           Popup.Message(_("The total number of rings must be identical between nodes"))
@@ -824,8 +829,8 @@ module Yast
         items = Item(Id(index))
 
         node.default = ""
-        items = Builtins.add(items, node["name"])
         items = Builtins.add(items, node["nodeid"])
+        items = Builtins.add(items, node["name"])
 
         ip_number = 0
         iplist.each do |ip|
@@ -876,8 +881,8 @@ module Yast
             _("Transport:"),
             [
             Item(Id("knet"), "Kronosnet"),
-            Item(Id("udp"), "Multicast"),
-            Item(Id("udpu"), "Unicast")
+            Item(Id("udpu"), "Unicast"),
+            Item(Id("udp"), "Multicast")
             ]
           ),
           ComboBox(
@@ -900,8 +905,8 @@ module Yast
       nodelist_table = VBox(
         Left(Label(_("Node List:"))),
         Table(Id(:nodelist), Opt(:hstretch),
-              Header(_("Name"), _("Node ID"), _("IP0"), _("IP1"),
-                     _("IP2"), _("More IPs...")), table_items),
+              Header(_("Node ID"), _("Name"), _("Link 0"), _("Link 1"),
+                     _("Link 2"), _("More Links...")), table_items),
         Right(HBox(
           PushButton(Id(:nodelist_add), "Add"),
           PushButton(Id(:nodelist_edit), "Edit"),
@@ -930,7 +935,7 @@ module Yast
           ComboBox(
             Id(:linkmode),
             Opt(:hstretch, :notify),
-            _("link mode:"),
+            _("Link Mode:"),
             ["passive", "active", "rr"]
           )
         ),
@@ -956,9 +961,6 @@ module Yast
 
       UI.ChangeWidget(Id(:linkmode), :Value, Cluster.link_mode)
 
-      if UI.QueryWidget(Id(:transport), :Value) == "udpu"
-        UI.SetFocus(:memberaddr_add)
-      end
       # BNC#879596, check the corosync.conf format
       if Cluster.config_format == "corosync2"
         Popup.Message(_(" NOTICE: Detected old corosync2 configuration.\n Please reconfigure the node/interface list and confirm all other settings."))
@@ -1039,7 +1041,9 @@ module Yast
       ret = nil
 
       CommunicationLayout()
-
+      if Cluster.firstrun
+        UI.SetFocus(:nodelist_add)
+      end
       while true
         fill_nodelist_entries()
         fill_interface_entries()
@@ -1712,11 +1716,11 @@ module Yast
         ret_qdevice_booting = Service.Enabled("corosync-qdevice")
       end
       if Service.Enabled("pacemaker") && ret_qdevice_booting
-        UI.ChangeWidget(Id(:status_booting), :Value, _("Enabling"))
+        UI.ChangeWidget(Id(:status_booting), :Value, _("enabled"))
         UI.ChangeWidget(Id("on"), :Enabled, false)
         UI.ChangeWidget(Id("off"), :Enabled, true)
       else
-        UI.ChangeWidget(Id(:status_booting), :Value, _("Disabling"))
+        UI.ChangeWidget(Id(:status_booting), :Value, _("disabled"))
         UI.ChangeWidget(Id("on"), :Enabled, true)
         UI.ChangeWidget(Id("off"), :Enabled, false)
       end
@@ -1751,7 +1755,8 @@ module Yast
                 HBox(
                   HSpacing(1),
                   Label(_("Current Status: ")),
-                  Label(Id(:status_booting), _("Enabling")),
+                  # Space is a workaround for possible missing characters
+                  Label(Id(:status_booting), _("Enabling     ")),
                   ReplacePoint(Id("status_rp"), Empty())
                 )
               ),
@@ -1770,14 +1775,15 @@ module Yast
 
         VSpacing(1),
         Frame(
-          _("Pacemaker and corosync start/stop"),
+          _("Pacemaker and Corosync start/stop"),
           Left(
             VBox(
               Left(
                 HBox(
                   HSpacing(1),
                   Label(_("Current Status: ")),
-                  Label(Id(:status), _("Running")),
+                  # Space is a workaround for possible missing characters
+                  Label(Id(:status), _("Running     ")),
                   ReplacePoint(Id("status_rp"), Empty())
                 )
               ),
@@ -1795,14 +1801,15 @@ module Yast
         ),
         VSpacing(1),
         Frame(
-          _("corosync-qdevice start/stop"),
+          _("Corosync Qdevice start/stop"),
           Left(
             VBox(
               Left(
                 HBox(
                   HSpacing(1),
                   Label(_("Current Status: ")),
-                  Label(Id(:status_qdevice), _("Running")),
+                  # Space is a workaround for possible missing characters
+                  Label(Id(:status_qdevice), _("Running        ")),
                   ReplacePoint(Id("status_rp_qdevice"), Empty())
                 )
               ),
@@ -1947,10 +1954,10 @@ module Yast
             VBox(
               SelectionBox(Id(:include_box), ""),
               HBox(
+                PushButton(Id(:include_suggest), _("Add Suggested Files")),
                 PushButton(Id(:include_add), _("Add")),
                 PushButton(Id(:include_del), _("Del")),
-                PushButton(Id(:include_edit), _("Edit")),
-                PushButton(Id(:include_suggest), _("Add Suggested Files"))
+                PushButton(Id(:include_edit), _("Edit"))
               )
             )
           )
