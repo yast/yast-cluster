@@ -193,27 +193,6 @@ module Yast
       nil
     end
 
-    def _valid_iplist(iplist=[], ip_version="ipv6-4")
-      if iplist.empty?
-        Popup.Message(_("At least one ring/IP has to be fulfilled"))
-        return false
-      end
-
-      if iplist.size > 8
-        Popup.Message(_("Support at most 8 rings"))
-        return false
-      end
-
-      iplist.each do |ip|
-        if !ip_matching_check(ip, ip_version)
-          Popup.Message(_("Invalid IP address found: ") + ip)
-          return false
-        end
-      end
-
-      true
-    end
-
     def switch_iplist_button(iplist=[])
       haveip = true
 
@@ -228,8 +207,31 @@ module Yast
       nil
     end
 
+    def get_free_nodeid()
+      exist_id_list = []
+      Cluster.node_list.each do |node|
+        if !node["nodeid"].empty?
+          exist_id_list << node["nodeid"]
+        end
+      end
+      existing_ids = exist_id_list.to_set
+      free_nodeid = 1
+      while existing_ids.include?(free_nodeid.to_s)
+        free_nodeid += 1
+      end
+      free_nodeid
+    end
+
     def nodelist_input_dialog(value={}, transport = "knet", ip_version="ipv6-4")
       value.default = ""
+      if value["nodeid"].empty?
+        nodeid = get_free_nodeid().to_s
+        orig_nodeid = ""
+      else
+        nodeid = value["nodeid"]
+        orig_nodeid = nodeid
+      end
+      orig_node_name = value["name"]
 
       UI.OpenDialog(
         MarginBox(
@@ -237,7 +239,7 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(20, InputField(Id(:mynodeid), Opt(:hstretch), _("Node ID:"), value["nodeid"])),
+            MinWidth(20, InputField(Id(:mynodeid), Opt(:hstretch), _("Node ID:"), nodeid)),
             HSpacing(1),
             MinWidth(40, InputField(Id(:mynodename), Opt(:hstretch), _("Node Name:"), value["name"])),
             ),
@@ -282,6 +284,15 @@ module Yast
         if ret == :ip_add
           ret = text_input_dialog(_("Add an IP address"), "")
           next if ret == :cancel || ret.empty?
+          if !validate_ip(ret)
+            next
+          else
+            _list = iplist.dup
+            _list.push(ret)
+            if !validate_ip_list(_list)
+              next
+            end
+          end
           iplist.push(ret)
         end
 
@@ -294,6 +305,15 @@ module Yast
             iplist[current]
           )
           next if ret == :cancel
+          if !validate_ip(ret, nodeid)
+            next
+          else
+            _list = iplist.dup
+            _list[current] = ret.to_s
+            if !validate_ip_list(_list)
+              next
+            end
+          end
           if ret.empty?
             iplist.delete_at(current)
           else
@@ -308,22 +328,24 @@ module Yast
         end
 
         if ret == :ok
-          if !_valid_iplist(iplist, ip_version)
+          if iplist.empty?
+            Popup.Message(_("At least one ring/IP has to be fulfilled"))
             UI.SetFocus(:iplist_table)
             next
           end
 
-          if transport == "knet" && UI.QueryWidget(:mynodeid, :Value).to_i <= 0
-            Popup.Message(_("Node ID is required with a positive integer for Kronosnet mode."))
+          if !_validate_nodeid(UI.QueryWidget(:mynodeid, :Value), orig_nodeid)
             UI.SetFocus(:mynodeid)
             next
           end
 
           ret = {}
 
-          if UI.QueryWidget(:mynodename, :Value) != ""
-            ret["name"] = UI.QueryWidget(:mynodename, :Value)
+          if !_validate_name(UI.QueryWidget(:mynodename, :Value), orig_node_name, iplist)
+            UI.SetFocus(:mynodename)
+            next
           end
+          ret["name"] = UI.QueryWidget(:mynodename, :Value)
 
           if UI.QueryWidget(:mynodeid, :Value) != ""
             ret["nodeid"] = UI.QueryWidget(:mynodeid, :Value)
@@ -340,6 +362,46 @@ module Yast
 
       UI.CloseDialog
       deep_copy(ret)
+    end
+
+    def _validate_nodeid(nodeid_str, orig_nodeid)
+      error_occurred = false
+      if nodeid_str.empty?
+        Popup.Message(_("A Node ID is required"))
+        error_occurred = true
+      elsif nodeid_str.to_i.to_s != nodeid_str
+        Popup.Message(_("Invalid Node ID: ") + nodeid_str)
+        error_occurred = true
+      elsif nodeid_str.to_i <= 0
+        Popup.Message(_("Node ID is required with a positive integer"))
+        error_occurred = true
+      else
+        Cluster.node_list.each do |node|
+          if node["nodeid"] == nodeid_str && node["nodeid"] != orig_nodeid
+            Popup.Message(_("Duplicated Node ID"))
+            error_occurred = true
+            break
+          end
+        end
+      end
+      !error_occurred
+    end
+
+    def _validate_name(name_str, orig_name, ip_list)
+      error_occurred = false
+      if name_str.empty? && ip_list.size > 1
+        Popup.Message(_("A Node Name is required for multiple links"))
+        error_occurred = true
+      else
+        Cluster.node_list.each do |node|
+          if node["name"] == name_str && node["name"] != orig_name
+            Popup.Message(_("Duplicated Node Name"))
+            error_occurred = true
+            break
+          end
+        end
+      end
+      !error_occurred
     end
 
     def switch_interface_button(transport)
@@ -532,60 +594,66 @@ module Yast
       true
     end
 
-    def ValidNodeID
-      i = 0
-      # Set need to require 'set'
-      idset = Set[]
-
+    def validate_all_ips
       Cluster.node_list.each do |node|
-        if !node.has_key?("nodeid")
-          Popup.Message(_("Node ID has to be fulfilled or select Auto Generate Node ID when allowed"))
-          UI.ChangeWidget(:nodelist, :CurrentItem, i)
-          i = 0
-          break
+        if !validate_ip_list(node["IPs"])
+          return false
         end
-
-        if node["nodeid"].to_i <= 0
-          Popup.Message(_("Node ID has to be fulfilled with a positive integer or select Auto Generate Node ID when allowed"))
-          UI.ChangeWidget(:nodelist, :CurrentItem, i)
-          i = 0
-          break
+        node["IPs"].each do |ip|
+          if !validate_ip(ip, node["nodeid"])
+            return false
+          end
         end
-
-        if idset.include?(node["nodeid"].to_i)
-          Popup.Message(_("Node ID must be unique"))
-          UI.ChangeWidget(:nodelist, :CurrentItem, i)
-          i = 0
-          break
-        end
-
-        idset << node["nodeid"].to_i
-        i += 1
       end
+      true
+    end
 
-      if i == 0
+    def has_duplicates?(list)
+      set = Set.new(list)
+      set.size < list.size
+    end
+
+    def validate_ip_list(list)
+      if has_duplicates?(list)
+        Popup.Message(_("Duplicated IP address"))
+        return false
+      elsif list.size > 8
+        Popup.Message(_("Support at most 8 rings"))
+        return false
+      elsif list.size > 1 && Cluster.transport != "knet"
+        Popup.Message(_("Muiticast and Unicast no longer support multiple rings.\nPlease use Kronosnet"))
         return false
       end
+      true
+    end
 
+    def validate_ip(ip, self_id="")
+      if !ip_matching_check(ip, Cluster.ip_version)
+        Popup.Message(_("Invalid IP address: ") + ip)
+        return false
+      else
+        Cluster.node_list.each do |node|
+          if node["IPs"].include?(ip)
+            if self_id.empty? || node["nodeid"] != self_id
+              Popup.Message(_("Duplicated IP address on this node: Node ID: ") + node["nodeid"])
+              return false
+            end
+          end
+        end
+      end
       true
     end
 
     # BNC#871970, change member address struct
     def ValidateCommunication
       i = 0
-
+      if !validate_all_ips()
+        return false
+      end
       # Must have cluster name
       if UI.QueryWidget(Id(:cluster_name), :Value) == ""
         Popup.Message(_("The cluster name has to be fulfilled"))
         UI.SetFocus(:cluster_name)
-        return false
-      end
-
-      # Only one ring supported for Unicast or Multicast
-      if (UI.QueryWidget(Id(:transport), :Value) == "udp" ||
-          UI.QueryWidget(Id(:transport), :Value) == "udpu") && Cluster.interface_list.size > 1
-        Popup.Message(_("Limited to one ring when Unicast or Multicast.\nPlease use Kronosnet"))
-        UI.SetFocus(:ifacelist)
         return false
       end
 
@@ -596,35 +664,11 @@ module Yast
         return false
       end
 
-      # Interface number must be either 0 or match ring number
       ringnum = Cluster.node_list[0]["IPs"].size
-      if ringnum == 0
-        Popup.Message(_("Every node must have at least one ring address filled"))
-        UI.SetFocus(:nodelist)
-        return false
-      elsif ringnum > 8
-        Popup.Message(_("Support at most 8 rings"))
-        UI.SetFocus(:nodelist)
-        return false
-      elsif ringnum > 1 && UI.QueryWidget(Id(:transport), :Value) != "knet"
-        Popup.Message(_("Muiticast and Unicast no longer support multiple rings.\nPlease use Kronosnet"))
-        UI.SetFocus(:transport)
-        return false
-      elsif ringnum == 1 && UI.QueryWidget(Id(:linkmode), :Value) != "passive"
+      if ringnum == 1 && UI.QueryWidget(Id(:linkmode), :Value) != "passive"
         Popup.Message(_("Only one interface is specified, passive linkmode is automatically be chosen"))
         UI.ChangeWidget(Id(:linkmode), :Value, "passive")
         UI.SetFocus(:linkmode)
-      end
-
-      # node name must be unique if assigned
-      nameset = Set[]
-      Cluster.node_list.each do |node|
-        if node.has_key?("name") && nameset.include?(node["name"])
-          Popup.Message(_("Node name must be unique"))
-          UI.SetFocus(:nodelist)
-          return false
-        end
-        nameset << node["name"]
       end
 
       if UI.QueryWidget(Id(:transport), :Value) == "knet"
@@ -633,15 +677,6 @@ module Yast
           Popup.Message(_("Should not use auto generate Node ID when Kronosnet"))
           UI.SetFocus(:autoid)
           return false
-        end
-
-        # Multiple links/rings must assign node name
-        Cluster.node_list.each do |node|
-          if !node.has_key?("name") && ringnum > 1
-            Popup.Message(_("Need to assign each node a name when multiple rings/links"))
-            UI.SetFocus(:nodelist)
-            return false
-          end
         end
 
         # Kronosnet transport should be udp/sctp
@@ -738,14 +773,6 @@ module Yast
       ret = ValidIPFamily()
       if !ret
          return false
-      end
-
-      if !UI.QueryWidget(Id(:autoid), :Value)
-        ret = ValidNodeID()
-        if !ret
-           UI.SetFocus(Id(:nodelist))
-           return false
-        end
       end
 
       true
