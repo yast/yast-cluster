@@ -3,7 +3,7 @@
 
 #
 # Authors:	Xinwei Hu <xwhu@suse.de>
-#		Lukas Ocilka <locilka@suse.cz>
+# 		Lukas Ocilka <locilka@suse.cz>
 #
 # File:		ag_corosync
 #
@@ -27,12 +27,13 @@
 
 import gettext, os, re
 from gettext import textdomain
+
 textdomain("corosync")
 
 # python bindings will be droped
 # delete all python bindings
 
-#from ycp import *
+# from ycp import *
 import copy
 import sys
 import random
@@ -41,1140 +42,1604 @@ debug = False
 
 
 def gen_mcastaddr():
-	return "239.%d.%d.%d" % (
-		random.randint(0, 255),
-		random.randint(0, 255),
-		random.randint(1, 255))
+    return "239.%d.%d.%d" % (
+        random.randint(0, 255),
+        random.randint(0, 255),
+        random.randint(1, 255),
+    )
 
 
-#the option table is used to parse and write suggested_value if no options are read
+# the option table is used to parse and write suggested_value if no options are read
 
-#type is used for verification of values. "string", "int", "select" and "dict"
-#"select" is a list of valid values
-#"dict" is for store the flexible key:value pair of a section. eg. quorum.device.heuristics.executables
+# type is used for verification of values. "string", "int", "select" and "dict"
+# "select" is a list of valid values
+# "dict" is for store the flexible key:value pair of a section. eg. quorum.device.heuristics.executables
 #       store in "other"(executables) dict, so doList(Dir) need to query the dict(executables)
 
-#default_value is used in file_parser, if input has the option, but failed to parse,
-#use the default_value.
+# default_value is used in file_parser, if input has the option, but failed to parse,
+# use the default_value.
 
-#suggested_value is used in file printing, if we do not parse any from input, but The
-#option has suggested_value, print it.
+# suggested_value is used in file printing, if we do not parse any from input, but The
+# option has suggested_value, print it.
 
 totem_option_table = {
-	"version":{"doc":"The only valid version is 2",
-		   "type":"int",
-		   "default_value":2,
-		   "suggested_value":2},
-	"crypto_model":{"doc":"This specifies which cryptographic library should be used by knet",
-		"type":"select[nss, openssl]","default_value":"nss",
-		},
-	"crypto_cipher":{"doc":"Used for mutual node authentication",
-		"type":"select[aes256, aes192, aes128, none]","default_value":"none",
-		},
-	"crypto_hash":{"doc":"Used for mutual node authentication",
-		"type":"select[none, md5, sha1, sha256, sha384, sha512]","default_value":"none",
-		},
-	"clear_node_high_bit":{"doc":"To make sure the auto-generated nodeid is positive",
-			       "default_value":"yes"},
-	"cluster_name":{"doc":"This specifies the name of cluster","type":"string","default_value":"hacluster"},
-	"secauth":{"doc":"HMAC/SHA1 should be used to authenticate all message",
-		   "default_value":"off"},
-	"keyfile":{"doc":"This specifies the fully qualified path to the shared key used to authenticate and encrypt data used within the Totem protocol",
-				"type":"string", "default_value":"/etc/corosync/authkey"},
-	"key":{"doc":"Shared key stored in configuration instead of authkey file", "type":"string", "default_value":""},
-	"link_mode":{"doc":"This specifies the Kronosnet mode",
-				"type":"select[passive, active, rr]", "default_value":"passive"},
-	"rrp_mode":{"doc":"This is deprecated in corosync3",
-				"type":"select[none, active, passive]", "default_value":"none"},
-	"netmtu":{"doc":"Size of MTU", "type":"int", "default_value":1500},
-	"token":{"doc":"Timeout for a token lost. in ms",
-		 "type":"int", "default_value":3000,
-		 "suggested_value":5000},
-	"token_retransmit":{"doc":"How long before receving a token then token is retransmitted. Don't change this value.",
-			    "type":"int", "default_value":238},
-	"token_warning":{"doc":"Specifies the interval between warnings that the token has not been received",
-				"type":"string", "default_value":"75%"},
-	"hold":{"doc":"How long the token should be held by representative when protocol is under low utilization. Don't change this value.",
-		"type":"int", "default_value":180},
-	"token_retransmits_before_loss_const":{"doc":"How many token retransmits should be attempted before forming a new configuration.",
-					       "type":"int", "default_value":4,
-					       "suggested_value":10},
-	"knet_compression_model":{"doc":"Type of compression used by Kronosnet",
-				"type":"string", "default_value":"none"},
-	"knet_compression_threshold":{"doc":"Tells knet to NOT compress any packets that are smaller than the value indicated",
-				"type":"int", "default_value":100},
-	"knet_compression_level":{"doc":"Many compression libraries allow tuning of compression parameters",
-				"type":"int", "default_value":0},
-	"knet_pmtud_interval":{"doc":"How often the knet PMTUd runs to look for network MTU changes",
-				"type":"int", "default_value":30},
-	"miss_count_const":{"doc":"This constant defines the maximum number of times on receipt of a token a message is checked for retransmission before a retransmission occurs",
-				"type":"int", "default_value":5},
-	"block_unlisted_ips":{"doc":"Allow UDPU and KNET to drop packets from IP addresses that are not known",
-				"type":"select[yes, no]", "default_value":"yes"},
-	"cancel_hold_on_retransmit":{"doc":"Allows Corosync to hold token by representative when there is too much retransmit messages.", "type":"select[no, yes]", "default_value":"no"},
-	"join":{"doc":"How long to wait for join messages in membership protocol. in ms",
-		"type":"int", "default_value":50,
-		"suggested_value":60},
-	"send_join":{"doc":"This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.",
-		     "type":"int", "default_value":0},
-	"consensus":{"doc":"How long to wait for consensus to be achieved before starting a new round of membership configuration.",
-		     "type":"int", "default_value":3600,
-		     "suggested_value":6000},
-	"merge":{"doc":"How long to wait before checking for a partition when no multicast traffic is being sent.",
-		 "type":"int", "default_value":200},
-	"downcheck":{"doc":"How long to wait before checking that a network interface is back up after it has been downed.",
-		     "type":"int", "default_value":1000},
-	"fail_to_recv_const":{"doc":"How many rotations of the token without receiving any of the messages when messages should be received may occur before a new configuration is formed",
-			      "type":"int", "default_value":50},
-	"seqno_unchanged_const":{"doc":"How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.",
-				 "type":"int", "default_value":30},
-	"max_network_delay":{"doc":"The approximate delay that your network takes to transport one packet from one machine to another.",
-			     "type":"int", "default_value":50},
-	"window_size":{"doc":"The maximum number of messages that may be sent on one token rotation.",
-		       "type":"int", "default_value":50},
-	"max_messages":{"doc":"The maximum number of messages that may be sent by one processor on receipt of the token.",
-			"type":"int", "default_value":17,
-			"suggested_value":20},
-	"transport":{"doc":"This directive controls the transport mechanism used. The default is knet", "type":"select[kent, udpu, udp]","default_value":"knet"},
-	"ip_version":{"doc":"Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.", "type":"select[ipv6-4, ipv4-6, ipv4,ipv6]","default_value":"ipv6-4"},
+    "version": {
+        "doc": "The only valid version is 2",
+        "type": "int",
+        "default_value": 2,
+        "suggested_value": 2,
+    },
+    "crypto_model": {
+        "doc": "This specifies which cryptographic library should be used by knet",
+        "type": "select[nss, openssl]",
+        "default_value": "nss",
+    },
+    "crypto_cipher": {
+        "doc": "Used for mutual node authentication",
+        "type": "select[aes256, aes192, aes128, none]",
+        "default_value": "none",
+    },
+    "crypto_hash": {
+        "doc": "Used for mutual node authentication",
+        "type": "select[none, md5, sha1, sha256, sha384, sha512]",
+        "default_value": "none",
+    },
+    "clear_node_high_bit": {
+        "doc": "To make sure the auto-generated nodeid is positive",
+        "default_value": "yes",
+    },
+    "cluster_name": {
+        "doc": "This specifies the name of cluster",
+        "type": "string",
+        "default_value": "hacluster",
+    },
+    "secauth": {
+        "doc": "HMAC/SHA1 should be used to authenticate all message",
+        "default_value": "off",
+    },
+    "keyfile": {
+        "doc": "This specifies the fully qualified path to the shared key used to authenticate and encrypt data used within the Totem protocol",
+        "type": "string",
+        "default_value": "/etc/corosync/authkey",
+    },
+    "key": {
+        "doc": "Shared key stored in configuration instead of authkey file",
+        "type": "string",
+        "default_value": "",
+    },
+    "link_mode": {
+        "doc": "This specifies the Kronosnet mode",
+        "type": "select[passive, active, rr]",
+        "default_value": "passive",
+    },
+    "rrp_mode": {
+        "doc": "This is deprecated in corosync3",
+        "type": "select[none, active, passive]",
+        "default_value": "none",
+    },
+    "netmtu": {"doc": "Size of MTU", "type": "int", "default_value": 1500},
+    "token": {
+        "doc": "Timeout for a token lost. in ms",
+        "type": "int",
+        "default_value": 3000,
+        "suggested_value": 5000,
+    },
+    "token_retransmit": {
+        "doc": "How long before receving a token then token is retransmitted. Don't change this value.",
+        "type": "int",
+        "default_value": 238,
+    },
+    "token_warning": {
+        "doc": "Specifies the interval between warnings that the token has not been received",
+        "type": "string",
+        "default_value": "75%",
+    },
+    "hold": {
+        "doc": "How long the token should be held by representative when protocol is under low utilization. Don't change this value.",
+        "type": "int",
+        "default_value": 180,
+    },
+    "token_retransmits_before_loss_const": {
+        "doc": "How many token retransmits should be attempted before forming a new configuration.",
+        "type": "int",
+        "default_value": 4,
+        "suggested_value": 10,
+    },
+    "knet_compression_model": {
+        "doc": "Type of compression used by Kronosnet",
+        "type": "string",
+        "default_value": "none",
+    },
+    "knet_compression_threshold": {
+        "doc": "Tells knet to NOT compress any packets that are smaller than the value indicated",
+        "type": "int",
+        "default_value": 100,
+    },
+    "knet_compression_level": {
+        "doc": "Many compression libraries allow tuning of compression parameters",
+        "type": "int",
+        "default_value": 0,
+    },
+    "knet_pmtud_interval": {
+        "doc": "How often the knet PMTUd runs to look for network MTU changes",
+        "type": "int",
+        "default_value": 30,
+    },
+    "miss_count_const": {
+        "doc": "This constant defines the maximum number of times on receipt of a token a message is checked for retransmission before a retransmission occurs",
+        "type": "int",
+        "default_value": 5,
+    },
+    "block_unlisted_ips": {
+        "doc": "Allow UDPU and KNET to drop packets from IP addresses that are not known",
+        "type": "select[yes, no]",
+        "default_value": "yes",
+    },
+    "cancel_hold_on_retransmit": {
+        "doc": "Allows Corosync to hold token by representative when there is too much retransmit messages.",
+        "type": "select[no, yes]",
+        "default_value": "no",
+    },
+    "join": {
+        "doc": "How long to wait for join messages in membership protocol. in ms",
+        "type": "int",
+        "default_value": 50,
+        "suggested_value": 60,
+    },
+    "send_join": {
+        "doc": "This timeout specifies in milliseconds an upper range between 0 and send_join to wait before sending a join message.",
+        "type": "int",
+        "default_value": 0,
+    },
+    "consensus": {
+        "doc": "How long to wait for consensus to be achieved before starting a new round of membership configuration.",
+        "type": "int",
+        "default_value": 3600,
+        "suggested_value": 6000,
+    },
+    "merge": {
+        "doc": "How long to wait before checking for a partition when no multicast traffic is being sent.",
+        "type": "int",
+        "default_value": 200,
+    },
+    "downcheck": {
+        "doc": "How long to wait before checking that a network interface is back up after it has been downed.",
+        "type": "int",
+        "default_value": 1000,
+    },
+    "fail_to_recv_const": {
+        "doc": "How many rotations of the token without receiving any of the messages when messages should be received may occur before a new configuration is formed",
+        "type": "int",
+        "default_value": 50,
+    },
+    "seqno_unchanged_const": {
+        "doc": "How many rotations of the token without any multicast traffic should occur before the merge detection timeout is started.",
+        "type": "int",
+        "default_value": 30,
+    },
+    "max_network_delay": {
+        "doc": "The approximate delay that your network takes to transport one packet from one machine to another.",
+        "type": "int",
+        "default_value": 50,
+    },
+    "window_size": {
+        "doc": "The maximum number of messages that may be sent on one token rotation.",
+        "type": "int",
+        "default_value": 50,
+    },
+    "max_messages": {
+        "doc": "The maximum number of messages that may be sent by one processor on receipt of the token.",
+        "type": "int",
+        "default_value": 17,
+        "suggested_value": 20,
+    },
+    "transport": {
+        "doc": "This directive controls the transport mechanism used. The default is knet",
+        "type": "select[kent, udpu, udp]",
+        "default_value": "knet",
+    },
+    "ip_version": {
+        "doc": "Specifies version of IP to use for communication. Value can be one of ipv4 or ipv6.",
+        "type": "select[ipv6-4, ipv4-6, ipv4,ipv6]",
+        "default_value": "ipv6-4",
+    },
 }
 
 interface_option_table = {
-	"linknumber":{"doc":"This specifies the link number for the interface. UDP only supported number is 0",
-				"type":"int", "default_value":0},
-	"knet_link_priority":{"doc":"This specifies the priority for the link when knet is used in 'passive' mode",
-				"type":"int", "default_value":1},
-	"knet_ping_interval":{"doc":"This specifies the interval between knet link pings",
-				"type":"int", "default_value":750},
-	"knet_ping_timeout":{"doc":"If no ping is received within this time, the knet link is declared dead",
-				"type":"int", "default_value":1500},
-	"knet_ping_precision":{"doc":"How many values of latency are used to calculate the average link latency",
-				"type":"int", "default_value":2048},
-	"knet_pong_count":{"doc":"How many valid ping/pongs before a link is marked UP",
-				"type":"int", "default_value":2},
-	"knet_transport":{"doc":"Which IP transport knet should use",
-				"type":"select[udp, sctp]", "default_value":"udp"},
-	# corosync3: udp only. With UDP, linknumber must set to 0
-	"bindnetaddr":{"doc":"Network Address to be bind for this interface setting", "default_value":0},
-	"broadcast":{"doc":"This is optional.", "type":"string", "default_value":""},
-	"mcastaddr":{"doc":"The multicast address to be used", "default_value":0},
-	"mcastport":{"doc":"The multicast port to be used", "default_value":5405, "type":"int"},
-	"ttl":{"doc":"Time-to-live for cluster communication packets", "type":"int", "default_value":1},
-	}
-
-ring_list = ("ring0_addr", "ring1_addr", "ring2_addr", "ring3_addr",
-			"ring4_addr", "ring5_addr", "ring6_addr", "ring7_addr")
-
-node_option_table = {
-		#ringX_addr, support up to 8 rings so far
-		"ring0_addr":{"doc":"ring0 address","type":"string", "default_value":""},
-		"ring1_addr":{"doc":"ring1 address","type":"string", "default_value":""},
-		"ring2_addr":{"doc":"ring2 address","type":"string", "default_value":""},
-		"ring3_addr":{"doc":"ring3 address","type":"string", "default_value":""},
-		"ring4_addr":{"doc":"ring4 address","type":"string", "default_value":""},
-		"ring5_addr":{"doc":"ring5 address","type":"string", "default_value":""},
-		"ring6_addr":{"doc":"ring6 address","type":"string", "default_value":""},
-		"ring7_addr":{"doc":"ring7 address","type":"string", "default_value":""},
-		"name":{"doc":"This option is used mainly with multiple rings to identify local node.",
-                        "type":"string", "default_value":""},
-		"nodeid":{"doc":"This configuration option is required for each node for Kronosnet mode","type":"string", "default_value":0},
-		"quorum_votes":{"doc":"Quorum votes of a node","type":"int", "default_value":1},
+    "linknumber": {
+        "doc": "This specifies the link number for the interface. UDP only supported number is 0",
+        "type": "int",
+        "default_value": 0,
+    },
+    "knet_link_priority": {
+        "doc": "This specifies the priority for the link when knet is used in 'passive' mode",
+        "type": "int",
+        "default_value": 1,
+    },
+    "knet_ping_interval": {
+        "doc": "This specifies the interval between knet link pings",
+        "type": "int",
+        "default_value": 750,
+    },
+    "knet_ping_timeout": {
+        "doc": "If no ping is received within this time, the knet link is declared dead",
+        "type": "int",
+        "default_value": 1500,
+    },
+    "knet_ping_precision": {
+        "doc": "How many values of latency are used to calculate the average link latency",
+        "type": "int",
+        "default_value": 2048,
+    },
+    "knet_pong_count": {
+        "doc": "How many valid ping/pongs before a link is marked UP",
+        "type": "int",
+        "default_value": 2,
+    },
+    "knet_transport": {
+        "doc": "Which IP transport knet should use",
+        "type": "select[udp, sctp]",
+        "default_value": "udp",
+    },
+    # corosync3: udp only. With UDP, linknumber must set to 0
+    "bindnetaddr": {
+        "doc": "Network Address to be bind for this interface setting",
+        "default_value": 0,
+    },
+    "broadcast": {"doc": "This is optional.", "type": "string", "default_value": ""},
+    "mcastaddr": {"doc": "The multicast address to be used", "default_value": 0},
+    "mcastport": {
+        "doc": "The multicast port to be used",
+        "default_value": 5405,
+        "type": "int",
+    },
+    "ttl": {
+        "doc": "Time-to-live for cluster communication packets",
+        "type": "int",
+        "default_value": 1,
+    },
 }
 
-#BNC-879596. Obsolete, just use to detect the file format is SLE11SP3 or SLE12
+ring_list = (
+    "ring0_addr",
+    "ring1_addr",
+    "ring2_addr",
+    "ring3_addr",
+    "ring4_addr",
+    "ring5_addr",
+    "ring6_addr",
+    "ring7_addr",
+)
+
+node_option_table = {
+    # ringX_addr, support up to 8 rings so far
+    "ring0_addr": {"doc": "ring0 address", "type": "string", "default_value": ""},
+    "ring1_addr": {"doc": "ring1 address", "type": "string", "default_value": ""},
+    "ring2_addr": {"doc": "ring2 address", "type": "string", "default_value": ""},
+    "ring3_addr": {"doc": "ring3 address", "type": "string", "default_value": ""},
+    "ring4_addr": {"doc": "ring4 address", "type": "string", "default_value": ""},
+    "ring5_addr": {"doc": "ring5 address", "type": "string", "default_value": ""},
+    "ring6_addr": {"doc": "ring6 address", "type": "string", "default_value": ""},
+    "ring7_addr": {"doc": "ring7 address", "type": "string", "default_value": ""},
+    "name": {
+        "doc": "This option is used mainly with multiple rings to identify local node.",
+        "type": "string",
+        "default_value": "",
+    },
+    "nodeid": {
+        "doc": "This configuration option is required for each node for Kronosnet mode",
+        "type": "string",
+        "default_value": 0,
+    },
+    "quorum_votes": {
+        "doc": "Quorum votes of a node",
+        "type": "int",
+        "default_value": 1,
+    },
+}
+
+# BNC-879596. Obsolete, just use to detect the file format is SLE11SP3 or SLE12
 old_memberlist_table = {
-		"memberaddr":{"doc":"obsolete! Only use to detect old(SLE11SP3) format.", "type":"string", "default_value":"0"},
+    "memberaddr": {
+        "doc": "obsolete! Only use to detect old(SLE11SP3) format.",
+        "type": "string",
+        "default_value": "0",
+    },
 }
 
 logging_option_table = {
-	"debug":{"doc":"Whether or not turning on the debug information in the log", "default_value":"off",
-		 "suggested_value":"off"},
-	"fileline":{"doc":"Logging file line in the source code as well", "default_value":"off",
-		    "suggested_value":"off"},
-	"function_name":{"doc":"This specifies that the code function name should be printed",
-                    "default_value":"off"},
-	"blackbox":{"doc":"This specifies that blackbox functionality should be enabled",
-                    "default_value":"on"},
-	"to_syslog":{"doc":"Log to syslog", "default_value":"yes",
-		     "suggested_value":"yes"},
-	"to_stderr":{"doc":"Log to the standard error output", "default_value":"yes", "suggested_value":"yes"},
-	"to_logfile":{"doc":"Log to a specified file", "default_value":"yes", "suggested_value":"yes"},
-	"logfile":{"doc":"Log to be saved in this specified file", "default_value":"/var/log/cluster/corosync.log"},
-	"syslog_facility":{"doc":"Facility in syslog", "default_value":"daemon", "suggested_value":"daemon"},
-	"timestamp":{"doc":"Log timestamp as well", "type":"select[hires, off, on]",
-                    "default_value":"hires", "suggested_value":"hires"},
+    "debug": {
+        "doc": "Whether or not turning on the debug information in the log",
+        "default_value": "off",
+        "suggested_value": "off",
+    },
+    "fileline": {
+        "doc": "Logging file line in the source code as well",
+        "default_value": "off",
+        "suggested_value": "off",
+    },
+    "function_name": {
+        "doc": "This specifies that the code function name should be printed",
+        "default_value": "off",
+    },
+    "blackbox": {
+        "doc": "This specifies that blackbox functionality should be enabled",
+        "default_value": "on",
+    },
+    "to_syslog": {
+        "doc": "Log to syslog",
+        "default_value": "yes",
+        "suggested_value": "yes",
+    },
+    "to_stderr": {
+        "doc": "Log to the standard error output",
+        "default_value": "yes",
+        "suggested_value": "yes",
+    },
+    "to_logfile": {
+        "doc": "Log to a specified file",
+        "default_value": "yes",
+        "suggested_value": "yes",
+    },
+    "logfile": {
+        "doc": "Log to be saved in this specified file",
+        "default_value": "/var/log/cluster/corosync.log",
+    },
+    "syslog_facility": {
+        "doc": "Facility in syslog",
+        "default_value": "daemon",
+        "suggested_value": "daemon",
+    },
+    "timestamp": {
+        "doc": "Log timestamp as well",
+        "type": "select[hires, off, on]",
+        "default_value": "hires",
+        "suggested_value": "hires",
+    },
 }
 
 logger_subsys_option_table = {
-	"subsys":{"doc":"This specifies the subsystem identity (name) for which logging is specified", "default_value":"QUORUM"},
-	}
+    "subsys": {
+        "doc": "This specifies the subsystem identity (name) for which logging is specified",
+        "default_value": "QUORUM",
+    },
+}
 
 
 quorum_option_table = {
-		"provider":{"doc":"Enable and configure quorum subsystem","type":"string", "default_value":"corosync_votequorum","suggested_value":"corosync_votequorum"},
-		"expected_votes":{"doc":"votequorum requires an expected_votes value to function","default_value":""},
-		"two_node":{"doc":"Enables two node cluster operations", "type":"int", "default_value":0},
-		"wait_for_all":{"doc":"Enables Wait For All (WFA) feature", "type":"int", "default_value":0},
-		"last_man_standing":{"doc":"Enables Last Man Standing (LMS) feature (default: 0)", "type":"int","default_value":0},
-		"last_man_standing_window":{"type":"int","default_value":10000},
-		"auto_tie_breaker":{"doc":"Enables Auto Tie Breaker (ATB) feature", "type":"int", "default_value":0},
-		"allow_downscale":{"doc":"Enables allow downscale (AD) feature","type":"int", "default_value":0},
-		}
+    "provider": {
+        "doc": "Enable and configure quorum subsystem",
+        "type": "string",
+        "default_value": "corosync_votequorum",
+        "suggested_value": "corosync_votequorum",
+    },
+    "expected_votes": {
+        "doc": "votequorum requires an expected_votes value to function",
+        "default_value": "",
+    },
+    "two_node": {
+        "doc": "Enables two node cluster operations",
+        "type": "int",
+        "default_value": 0,
+    },
+    "wait_for_all": {
+        "doc": "Enables Wait For All (WFA) feature",
+        "type": "int",
+        "default_value": 0,
+    },
+    "last_man_standing": {
+        "doc": "Enables Last Man Standing (LMS) feature (default: 0)",
+        "type": "int",
+        "default_value": 0,
+    },
+    "last_man_standing_window": {"type": "int", "default_value": 10000},
+    "auto_tie_breaker": {
+        "doc": "Enables Auto Tie Breaker (ATB) feature",
+        "type": "int",
+        "default_value": 0,
+    },
+    "allow_downscale": {
+        "doc": "Enables allow downscale (AD) feature",
+        "type": "int",
+        "default_value": 0,
+    },
+}
 
 quorum_qdevice_option_table = {
-		"model":{"doc":"Specifies the model to be used, currently only (net) is supported.","type":"string","default_value":"net","suggested_value":"net"},
-		"timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function.","type":"int","default_value":10000,"suggested_value":10000},
-		"sync_timeout":{"doc":"Specifies how often corosync-qdevice should call the votequorum_poll function during a sync phase.","type":"int","default_value":30000,"suggested_value":30000},
-		"votes":{"doc":"The number of votes provided to the cluster by qdevice. Default is sum(votes_per_node) - 1.","type":"int","default_value":1}
-		}
+    "model": {
+        "doc": "Specifies the model to be used, currently only (net) is supported.",
+        "type": "string",
+        "default_value": "net",
+        "suggested_value": "net",
+    },
+    "timeout": {
+        "doc": "Specifies how often corosync-qdevice should call the votequorum_poll function.",
+        "type": "int",
+        "default_value": 10000,
+        "suggested_value": 10000,
+    },
+    "sync_timeout": {
+        "doc": "Specifies how often corosync-qdevice should call the votequorum_poll function during a sync phase.",
+        "type": "int",
+        "default_value": 30000,
+        "suggested_value": 30000,
+    },
+    "votes": {
+        "doc": "The number of votes provided to the cluster by qdevice. Default is sum(votes_per_node) - 1.",
+        "type": "int",
+        "default_value": 1,
+    },
+}
 
 quorum_qdevice_net_option_table = {
-		"host":{"doc":"Specifies the IP address or host name of the qnetd server to be used, is required.","type":"string","default_value":"0"},
-		"port":{"doc":"Specifies TCP port of qnetd server.","default_value":5403, "type":"int","suggested_value":5403},
-		"tls":{"doc":"Specifies if tls should be used, only off is supported by yast.","default_value":"off", "type":"string","suggested_value":"off"},
-		"algorithm":{"doc":"Decision algorithm. Can be one of the ffsplit or lms.","default_value":"ffsplit", "type":"string","suggested_value":"ffsplit"},
-		"tie_breaker":{"doc":"Used as a fallback if qdevice has to decide between two or more equal partitions.","default_value":"lowest", "type":"string","suggested_value":"lowest"},
-		"connect_timeout":{"doc":"Timeout when corosync-qdevice is trying to connect to corosync-qnetd host. Default is (0.8 * quorum.sync_timeout).","type":"int","default_value":0},
-		"force_ip_version":{"doc":"Can be one of 0|4|6 and forces the software to use the given IP version.", "default_value":0, "type":"int","suggested_value":0}
-		}
+    "host": {
+        "doc": "Specifies the IP address or host name of the qnetd server to be used, is required.",
+        "type": "string",
+        "default_value": "0",
+    },
+    "port": {
+        "doc": "Specifies TCP port of qnetd server.",
+        "default_value": 5403,
+        "type": "int",
+        "suggested_value": 5403,
+    },
+    "tls": {
+        "doc": "Specifies if tls should be used, only off is supported by yast.",
+        "default_value": "off",
+        "type": "string",
+        "suggested_value": "off",
+    },
+    "algorithm": {
+        "doc": "Decision algorithm. Can be one of the ffsplit or lms.",
+        "default_value": "ffsplit",
+        "type": "string",
+        "suggested_value": "ffsplit",
+    },
+    "tie_breaker": {
+        "doc": "Used as a fallback if qdevice has to decide between two or more equal partitions.",
+        "default_value": "lowest",
+        "type": "string",
+        "suggested_value": "lowest",
+    },
+    "connect_timeout": {
+        "doc": "Timeout when corosync-qdevice is trying to connect to corosync-qnetd host. Default is (0.8 * quorum.sync_timeout).",
+        "type": "int",
+        "default_value": 0,
+    },
+    "force_ip_version": {
+        "doc": "Can be one of 0|4|6 and forces the software to use the given IP version.",
+        "default_value": 0,
+        "type": "int",
+        "suggested_value": 0,
+    },
+}
 
 quorum_qdevice_heuristics_option_table = {
-		"mode":{"doc":"Specifies the mode of operation of heuristics.","type":"string","default_value":"off","suggested_value":"off"},
-		"timeout":{"doc":"How long corosync-qdevice waits till the heuristics commands finish in milliseconds.","type":"int","default_value":5000},
-		"sync_timeout":{"doc":"How long corosync-qdevice waits during membership changes in milliseconds.","type":"int","default_value":15000},
-		"interval":{"doc":"Specifies interval between two regular heuristics execution in milliseconds.","type":"int","default_value":30000},
-		"executables":{"doc":"Executables. Scripts for heuristics check.","type":"dict","default_value":{}}
-		}
+    "mode": {
+        "doc": "Specifies the mode of operation of heuristics.",
+        "type": "string",
+        "default_value": "off",
+        "suggested_value": "off",
+    },
+    "timeout": {
+        "doc": "How long corosync-qdevice waits till the heuristics commands finish in milliseconds.",
+        "type": "int",
+        "default_value": 5000,
+    },
+    "sync_timeout": {
+        "doc": "How long corosync-qdevice waits during membership changes in milliseconds.",
+        "type": "int",
+        "default_value": 15000,
+    },
+    "interval": {
+        "doc": "Specifies interval between two regular heuristics execution in milliseconds.",
+        "type": "int",
+        "default_value": 30000,
+    },
+    "executables": {
+        "doc": "Executables. Scripts for heuristics check.",
+        "type": "dict",
+        "default_value": {},
+    },
+}
 
 system_option_table = {
-		"qb_ipc_type":{"doc":"This specifies type of IPC to use", "type":"select[native, shm, socket]", "default_value":"native"},
-		"sched_rr":{"doc":"Whether corosync should try to set round robin realtime scheduling with maximal priority to itself",
-					"type":"string", "default_value":"yes"},
-		"priority":{"doc":"Set priority of corosync process. Valid only when sched_rr is set to no",
-					"type":"string", "default_value":"max"},
-		"move_to_root_cgroup":{"doc":"Whether corosync should try to move itself to root cgroup",
-					"type":"string", "default_value":"yes"},
-		"allow_knet_handle_fallback":{"doc":"If knet handle creation fails using privileged operations, allow fallback to creating knet handle using unprivileged operations", "type":"string", "default_value":"no"},
-		"state_dir":{"doc":"Existing directory where corosync should chdir into",
-					"type":"string", "default_value":"/var/lib/corosync"},
-		}
+    "qb_ipc_type": {
+        "doc": "This specifies type of IPC to use",
+        "type": "select[native, shm, socket]",
+        "default_value": "native",
+    },
+    "sched_rr": {
+        "doc": "Whether corosync should try to set round robin realtime scheduling with maximal priority to itself",
+        "type": "string",
+        "default_value": "yes",
+    },
+    "priority": {
+        "doc": "Set priority of corosync process. Valid only when sched_rr is set to no",
+        "type": "string",
+        "default_value": "max",
+    },
+    "move_to_root_cgroup": {
+        "doc": "Whether corosync should try to move itself to root cgroup",
+        "type": "string",
+        "default_value": "yes",
+    },
+    "allow_knet_handle_fallback": {
+        "doc": "If knet handle creation fails using privileged operations, allow fallback to creating knet handle using unprivileged operations",
+        "type": "string",
+        "default_value": "no",
+    },
+    "state_dir": {
+        "doc": "Existing directory where corosync should chdir into",
+        "type": "string",
+        "default_value": "/var/lib/corosync",
+    },
+}
 
 resources_option_table = {
-		"watchdog_device":{"doc":"Watchdog device to use, for example /dev/watchdog", "type":"string", "default_value":"off"},
-		}
+    "watchdog_device": {
+        "doc": "Watchdog device to use, for example /dev/watchdog",
+        "type": "string",
+        "default_value": "off",
+    },
+}
 
 nozzle_option_table = {
-		"name":{"doc":"The name of the network device to be created", "type":"string", "default_value":""},
-		"ipaddr":{"doc":"The IP address (IPv6 or IPv4) of the interface", "type":"string", "default_value":""},
-		"ipprefix":{"doc":"Specifies the IP address prefix for the nozzle device", "type":"string", "default_value":""},
-		"macaddr":{"doc":"Specifies the MAC address prefix for the nozzle device", "type":"string", "default_value":""},
-		}
+    "name": {
+        "doc": "The name of the network device to be created",
+        "type": "string",
+        "default_value": "",
+    },
+    "ipaddr": {
+        "doc": "The IP address (IPv6 or IPv4) of the interface",
+        "type": "string",
+        "default_value": "",
+    },
+    "ipprefix": {
+        "doc": "Specifies the IP address prefix for the nozzle device",
+        "type": "string",
+        "default_value": "",
+    },
+    "macaddr": {
+        "doc": "Specifies the MAC address prefix for the nozzle device",
+        "type": "string",
+        "default_value": "",
+    },
+}
 
 # Using [] instead of {} is because some sections like nodelist have many nodes
 # Default value to avoid traceback in doRead when without corosync.conf
-totem_options = {"interface":[]}
-logging_subsys_options={}
-logging_options = {"logger_subsys":logging_subsys_options}
-quorum_qdevice_options={}
-quorum_options={"device":quorum_qdevice_options}
-nodelist_options={"node":[]}
-system_options={}
-resources_options={}
-nozzle_options={}
+totem_options = {"interface": []}
+logging_subsys_options = {}
+logging_options = {"logger_subsys": logging_subsys_options}
+quorum_qdevice_options = {}
+quorum_options = {"device": quorum_qdevice_options}
+nodelist_options = {"node": []}
+system_options = {}
+resources_options = {}
+nozzle_options = {}
+
 
 def strip_comments_and_pending_space(line):
-	return line.split('#')[0].rstrip().lstrip()
+    return line.split("#")[0].rstrip().lstrip()
+
 
 def get_next_line(ff):
-	l = next(ff)
-	return strip_comments_and_pending_space(l)
+    l = next(ff)
+    return strip_comments_and_pending_space(l)
 
-def fulfill_suggested_logging_options ():
-	for opt in logging_option_table.keys():
-		if opt == "logger": continue
-		sv = logging_option_table[opt].get("suggested_value", None)
-		v = logging_options.get(opt, None)
-		if v == None and sv != None:
-			logging_options[opt] = sv
+
+def fulfill_suggested_logging_options():
+    for opt in logging_option_table.keys():
+        if opt == "logger":
+            continue
+        sv = logging_option_table[opt].get("suggested_value", None)
+        v = logging_options.get(opt, None)
+        if v == None and sv != None:
+            logging_options[opt] = sv
+
 
 def fulfill_suggested_totem_options():
-	for opt in totem_option_table.keys():
-		if opt == "interface": continue
-		sv = totem_option_table[opt].get("suggested_value", None)
-		v = totem_options.get(opt, None)
-		if v == None and sv != None:
-			totem_options[opt] = sv
+    for opt in totem_option_table.keys():
+        if opt == "interface":
+            continue
+        sv = totem_option_table[opt].get("suggested_value", None)
+        v = totem_options.get(opt, None)
+        if v == None and sv != None:
+            totem_options[opt] = sv
+
 
 def fulfill_suggested_quorum_options():
-	# must has provider
-	for opt in ['provider']:
-		sv = quorum_option_table[opt].get("suggested_value", None)
-		v = quorum_options.get(opt, None)
-		if v == None and sv != None:
-			quorum_options[opt] = sv
+    # must has provider
+    for opt in ["provider"]:
+        sv = quorum_option_table[opt].get("suggested_value", None)
+        v = quorum_options.get(opt, None)
+        if v == None and sv != None:
+            quorum_options[opt] = sv
+
 
 def fulfill_suggested_quorum_qdevice_options():
-	'''
-		This function only be used when having quorum qdevice
-	'''
-	# must have 'model' in 'device'
-	for opt in ['model']:
-		sv = quorum_qdevice_option_table[opt].get("suggested_value", None)
-		v = quorum_qdevice_options.get(opt, None)
-		if v == None and sv != None:
-			quorum_qdevice_options[opt] = sv
+    """
+    This function only be used when having quorum qdevice
+    """
+    # must have 'model' in 'device'
+    for opt in ["model"]:
+        sv = quorum_qdevice_option_table[opt].get("suggested_value", None)
+        v = quorum_qdevice_options.get(opt, None)
+        if v == None and sv != None:
+            quorum_qdevice_options[opt] = sv
 
-	# must have 'host', 'tls', 'algorithm', 'tie_breaker' in 'net'
-	for opt in ['host', 'tls', 'algorithm', 'tie_breaker']:
-		sv = quorum_qdevice_net_option_table[opt].get("suggested_value", None)
-		v = quorum_qdevice_options["net"].get(opt, None)
-		if v == None and sv != None:
-			quorum_qdevice_options["net"][opt] = sv
+    # must have 'host', 'tls', 'algorithm', 'tie_breaker' in 'net'
+    for opt in ["host", "tls", "algorithm", "tie_breaker"]:
+        sv = quorum_qdevice_net_option_table[opt].get("suggested_value", None)
+        v = quorum_qdevice_options["net"].get(opt, None)
+        if v == None and sv != None:
+            quorum_qdevice_options["net"][opt] = sv
 
-	if is_qdevice_heuristics_enabled():
-		for opt in ['mode', 'timeout', 'sync_timeout', 'interval']:
-			sv = quorum_qdevice_heuristics_option_table[opt].get("suggested_value", None)
-			v = quorum_qdevice_options["heuristics"].get(opt, None)
-			if v == None and sv != None:
-				quorum_qdevice_options["heuristics"][opt] = sv
+    if is_qdevice_heuristics_enabled():
+        for opt in ["mode", "timeout", "sync_timeout", "interval"]:
+            sv = quorum_qdevice_heuristics_option_table[opt].get(
+                "suggested_value", None
+            )
+            v = quorum_qdevice_options["heuristics"].get(opt, None)
+            if v == None and sv != None:
+                quorum_qdevice_options["heuristics"][opt] = sv
+
 
 def print_quorum_qdevice_net_options(f, indent):
-	'''
-		indent means the level of sub-directive
-	'''
-	f.write("\t"*indent+"net {\n")
-	for l in quorum_qdevice_options["net"].keys():
-		f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_net_option_table[l]["doc"]))
-		f.write("\t"*(indent+1)+"%s:\t%s\n\n" % (l, quorum_qdevice_options["net"][l]))
-	f.write("\t"*indent+"}\n")
+    """
+    indent means the level of sub-directive
+    """
+    f.write("\t" * indent + "net {\n")
+    for l in quorum_qdevice_options["net"].keys():
+        f.write(
+            "\t" * (indent + 1) + "#%s\n" % (quorum_qdevice_net_option_table[l]["doc"])
+        )
+        f.write(
+            "\t" * (indent + 1) + "%s:\t%s\n\n" % (l, quorum_qdevice_options["net"][l])
+        )
+    f.write("\t" * indent + "}\n")
+
 
 def print_quorum_qdevice_heuristics_options(f, indent):
-	'''
-		indent means the level of sub-directive
-		sub-director of quorum.qdevice
-	'''
-	f.write("\t"*indent+"heuristics {\n")
-	for l in quorum_qdevice_options["heuristics"].keys():
-		if l != "executables":
-			f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_heuristics_option_table[l]["doc"]))
-			f.write("\t"*(indent+1)+"%s:\t%s\n\n" % (l, quorum_qdevice_options["heuristics"][l]))
+    """
+    indent means the level of sub-directive
+    sub-director of quorum.qdevice
+    """
+    f.write("\t" * indent + "heuristics {\n")
+    for l in quorum_qdevice_options["heuristics"].keys():
+        if l != "executables":
+            f.write(
+                "\t" * (indent + 1)
+                + "#%s\n" % (quorum_qdevice_heuristics_option_table[l]["doc"])
+            )
+            f.write(
+                "\t" * (indent + 1)
+                + "%s:\t%s\n\n" % (l, quorum_qdevice_options["heuristics"][l])
+            )
 
-	f.write("\t"*(indent+1)+"#%s\n" % (quorum_qdevice_heuristics_option_table["executables"]["doc"]))
-	for key, value in quorum_qdevice_options["heuristics"]["executables"].items():
-		f.write("\t"*(indent+1)+"%s:\t%s\n" % (key, value))
-	f.write("\n")
+    f.write(
+        "\t" * (indent + 1)
+        + "#%s\n" % (quorum_qdevice_heuristics_option_table["executables"]["doc"])
+    )
+    for key, value in quorum_qdevice_options["heuristics"]["executables"].items():
+        f.write("\t" * (indent + 1) + "%s:\t%s\n" % (key, value))
+    f.write("\n")
 
-	f.write("\t"*indent+"}\n")
+    f.write("\t" * indent + "}\n")
+
 
 def print_quorum_options(f):
-	f.write("quorum {\n")
-	for key in quorum_options.keys():
-		if key == "device" and is_quorum_qdevice_configured():
-			f.write("\tdevice {\n")
-			for l in quorum_options["device"].keys():
-				if l == "net":
-					print_quorum_qdevice_net_options(f, 2)
-				elif l == "heuristics":
-					if is_qdevice_heuristics_enabled():
-						print_quorum_qdevice_heuristics_options(f, 2)
-				else:
-					f.write("\t\t#%s\n" % (quorum_qdevice_option_table[l]["doc"]))
-					f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
-			f.write("\t}\n")
-		else:
-			if quorum_options[key] != "":
-				f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
-				f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
-	f.write("}\n")
+    f.write("quorum {\n")
+    for key in quorum_options.keys():
+        if key == "device" and is_quorum_qdevice_configured():
+            f.write("\tdevice {\n")
+            for l in quorum_options["device"].keys():
+                if l == "net":
+                    print_quorum_qdevice_net_options(f, 2)
+                elif l == "heuristics":
+                    if is_qdevice_heuristics_enabled():
+                        print_quorum_qdevice_heuristics_options(f, 2)
+                else:
+                    f.write("\t\t#%s\n" % (quorum_qdevice_option_table[l]["doc"]))
+                    f.write("\t\t%s:\t%s\n\n" % (l, quorum_qdevice_options[l]))
+            f.write("\t}\n")
+        else:
+            if quorum_options[key] != "":
+                f.write("\t#%s\n" % (quorum_option_table[key]["doc"]))
+                f.write("\t%s:\t%s\n\n" % (key, quorum_options[key]))
+    f.write("}\n")
+
 
 def print_system_options(f):
-	if(len(system_options) == 0):
-		return
-	f.write("system {\n")
-	for key in system_options.keys():
-		f.write("\t#%s\n" % (system_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, system_options[key]))
-	f.write("}\n")
+    if len(system_options) == 0:
+        return
+    f.write("system {\n")
+    for key in system_options.keys():
+        f.write("\t#%s\n" % (system_option_table[key]["doc"]))
+        f.write("\t%s:\t%s\n\n" % (key, system_options[key]))
+    f.write("}\n")
+
 
 def print_resources_options(f):
-	if(len(resources_options) == 0):
-		return
-	f.write("resources {\n")
-	for key in resources_options.keys():
-		f.write("\t#%s\n" % (resources_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, resources_options[key]))
-	f.write("}\n")
+    if len(resources_options) == 0:
+        return
+    f.write("resources {\n")
+    for key in resources_options.keys():
+        f.write("\t#%s\n" % (resources_option_table[key]["doc"]))
+        f.write("\t%s:\t%s\n\n" % (key, resources_options[key]))
+    f.write("}\n")
+
 
 def print_nozzle_options(f):
-	if(len(nozzle_options) == 0):
-		return
-	f.write("nozzle {\n")
-	for key in nozzle_options.keys():
-		f.write("\t#%s\n" % (nozzle_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, nozzle_options[key]))
-	f.write("}\n")
+    if len(nozzle_options) == 0:
+        return
+    f.write("nozzle {\n")
+    for key in nozzle_options.keys():
+        f.write("\t#%s\n" % (nozzle_option_table[key]["doc"]))
+        f.write("\t%s:\t%s\n\n" % (key, nozzle_options[key]))
+    f.write("}\n")
+
 
 def print_nodelist_options(f):
-	nodelist = nodelist_options["node"]
-	if len(nodelist) ==  0:
-		return
-	f.write("nodelist {\n")
-	for node in nodelist:
-		f.write("\tnode {\n")
-		# Sort the keys like ring0_addr, ring1_addr ... ring7_addr
-		klist=list(node.keys())
-		klist.sort()
-		for key in klist:
-			if node[key] == "":
-				continue
-			f.write("\t\t#%s\n" % (node_option_table[key]["doc"]))
-			f.write("\t\t%s:\t%s\n\n" % (key, node[key]))
-		f.write("\t}\n")
-	f.write("}\n")
+    nodelist = nodelist_options["node"]
+    if len(nodelist) == 0:
+        return
+    f.write("nodelist {\n")
+    for node in nodelist:
+        f.write("\tnode {\n")
+        # Sort the keys like ring0_addr, ring1_addr ... ring7_addr
+        klist = list(node.keys())
+        klist.sort()
+        for key in klist:
+            if node[key] == "":
+                continue
+            f.write("\t\t#%s\n" % (node_option_table[key]["doc"]))
+            f.write("\t\t%s:\t%s\n\n" % (key, node[key]))
+        f.write("\t}\n")
+    f.write("}\n")
+
 
 def is_quorum_qdevice_configured():
-	if ("device" not in quorum_options) or (len(quorum_qdevice_options) == 0):
-		return False
-	else:
-		return True
+    if ("device" not in quorum_options) or (len(quorum_qdevice_options) == 0):
+        return False
+    else:
+        return True
+
 
 def is_qdevice_heuristics_enabled():
-	if is_quorum_qdevice_configured():
-		if ("heuristics" not in quorum_qdevice_options) or \
-				(quorum_qdevice_options["heuristics"].get("mode", "off")) == "off":
-			return False
+    if is_quorum_qdevice_configured():
+        if ("heuristics" not in quorum_qdevice_options) or (
+            quorum_qdevice_options["heuristics"].get("mode", "off")
+        ) == "off":
+            return False
 
-	return True
+    return True
+
 
 def print_logging_options(f):
-	f.write("logging {\n")
-	for key in logging_options.keys():
-		if key == "logger_subsys":
-			if len(logging_subsys_options):
-				f.write("\tlogger_subsys {\n")
-				for l in logging_subsys_options.keys():
-					f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
-					f.write("\t\t%s:\t%s\n\n" % (l, logging_subsys_options[l]))
-				f.write("\t}\n")
-		else:
-			f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
-			f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
-	f.write("}\n")
+    f.write("logging {\n")
+    for key in logging_options.keys():
+        if key == "logger_subsys":
+            if len(logging_subsys_options):
+                f.write("\tlogger_subsys {\n")
+                for l in logging_subsys_options.keys():
+                    f.write("\t\t#%s\n" % (logger_subsys_option_table[l]["doc"]))
+                    f.write("\t\t%s:\t%s\n\n" % (l, logging_subsys_options[l]))
+                f.write("\t}\n")
+        else:
+            f.write("\t#%s\n" % (logging_option_table[key]["doc"]))
+            f.write("\t%s:\t%s\n\n" % (key, logging_options[key]))
+    f.write("}\n")
+
 
 def print_totem_options(f):
-	f.write("totem {\n")
-	for key in totem_options.keys():
-		# Used to check corosync2 format
-		if key == "rrp_mode":
-			continue
-		if key == "interface":
-			for inf in totem_options["interface"]:
-				f.write("\tinterface {\n")
-				for k in inf.keys():
-					if inf[k] == "" or k == "oldlist":
-						continue
-					else:
-						f.write("\t\t#%s\n" % (interface_option_table[k]["doc"]))
-						f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
-				f.write("\t}\n")
-			continue
-		if totem_options[key] == "":
-			continue
-		f.write("\t#%s\n" % (totem_option_table[key]["doc"]))
-		f.write("\t%s:\t%s\n\n" % (key, totem_options[key]))
-	# We print out all possible configurations as well
-	# dont for now. looking for better solution
-	"""
+    f.write("totem {\n")
+    for key in totem_options.keys():
+        # Used to check corosync2 format
+        if key == "rrp_mode":
+            continue
+        if key == "interface":
+            for inf in totem_options["interface"]:
+                f.write("\tinterface {\n")
+                for k in inf.keys():
+                    if inf[k] == "" or k == "oldlist":
+                        continue
+                    else:
+                        f.write("\t\t#%s\n" % (interface_option_table[k]["doc"]))
+                        f.write("\t\t%s:\t%s\n\n" % (k, inf[k]))
+                f.write("\t}\n")
+            continue
+        if totem_options[key] == "":
+            continue
+        f.write("\t#%s\n" % (totem_option_table[key]["doc"]))
+        f.write("\t%s:\t%s\n\n" % (key, totem_options[key]))
+    # We print out all possible configurations as well
+    # dont for now. looking for better solution
+    """
 	for opt in totem_option_table.keys():
 		v = totem_options.get(opt, None)
 		if v == None:
 			f.write("\t#%s\n" % (totem_option_table[opt]["doc"]))
 			f.write("\t#%s:\t%s\n\n" % (opt, totem_option_table[opt]["default_value"]))
 	"""
-	f.write("}\n")
+    f.write("}\n")
+
 
 def file_parser(file):
-	global totem_options
-	global logging_options
-	global nodelist_options
-	global system_options
-	global resources_options
-	global nozzle_options
-	global quorum_options
+    global totem_options
+    global logging_options
+    global nodelist_options
+    global system_options
+    global resources_options
+    global nozzle_options
+    global quorum_options
 
-	for l in file:
-		i = strip_comments_and_pending_space(l)
-		if i == "":
-			continue
+    for l in file:
+        i = strip_comments_and_pending_space(l)
+        if i == "":
+            continue
 
-		if i[-1] == "{":
-			i = i[:-1].rsplit()[0]
-			if i == "totem":
-				totem_options.update(opt_parser(file, totem_option_table, "totem"))
-			elif i == "logging":
-				logging_options.update(opt_parser(file, logging_option_table, "logging"))
-			elif i == "nodelist":
-				nodelist_options.update(opt_parser(file, {}, "nodelist"))
-			elif i == "quorum":
-				quorum_options.update(opt_parser(file, quorum_option_table, "quorum"))
-			elif i == "system":
-				system_options.update(opt_parser(file, system_option_table, "system"))
-			elif i == "resources":
-				resources_options.update(opt_parser(file, resources_option_table, "resources"))
-			elif i == "nozzle":
-				nozzle_options.update(opt_parser(file, nozzle_option_table, "nozzle"))
-			else:
-				pass
+        if i[-1] == "{":
+            i = i[:-1].rsplit()[0]
+            if i == "totem":
+                totem_options.update(opt_parser(file, totem_option_table, "totem"))
+            elif i == "logging":
+                logging_options.update(
+                    opt_parser(file, logging_option_table, "logging")
+                )
+            elif i == "nodelist":
+                nodelist_options.update(opt_parser(file, {}, "nodelist"))
+            elif i == "quorum":
+                quorum_options.update(opt_parser(file, quorum_option_table, "quorum"))
+            elif i == "system":
+                system_options.update(opt_parser(file, system_option_table, "system"))
+            elif i == "resources":
+                resources_options.update(
+                    opt_parser(file, resources_option_table, "resources")
+                )
+            elif i == "nozzle":
+                nozzle_options.update(opt_parser(file, nozzle_option_table, "nozzle"))
+            else:
+                pass
 
-	if debug:
-		print("Reading from /etc/corosync/corosync.conf:")
-		print(totem_options)
-		print(logging_options)
-		print(nodelist_options)
-		print(system_options)
-		print(resources_options)
-		print(nozzle_options)
-		print(quorum_options)
+    if debug:
+        print("Reading from /etc/corosync/corosync.conf:")
+        print(totem_options)
+        print(logging_options)
+        print(nodelist_options)
+        print(system_options)
+        print(resources_options)
+        print(nozzle_options)
+        print(quorum_options)
+
 
 def opt_parser(file, options, parent):
-	global quorum_qdevice_options
-	global logging_subsys_options
+    global quorum_qdevice_options
+    global logging_subsys_options
 
-	result = {}
-	others = {}
+    result = {}
+    others = {}
 
-	i = ""
-	while (i == ""):
-		i = get_next_line(file)
+    i = ""
+    while i == "":
+        i = get_next_line(file)
 
-	while (i[-1] != "}"):
-		if (i[-1] == "{"):
-			if i.lstrip().split(" ")[0] == "interface" and parent == "totem":
-				infs = result.get("interface", [])
-				infs.append(opt_parser(file, interface_option_table, "interface"))
-				result["interface"] = infs
-			elif i.lstrip().split(" ")[0] == "logger_subsys" and parent == "logging":
-				logging_subsys_options = opt_parser(file, logger_subsys_option_table, "logger_subsys")
-				result["logger_subsys"] = logging_subsys_options
-			elif i.lstrip().split(" ")[0] == "node" and parent == "nodelist":
-				members = result.get("node", [])
-				members.append(opt_parser(file, node_option_table, "node"))
-				result["node"] = members
-			elif i.lstrip().split(" ")[0] == "device" and parent == "quorum":
-				quorum_qdevice_options = opt_parser(file, quorum_qdevice_option_table, "qdevice")
-				result["device"] = quorum_qdevice_options
-			elif i.lstrip().split(" ")[0] == "net" and parent == "qdevice":
-				result["net"] = opt_parser(file, quorum_qdevice_net_option_table, "net")
-			elif i.lstrip().split(" ")[0] == "heuristics" and parent == "qdevice":
-				result["heuristics"] = opt_parser(file, quorum_qdevice_heuristics_option_table, "heuristics")
-			# member of interface is removed in the latest version
-			elif i.lstrip().split(" ")[0] == "member" and parent == "interface":
-				oldmembers = result.get("oldlist", [])
-				oldmembers.append(opt_parser(file, old_memberlist_table, "oldlist"))
-				result["oldlist"] = oldmembers
-			else:
-				#y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
-				while (i[-1] != "}"):
-					i = get_next_line(file)
+    while i[-1] != "}":
+        if i[-1] == "{":
+            if i.lstrip().split(" ")[0] == "interface" and parent == "totem":
+                infs = result.get("interface", [])
+                infs.append(opt_parser(file, interface_option_table, "interface"))
+                result["interface"] = infs
+            elif i.lstrip().split(" ")[0] == "logger_subsys" and parent == "logging":
+                logging_subsys_options = opt_parser(
+                    file, logger_subsys_option_table, "logger_subsys"
+                )
+                result["logger_subsys"] = logging_subsys_options
+            elif i.lstrip().split(" ")[0] == "node" and parent == "nodelist":
+                members = result.get("node", [])
+                members.append(opt_parser(file, node_option_table, "node"))
+                result["node"] = members
+            elif i.lstrip().split(" ")[0] == "device" and parent == "quorum":
+                quorum_qdevice_options = opt_parser(
+                    file, quorum_qdevice_option_table, "qdevice"
+                )
+                result["device"] = quorum_qdevice_options
+            elif i.lstrip().split(" ")[0] == "net" and parent == "qdevice":
+                result["net"] = opt_parser(file, quorum_qdevice_net_option_table, "net")
+            elif i.lstrip().split(" ")[0] == "heuristics" and parent == "qdevice":
+                result["heuristics"] = opt_parser(
+                    file, quorum_qdevice_heuristics_option_table, "heuristics"
+                )
+            # member of interface is removed in the latest version
+            elif i.lstrip().split(" ")[0] == "member" and parent == "interface":
+                oldmembers = result.get("oldlist", [])
+                oldmembers.append(opt_parser(file, old_memberlist_table, "oldlist"))
+                result["oldlist"] = oldmembers
+            else:
+                # y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
+                while i[-1] != "}":
+                    i = get_next_line(file)
 
-			i = get_next_line(file)
-			while ( i == ""):
-				i = get_next_line(file)
-			continue
+            i = get_next_line(file)
+            while i == "":
+                i = get_next_line(file)
+            continue
 
-		tmp_opt = i.split(":")
-		# In case string like IPv6 have ":" in value
-		opt = [tmp_opt[0].strip(), ":".join(tmp_opt[1:]).strip()]
-		#opt = i.split(":")
+        tmp_opt = i.split(":")
+        # In case string like IPv6 have ":" in value
+        opt = [tmp_opt[0].strip(), ":".join(tmp_opt[1:]).strip()]
+        # opt = i.split(":")
 
-		try:
-			doc = options[opt[0]]["doc"]
-		except KeyError:
-			#y2warning("Unknown options %s"%opt[0])
+        try:
+            doc = options[opt[0]]["doc"]
+        except KeyError:
+            # y2warning("Unknown options %s"%opt[0])
 
-			# If the keys of options have "dict"
-			# Then set to the "dict" as key:value pair of it
-			if not len(others):
-				for key in options.keys():
-					if options[key].get("type", "string") == "dict":
-						result[key] = others
+            # If the keys of options have "dict"
+            # Then set to the "dict" as key:value pair of it
+            if not len(others):
+                for key in options.keys():
+                    if options[key].get("type", "string") == "dict":
+                        result[key] = others
 
-			others[opt[0]] = opt[1]
+            others[opt[0]] = opt[1]
 
-		else:
-			#Available types: "string", "int" and "select".
-			if options[opt[0]].get("type", "string") == "int":
-				try:
-					result[opt[0]] = int(opt[1])
-				except ValueError:
-					#y2warning("Invalid option %s found, default to %s" % (opt[0], options[opt[0]]["default_value"]))
-					result[opt[0]] = options[opt[0]]["default_value"]
-			elif options[opt[0]].get("type", "string").startswith("select["):
-				tmpstr = options[opt[0]].get("type", "string").lstrip('select[').rstrip(']')
-				vlist = tmpstr.split(',')
+        else:
+            # Available types: "string", "int" and "select".
+            if options[opt[0]].get("type", "string") == "int":
+                try:
+                    result[opt[0]] = int(opt[1])
+                except ValueError:
+                    # y2warning("Invalid option %s found, default to %s" % (opt[0], options[opt[0]]["default_value"]))
+                    result[opt[0]] = options[opt[0]]["default_value"]
+            elif options[opt[0]].get("type", "string").startswith("select["):
+                tmpstr = (
+                    options[opt[0]].get("type", "string").lstrip("select[").rstrip("]")
+                )
+                vlist = tmpstr.split(",")
 
-				for v in vlist:
-					if opt[1] == v.strip():
-						result[opt[0]] = opt[1]
-						break
-				else:
-					result[opt[0]] = options[opt[0]]["default_value"]
-			else:
-				result[opt[0]] = opt[1]
+                for v in vlist:
+                    if opt[1] == v.strip():
+                        result[opt[0]] = opt[1]
+                        break
+                else:
+                    result[opt[0]] = options[opt[0]]["default_value"]
+            else:
+                result[opt[0]] = opt[1]
 
-		i = ""
-		while (i == ""):
-			i = get_next_line(file)
+        i = ""
+        while i == "":
+            i = get_next_line(file)
 
-	return result.copy()
+    return result.copy()
+
 
 # BNC#871970,combine ring0 ... ringX of one node into one struct
 # ring0_addr;ring1_addr;ring2_addr
 def generateMemberString(node):
-	member_str = ""
+    member_str = ""
 
-	for ring in ring_list:
-		if ring in node:
-			IPaddress = node.get(ring, None)
-			if member_str != "":
-				member_str += ";"
-			member_str += IPaddress
+    for ring in ring_list:
+        if ring in node:
+            IPaddress = node.get(ring, None)
+            if member_str != "":
+                member_str += ";"
+            member_str += IPaddress
 
-	return '"%s"' % member_str.strip()
+    return '"%s"' % member_str.strip()
+
 
 # obsolete setting. BNC-879596, pop up a message if config file is in old format.
 def check_conf_format():
-	if "rrp_mode" in totem_options:
-		return "corosync2"
+    if "rrp_mode" in totem_options:
+        return "corosync2"
 
-	for x in range(len(totem_options["interface"])):
-		if "oldlist" in totem_options["interface"][x]:
-			return "corosync"
-	return "latest"
+    for x in range(len(totem_options["interface"])):
+        if "oldlist" in totem_options["interface"][x]:
+            return "corosync"
+    return "latest"
+
 
 def load_ais_conf(filename):
-	try:
-		f = open(filename, "r")
-		file_parser(f)
-		f.close()
-	except:
-		try:
-			os.rename(filename, "/etc/corosync/corosync.conf.corrupted");
-		except:
-			pass
+    try:
+        f = open(filename, "r")
+        file_parser(f)
+        f.close()
+    except:
+        try:
+            os.rename(filename, "/etc/corosync/corosync.conf.corrupted")
+        except:
+            pass
 
 
 def safe_return_str(obj):
-	'''
-		return a str with all '"' replaced to '\"'
-		necessary when value may include '"'
-		For example:
-		  "nick"123l"nick" => "nick\"123l\"nick"
-		  "{'exec_ping': 'ping -q -c 1 "127.3.1.1"'}" => "{'exec_ping': 'ping -q -c 1 \"127.3.1.1\"'}"
-	'''
-	return str(obj).replace('"', '\\"')
+    """
+    return a str with all '"' replaced to '\"'
+    necessary when value may include '"'
+    For example:
+      "nick"123l"nick" => "nick\"123l\"nick"
+      "{'exec_ping': 'ping -q -c 1 "127.3.1.1"'}" => "{'exec_ping': 'ping -q -c 1 \"127.3.1.1\"'}"
+    """
+    return str(obj).replace('"', '\\"')
+
 
 def _add_wrapper(obj):
-    return '"'+str(obj)+'"'
+    return '"' + str(obj) + '"'
+
 
 def _return_str_list(obj):
-	'''
-	input: listable object
-	return: a string of list. Each element of the "list" is string.
-               each element should with "
-	'''
-	lobj = list(obj)
-	dummy = list(map(_add_wrapper, lobj))
-	return '[' + ",".join(dummy) + ']'
+    """
+    input: listable object
+    return: a string of list. Each element of the "list" is string.
+           each element should with "
+    """
+    lobj = list(obj)
+    dummy = list(map(_add_wrapper, lobj))
+    return "[" + ",".join(dummy) + "]"
+
 
 class CorosyncConf_Parser(object):
-	def __init__(self):
-		load_ais_conf("/etc/corosync/corosync.conf")
+    def __init__(self):
+        load_ais_conf("/etc/corosync/corosync.conf")
 
-	def doList(self, path_arr):
-		if len(path_arr) == 0:
-			return '["allconfs"]'
+    def doList(self, path_arr):
+        if len(path_arr) == 0:
+            return '["allconfs"]'
 
-		if path_arr[0] == 'allconfs' and len(path_arr) == 1:
-			return '["quorum", "totem", "nodelist", "logging", "system", "resources", "nozzle"]'
-		elif path_arr[0] == 'totem':
-			if len(path_arr) == 1:
-				totem_keys = list(totem_option_table.keys())
-				totem_keys.append("interface")
-				return str(totem_keys)
-			else:
-				if path_arr[1] == 'interface':
-					if len(path_arr) == 2:
-						interface_num = len(totem_options["interface"])
-						return _return_str_list(range(interface_num))
-					else:
-						if len(path_arr) == 3:
-							if len(totem_options["interface"]) > int(path_arr[2]):
-								i = totem_options["interface"][int(path_arr[2])]
-								return _return_str_list(i.keys())
-							else:
-								return '[]'
-						else:
-							return 'nil\n'
-				else:
-					return 'nil\n'
-		elif path_arr[0] == 'nodelist':
-			if len(path_arr) == 1:
-				return '["node"]'
-			elif len(path_arr) == 2 and path_arr[1] == "node":
-				node_num = len(nodelist_options["node"])
-				return _return_str_list(range(node_num))
-			elif len(path_arr) == 3 and path_arr[1] == "node" and \
-				path_arr[2].isdigit() and int(path_arr[2]) < len(nodelist_options["node"]):
-				node_keys = list(nodelist_options["node"][int(path_arr[2])].keys())
-				node_keys.append("IPs")
-				return _return_str_list(node_keys)
-			else:
-				return 'nil\n'
-		elif path_arr[0] == 'quorum':
-			if len(path_arr) == 1:
-				quorum_keys = list(quorum_option_table.keys())
-				quorum_keys.append("device")
-				return str(quorum_keys)
-			elif len(path_arr) == 2 and path_arr[1] == "device":
-				qdevice_keys = list(quorum_qdevice_option_table.keys())
-				qdevice_keys.append("net")
-				qdevice_keys.append("heuristics")
-				return str(qdevice_keys)
-			elif len(path_arr) == 3 and path_arr[2] == "net":
-				qnet_keys = list(quorum_qdevice_net_option_table.keys())
-				return str(qnet_keys)
-			elif len(path_arr) == 3 and path_arr[2] == "heuristics":
-				qheuristics_keys = list(quorum_qdevice_heuristics_option_table.keys())
-				return str(qheuristics_keys)
-			else:
-				return '[]'
-		elif path_arr[0] == 'logging':
-			if len(path_arr) == 1:
-				logging_keys = list(logging_option_table.keys())
-				logging_keys.append("logger_subsys")
-				return str(logging_keys)
-			elif len(path_arr) == 2 and path_arr[1] == 'logger_subsys':
-					return _return_str_list(logger_subsys_option_table.keys())
-			else:
-				return 'nil\n'
-		elif path_arr[0] == 'system':
-			if len(path_arr) == 1:
-				return _return_str_list(system_option_table.keys())
-			else:
-				return 'nil\n'
-		elif path_arr[0] == 'resources':
-			if len(path_arr) == 1:
-				return _return_str_list(resources_option_table.keys())
-			else:
-				return 'nil\n'
-		elif path_arr[0] == 'nozzle':
-			if len(path_arr) == 1:
-				return _return_str_list(nozzle_option_table.keys())
-			else:
-				return 'nil\n'
-		else:
-			return 'nil\n'
+        if path_arr[0] == "allconfs" and len(path_arr) == 1:
+            return '["quorum", "totem", "nodelist", "logging", "system", "resources", "nozzle"]'
+        elif path_arr[0] == "totem":
+            if len(path_arr) == 1:
+                totem_keys = list(totem_option_table.keys())
+                totem_keys.append("interface")
+                return str(totem_keys)
+            else:
+                if path_arr[1] == "interface":
+                    if len(path_arr) == 2:
+                        interface_num = len(totem_options["interface"])
+                        return _return_str_list(range(interface_num))
+                    else:
+                        if len(path_arr) == 3:
+                            if len(totem_options["interface"]) > int(path_arr[2]):
+                                i = totem_options["interface"][int(path_arr[2])]
+                                return _return_str_list(i.keys())
+                            else:
+                                return "[]"
+                        else:
+                            return "nil\n"
+                else:
+                    return "nil\n"
+        elif path_arr[0] == "nodelist":
+            if len(path_arr) == 1:
+                return '["node"]'
+            elif len(path_arr) == 2 and path_arr[1] == "node":
+                node_num = len(nodelist_options["node"])
+                return _return_str_list(range(node_num))
+            elif (
+                len(path_arr) == 3
+                and path_arr[1] == "node"
+                and path_arr[2].isdigit()
+                and int(path_arr[2]) < len(nodelist_options["node"])
+            ):
+                node_keys = list(nodelist_options["node"][int(path_arr[2])].keys())
+                node_keys.append("IPs")
+                return _return_str_list(node_keys)
+            else:
+                return "nil\n"
+        elif path_arr[0] == "quorum":
+            if len(path_arr) == 1:
+                quorum_keys = list(quorum_option_table.keys())
+                quorum_keys.append("device")
+                return str(quorum_keys)
+            elif len(path_arr) == 2 and path_arr[1] == "device":
+                qdevice_keys = list(quorum_qdevice_option_table.keys())
+                qdevice_keys.append("net")
+                qdevice_keys.append("heuristics")
+                return str(qdevice_keys)
+            elif len(path_arr) == 3 and path_arr[2] == "net":
+                qnet_keys = list(quorum_qdevice_net_option_table.keys())
+                return str(qnet_keys)
+            elif len(path_arr) == 3 and path_arr[2] == "heuristics":
+                qheuristics_keys = list(quorum_qdevice_heuristics_option_table.keys())
+                return str(qheuristics_keys)
+            else:
+                return "[]"
+        elif path_arr[0] == "logging":
+            if len(path_arr) == 1:
+                logging_keys = list(logging_option_table.keys())
+                logging_keys.append("logger_subsys")
+                return str(logging_keys)
+            elif len(path_arr) == 2 and path_arr[1] == "logger_subsys":
+                return _return_str_list(logger_subsys_option_table.keys())
+            else:
+                return "nil\n"
+        elif path_arr[0] == "system":
+            if len(path_arr) == 1:
+                return _return_str_list(system_option_table.keys())
+            else:
+                return "nil\n"
+        elif path_arr[0] == "resources":
+            if len(path_arr) == 1:
+                return _return_str_list(resources_option_table.keys())
+            else:
+                return "nil\n"
+        elif path_arr[0] == "nozzle":
+            if len(path_arr) == 1:
+                return _return_str_list(nozzle_option_table.keys())
+            else:
+                return "nil\n"
+        else:
+            return "nil\n"
 
-	def doRead(self, path):
-		if path[0] == "":
-			return "nil\n"
-		elif path[0] == "quorum" and len(path) >= 2:
-			if len(path) == 2 and path[1] in quorum_option_table.keys():
-				return '"%s"' % quorum_options.get(path[1],
-					quorum_option_table[path[1]]["default_value"])
-			elif len(path) == 2 and path[1] == "device":
-				if is_quorum_qdevice_configured():
-					return "true"
-				else:
-					return "nil"
-			elif is_quorum_qdevice_configured() and len(path) == 3 and \
-				path[1] == "device" and path[2] in quorum_qdevice_option_table.keys():
-				return '"%s"' % quorum_options["device"].get(path[2],
-					quorum_qdevice_option_table[path[2]]["default_value"])
-			elif is_quorum_qdevice_configured() and is_qdevice_heuristics_enabled() and \
-				len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
-				# "executables" will return a dict in str
-				# eg. "{'exec_check': '/tmp/check.sh', 'exec_ping': 'ping -q -c 1 \"127.0.0.1\"'}"
-				if path[3] in quorum_qdevice_heuristics_option_table.keys():
-					return '"%s"' % safe_return_str(quorum_qdevice_options["heuristics"].get(path[3],
-						quorum_qdevice_heuristics_option_table[path[3]]["default_value"]))
-			elif is_quorum_qdevice_configured() and len(path) == 4 and \
-				path[1] == "device" and path[2] == "net" and \
-				path[3] in quorum_qdevice_net_option_table.keys():
-				return '"%s"' % quorum_qdevice_options["net"].get(path[3],
-					quorum_qdevice_net_option_table[path[3]]["default_value"])
-			else:
-				return "nil"
-		elif path[0] == "totem":
-			if len(path) == 1:
-				return "nil"
-			elif len(path) == 2:
-				if path[1] == "secauth":
-					return '"%s"' % totem_options.get("secauth", "on")
-				elif path[1] == "crypto_hash":
-					return '"%s"' % totem_options.get("crypto_hash", "sha1")
-				elif path[1] == "crypto_cipher":
-					return '"%s"' % totem_options.get("crypto_cipher", "aes256")
-				elif path[1] == "autoid":
-					#FIXME, check nodelist has nodeid
-					for i in nodelist_options.get('node'):
-						if 'nodeid' in i:
-							return '"no"'
-					return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
-				elif path[1] in totem_option_table.keys():
-					return '"%s"' % totem_options.get(path[1], totem_option_table[path[1]]["default_value"])
-				else:
-					return "nil"
-			elif len(path) == 4:
-				if path[1] == "interface":
-					# bsc#879596, "member" only exist in old format.
-					if path[2] == "member":
-						return '"%s"' % check_conf_format()
-					elif path[2].isdigit():
-						if len(totem_options["interface"]) > int(path[2]):
-							i = totem_options["interface"][int(path[2])]
+    def doRead(self, path):
+        if path[0] == "":
+            return "nil\n"
+        elif path[0] == "quorum" and len(path) >= 2:
+            if len(path) == 2 and path[1] in quorum_option_table.keys():
+                return '"%s"' % quorum_options.get(
+                    path[1], quorum_option_table[path[1]]["default_value"]
+                )
+            elif len(path) == 2 and path[1] == "device":
+                if is_quorum_qdevice_configured():
+                    return "true"
+                else:
+                    return "nil"
+            elif (
+                is_quorum_qdevice_configured()
+                and len(path) == 3
+                and path[1] == "device"
+                and path[2] in quorum_qdevice_option_table.keys()
+            ):
+                return '"%s"' % quorum_options["device"].get(
+                    path[2], quorum_qdevice_option_table[path[2]]["default_value"]
+                )
+            elif (
+                is_quorum_qdevice_configured()
+                and is_qdevice_heuristics_enabled()
+                and len(path) == 4
+                and path[1] == "device"
+                and path[2] == "heuristics"
+            ):
+                # "executables" will return a dict in str
+                # eg. "{'exec_check': '/tmp/check.sh', 'exec_ping': 'ping -q -c 1 \"127.0.0.1\"'}"
+                if path[3] in quorum_qdevice_heuristics_option_table.keys():
+                    return '"%s"' % safe_return_str(
+                        quorum_qdevice_options["heuristics"].get(
+                            path[3],
+                            quorum_qdevice_heuristics_option_table[path[3]][
+                                "default_value"
+                            ],
+                        )
+                    )
+            elif (
+                is_quorum_qdevice_configured()
+                and len(path) == 4
+                and path[1] == "device"
+                and path[2] == "net"
+                and path[3] in quorum_qdevice_net_option_table.keys()
+            ):
+                return '"%s"' % quorum_qdevice_options["net"].get(
+                    path[3], quorum_qdevice_net_option_table[path[3]]["default_value"]
+                )
+            else:
+                return "nil"
+        elif path[0] == "totem":
+            if len(path) == 1:
+                return "nil"
+            elif len(path) == 2:
+                if path[1] == "secauth":
+                    return '"%s"' % totem_options.get("secauth", "on")
+                elif path[1] == "crypto_hash":
+                    return '"%s"' % totem_options.get("crypto_hash", "sha1")
+                elif path[1] == "crypto_cipher":
+                    return '"%s"' % totem_options.get("crypto_cipher", "aes256")
+                elif path[1] == "autoid":
+                    # FIXME, check nodelist has nodeid
+                    for i in nodelist_options.get("node"):
+                        if "nodeid" in i:
+                            return '"no"'
+                    return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
+                elif path[1] in totem_option_table.keys():
+                    return '"%s"' % totem_options.get(
+                        path[1], totem_option_table[path[1]]["default_value"]
+                    )
+                else:
+                    return "nil"
+            elif len(path) == 4:
+                if path[1] == "interface":
+                    # bsc#879596, "member" only exist in old format.
+                    if path[2] == "member":
+                        return '"%s"' % check_conf_format()
+                    elif path[2].isdigit():
+                        if len(totem_options["interface"]) > int(path[2]):
+                            i = totem_options["interface"][int(path[2])]
 
-							if path[3] in interface_option_table.keys():
-								return '"%s"' % i.get(path[3],
-									interface_option_table[path[3]]["default_value"])
-							else:
-								return "nil"
-						else:
-							return "nil"
-					else:
-						return "nil"
-				else:
-					return "nil"
-		elif path[0] == "nodelist":
-			if len(path) == 4 and path[1] == "node" and path[2].isdigit() and \
-					int(path[2]) < len(nodelist_options["node"]):
-				n = nodelist_options["node"][int(path[2])]
-				if path[3] == "IPs":
-					return generateMemberString(n)
-				elif path[3] in node_option_table.keys():
-					return '"%s"' % n.get(path[3], node_option_table[path[3]]["default_value"])
-				else:
-					return "nil"
-			else:
-				return "nil"
-		elif path[0] == "logging":
-			if len(path) == 2 and path[1] in logging_option_table.keys():
-				return '"%s"' % logging_options.get(path[1],
-					logging_option_table[path[1]]["default_value"])
-			elif len(path) == 3 and path[1] == "logger_subsys" and \
-				path[2] in logger_subsys_option_table.keys():
-				return '"%s"' % logging_subsys_options.get(path[2],
-					logger_subsys_option_table[path[2]]["default_value"])
-			else:
-				return "nil"
-		elif path[0] == "system":
-			if len(path) == 2 and path[1] in system_option_table.keys():
-				return '"%s"' % system_options.get(path[1],
-					system_option_table[path[1]]["default_value"])
-			else:
-				return "nil"
-		elif path[0] == "resources":
-			if len(path) == 2 and path[1] in resources_option_table.keys():
-				return '"%s"' % resources_options.get(path[1],
-					resources_option_table[path[1]]["default_value"])
-			else:
-				return "nil"
-		elif path[0] == "nozzle":
-			if len(path) == 2 and path[1] in nozzle_option_table.keys():
-				return '"%s"' % nozzle_options.get(path[1],
-					nozzle_option_table[path[1]]["default_value"])
-			else:
-				return "nil"
-		else:
-			return "nil"     # end of path[0]
+                            if path[3] in interface_option_table.keys():
+                                return '"%s"' % i.get(
+                                    path[3],
+                                    interface_option_table[path[3]]["default_value"],
+                                )
+                            else:
+                                return "nil"
+                        else:
+                            return "nil"
+                    else:
+                        return "nil"
+                else:
+                    return "nil"
+        elif path[0] == "nodelist":
+            if (
+                len(path) == 4
+                and path[1] == "node"
+                and path[2].isdigit()
+                and int(path[2]) < len(nodelist_options["node"])
+            ):
+                n = nodelist_options["node"][int(path[2])]
+                if path[3] == "IPs":
+                    return generateMemberString(n)
+                elif path[3] in node_option_table.keys():
+                    return '"%s"' % n.get(
+                        path[3], node_option_table[path[3]]["default_value"]
+                    )
+                else:
+                    return "nil"
+            else:
+                return "nil"
+        elif path[0] == "logging":
+            if len(path) == 2 and path[1] in logging_option_table.keys():
+                return '"%s"' % logging_options.get(
+                    path[1], logging_option_table[path[1]]["default_value"]
+                )
+            elif (
+                len(path) == 3
+                and path[1] == "logger_subsys"
+                and path[2] in logger_subsys_option_table.keys()
+            ):
+                return '"%s"' % logging_subsys_options.get(
+                    path[2], logger_subsys_option_table[path[2]]["default_value"]
+                )
+            else:
+                return "nil"
+        elif path[0] == "system":
+            if len(path) == 2 and path[1] in system_option_table.keys():
+                return '"%s"' % system_options.get(
+                    path[1], system_option_table[path[1]]["default_value"]
+                )
+            else:
+                return "nil"
+        elif path[0] == "resources":
+            if len(path) == 2 and path[1] in resources_option_table.keys():
+                return '"%s"' % resources_options.get(
+                    path[1], resources_option_table[path[1]]["default_value"]
+                )
+            else:
+                return "nil"
+        elif path[0] == "nozzle":
+            if len(path) == 2 and path[1] in nozzle_option_table.keys():
+                return '"%s"' % nozzle_options.get(
+                    path[1], nozzle_option_table[path[1]]["default_value"]
+                )
+            else:
+                return "nil"
+        else:
+            return "nil"  # end of path[0]
 
-
-	def saveFile(self):
+    def saveFile(self):
 
         # Only fulfill the must option
-		fulfill_suggested_logging_options()
-		fulfill_suggested_totem_options()
-		fulfill_suggested_quorum_options()
-		if is_quorum_qdevice_configured():
-			fulfill_suggested_quorum_qdevice_options()
+        fulfill_suggested_logging_options()
+        fulfill_suggested_totem_options()
+        fulfill_suggested_quorum_options()
+        if is_quorum_qdevice_configured():
+            fulfill_suggested_quorum_qdevice_options()
 
-		f = open("/etc/corosync/corosync.conf.YaST2", "w")
-		f.write("# /etc/corosync/corosync.conf file autogenerated by YaST2.\n")
-		f.write("# Manually changed configurations may get lost when reconfigured by YaST2.\n")
-		print_totem_options(f)
-		print_nodelist_options(f)
-		print_logging_options(f)
-		print_quorum_options(f)
-		print_system_options(f)
-		print_resources_options(f)
-		print_nozzle_options(f)
-		f.close()
+        f = open("/etc/corosync/corosync.conf.YaST2", "w")
+        f.write("# /etc/corosync/corosync.conf file autogenerated by YaST2.\n")
+        f.write(
+            "# Manually changed configurations may get lost when reconfigured by YaST2.\n"
+        )
+        print_totem_options(f)
+        print_nodelist_options(f)
+        print_logging_options(f)
+        print_quorum_options(f)
+        print_system_options(f)
+        print_resources_options(f)
+        print_nozzle_options(f)
+        f.close()
 
-		try:
-			os.rename("/etc/corosync/corosync.conf", "/etc/corosync/corosync.conf.YasT2.bak")
-		except OSError:
-			pass
-		try:
-			os.rename("/etc/corosync/corosync.conf.YaST2", "/etc/corosync/corosync.conf")
-		except OSError:
-			pass
-		pass
+        try:
+            os.rename(
+                "/etc/corosync/corosync.conf", "/etc/corosync/corosync.conf.YasT2.bak"
+            )
+        except OSError:
+            pass
+        try:
+            os.rename(
+                "/etc/corosync/corosync.conf.YaST2", "/etc/corosync/corosync.conf"
+            )
+        except OSError:
+            pass
+        pass
 
-	def doWrite(self, path, args):
-		global quorum_qdevice_options
-		global nodelist_options
-		global totem_options
+    def doWrite(self, path, args):
+        global quorum_qdevice_options
+        global nodelist_options
+        global totem_options
 
-		if path[0] == "":
-			self.saveFile()
-			return "true"
-		elif path[0] == "quorum":
-			if len(path) == 2 and path[1] in quorum_option_table.keys():
-				quorum_options[path[1]] = args
-				return "true"
-			elif len(path) == 2 and path[1] == "device" and args == "":
-				# May no "device" in quorum_options,
-				# cause reset in file_parser
-				if "device" in quorum_options:
-					del(quorum_options["device"])
-					quorum_qdevice_options = {}
-				return "true"
-			elif len(path) == 3 and path[1] == "device" and \
-				path[2] in quorum_qdevice_option_table.keys():
-				if "device" not in quorum_options:
-					quorum_options["device"] = quorum_qdevice_options
-				quorum_qdevice_options[path[2]] = args
-				return "true"
-			elif len(path) == 4 and path[1] == "device" and \
-				path[2] == "net" and path[3] in quorum_qdevice_net_option_table.keys():
-				if "net" not in quorum_qdevice_options:
-					quorum_qdevice_options["net"] = {}
-					quorum_options["device"] = quorum_qdevice_options
-				quorum_qdevice_options["net"][path[3]] = args
-				return "true"
-			elif len(path) == 3 and path[1] == "device" and \
-				path[2] == "heuristics" and args == "":
-				# May no "device" in quorum_options,
-				# cause reset in file_parser
-				if "device" in quorum_options and "heuristics" in quorum_options["device"]:
-					del(quorum_options["device"]["heuristics"])
-					quorum_qdevice_options["heuristics"] = {}
-				return "true"
-			elif len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
-				if "heuristics" not in quorum_qdevice_options:
-					quorum_qdevice_options["heuristics"] = {"executables": {}}
-					quorum_options["device"] = quorum_qdevice_options
+        if path[0] == "":
+            self.saveFile()
+            return "true"
+        elif path[0] == "quorum":
+            if len(path) == 2 and path[1] in quorum_option_table.keys():
+                quorum_options[path[1]] = args
+                return "true"
+            elif len(path) == 2 and path[1] == "device" and args == "":
+                # May no "device" in quorum_options,
+                # cause reset in file_parser
+                if "device" in quorum_options:
+                    del quorum_options["device"]
+                    quorum_qdevice_options = {}
+                return "true"
+            elif (
+                len(path) == 3
+                and path[1] == "device"
+                and path[2] in quorum_qdevice_option_table.keys()
+            ):
+                if "device" not in quorum_options:
+                    quorum_options["device"] = quorum_qdevice_options
+                quorum_qdevice_options[path[2]] = args
+                return "true"
+            elif (
+                len(path) == 4
+                and path[1] == "device"
+                and path[2] == "net"
+                and path[3] in quorum_qdevice_net_option_table.keys()
+            ):
+                if "net" not in quorum_qdevice_options:
+                    quorum_qdevice_options["net"] = {}
+                    quorum_options["device"] = quorum_qdevice_options
+                quorum_qdevice_options["net"][path[3]] = args
+                return "true"
+            elif (
+                len(path) == 3
+                and path[1] == "device"
+                and path[2] == "heuristics"
+                and args == ""
+            ):
+                # May no "device" in quorum_options,
+                # cause reset in file_parser
+                if (
+                    "device" in quorum_options
+                    and "heuristics" in quorum_options["device"]
+                ):
+                    del quorum_options["device"]["heuristics"]
+                    quorum_qdevice_options["heuristics"] = {}
+                return "true"
+            elif len(path) == 4 and path[1] == "device" and path[2] == "heuristics":
+                if "heuristics" not in quorum_qdevice_options:
+                    quorum_qdevice_options["heuristics"] = {"executables": {}}
+                    quorum_options["device"] = quorum_qdevice_options
 
-				if path[3] == "executables":
-					# always replaced by new dict
-					quorum_qdevice_options["heuristics"]["executables"] = {}
-					# args example (str type):
-					# {'exec_testing': '/tmp/testing.sh', 'exec_ping': 'ping -q -c 1 "127.0.0.1"'}
-					executables_dict = eval(args)
-					for key, value in executables_dict.items():
-						quorum_qdevice_options["heuristics"]["executables"][key] = value
-				elif path[3] in quorum_qdevice_heuristics_option_table.keys():
-					# key == executables run in the previous condition
-					quorum_qdevice_options["heuristics"][path[3]] = args
-				return "true"
-			else:
-				return "false"
-		elif path[0] == "totem":
-			if len(path) == 2:
-				if path[1] == "autoid":
-					totem_options["clear_node_high_bit"] = args
-					return "true"
-				elif path[1] in totem_option_table.keys():
-					totem_options[path[1]] = args
-					return "true"
-				# (.totem.interface, "") to delete all interfaces
-				elif path[1] == "interface" and args == "":
-					totem_options["interface"] = []
-					return "true"
-				else:
-					return "false"
-			elif len(path) == 4:
-				if path[1] == "interface" and path[2].isdigit():
-					if int(path[2]) < len(totem_options["interface"]):
-						interface = totem_options["interface"][int(path[2])]
-					elif int(path[2]) == len(totem_options["interface"]):
-						interface = {}
-						totem_options["interface"].append(interface)
-					else:
-						return "false"
+                if path[3] == "executables":
+                    # always replaced by new dict
+                    quorum_qdevice_options["heuristics"]["executables"] = {}
+                    # args example (str type):
+                    # {'exec_testing': '/tmp/testing.sh', 'exec_ping': 'ping -q -c 1 "127.0.0.1"'}
+                    executables_dict = eval(args)
+                    for key, value in executables_dict.items():
+                        quorum_qdevice_options["heuristics"]["executables"][key] = value
+                elif path[3] in quorum_qdevice_heuristics_option_table.keys():
+                    # key == executables run in the previous condition
+                    quorum_qdevice_options["heuristics"][path[3]] = args
+                return "true"
+            else:
+                return "false"
+        elif path[0] == "totem":
+            if len(path) == 2:
+                if path[1] == "autoid":
+                    totem_options["clear_node_high_bit"] = args
+                    return "true"
+                elif path[1] in totem_option_table.keys():
+                    totem_options[path[1]] = args
+                    return "true"
+                # (.totem.interface, "") to delete all interfaces
+                elif path[1] == "interface" and args == "":
+                    totem_options["interface"] = []
+                    return "true"
+                else:
+                    return "false"
+            elif len(path) == 4:
+                if path[1] == "interface" and path[2].isdigit():
+                    if int(path[2]) < len(totem_options["interface"]):
+                        interface = totem_options["interface"][int(path[2])]
+                    elif int(path[2]) == len(totem_options["interface"]):
+                        interface = {}
+                        totem_options["interface"].append(interface)
+                    else:
+                        return "false"
 
-					if path[3] in interface_option_table.keys():
-						interface[path[3]] = args
-						return "true"
-					else:
-						return "false"
-				else:
-					return "false"
-			else:
-				return "false"
-		elif path[0] == "nodelist":
-			# nodelist.node with args "" will delete all
-			if len(path) == 2 and args == "":
-				nodelist_options["node"] = []
-				return "true"
+                    if path[3] in interface_option_table.keys():
+                        interface[path[3]] = args
+                        return "true"
+                    else:
+                        return "false"
+                else:
+                    return "false"
+            else:
+                return "false"
+        elif path[0] == "nodelist":
+            # nodelist.node with args "" will delete all
+            if len(path) == 2 and args == "":
+                nodelist_options["node"] = []
+                return "true"
 
-			# The node number is continuous
-			if len(path) == 4 and path[1] == "node" and path[2].isdigit():
-				if int(path[2]) < len(nodelist_options["node"]):
-					node = nodelist_options["node"][int(path[2])]
-				elif int(path[2]) == len(nodelist_options["node"]):
-					node = {}
-					nodelist_options["node"].append(node)
-				else:
-					return "false"
+            # The node number is continuous
+            if len(path) == 4 and path[1] == "node" and path[2].isdigit():
+                if int(path[2]) < len(nodelist_options["node"]):
+                    node = nodelist_options["node"][int(path[2])]
+                elif int(path[2]) == len(nodelist_options["node"]):
+                    node = {}
+                    nodelist_options["node"].append(node)
+                else:
+                    return "false"
 
-			if path[3] == "IPs":
-				# Initialize ringX_addr
-				for ring in ring_list:
-					if ring in node:
-						del(node[ring])
-					else:
-						break
-				if args == "":
-					return "false"
+            if path[3] == "IPs":
+                # Initialize ringX_addr
+                for ring in ring_list:
+                    if ring in node:
+                        del node[ring]
+                    else:
+                        break
+                if args == "":
+                    return "false"
 
-				iplist = args.split(";")
-				for index in range(len(iplist)):
-					node[ring_list[index]] = iplist[index]
-				return "true"
-			elif path[3] in node_option_table.keys():
-				node[path[3]] = args
-				return "true"
-			else:
-				return "false"
+                iplist = args.split(";")
+                for index in range(len(iplist)):
+                    node[ring_list[index]] = iplist[index]
+                return "true"
+            elif path[3] in node_option_table.keys():
+                node[path[3]] = args
+                return "true"
+            else:
+                return "false"
 
-		elif path[0] == "logging":
-			if len(path[0]) == 1:
-				return "nil"
-			elif len(path) == 2 and path[1] in logging_option_table.keys():
-				logging_options[path[1]] = args
-				return "true"
-			elif len(path) == 3 and path[1] == "logger_subsys" and \
-				path[2] in logger_subsys_option_table.keys():
-				logging_subsys_options[path[2]] = args
-				return "true"
-			else:
-				return "false"
-		elif path[0] == "system":
-			if len(path[0]) == 1:
-				return "nil"
-			elif len(path) == 2 and path[1] in system_option_table.keys():
-				system_options[path[1]] = args
-				return "true"
-			else:
-				return "false"
-		elif path[0] == "resources":
-			if len(path[0]) == 1:
-				return "nil"
-			elif len(path) == 2 and path[1] in resources_option_table.keys():
-				resources_options[path[1]] = args
-				return "true"
-			else:
-				return "false"
-		elif path[0] == "nozzle":
-			if len(path[0]) == 1:
-				return "nil"
-			elif len(path) == 2 and path[1] in nozzle_option_table.keys():
-				nozzle_options[path[1]] = args
-				return "true"
-			else:
-				return "false"
-		else:
-			return "false"
+        elif path[0] == "logging":
+            if len(path[0]) == 1:
+                return "nil"
+            elif len(path) == 2 and path[1] in logging_option_table.keys():
+                logging_options[path[1]] = args
+                return "true"
+            elif (
+                len(path) == 3
+                and path[1] == "logger_subsys"
+                and path[2] in logger_subsys_option_table.keys()
+            ):
+                logging_subsys_options[path[2]] = args
+                return "true"
+            else:
+                return "false"
+        elif path[0] == "system":
+            if len(path[0]) == 1:
+                return "nil"
+            elif len(path) == 2 and path[1] in system_option_table.keys():
+                system_options[path[1]] = args
+                return "true"
+            else:
+                return "false"
+        elif path[0] == "resources":
+            if len(path[0]) == 1:
+                return "nil"
+            elif len(path) == 2 and path[1] in resources_option_table.keys():
+                resources_options[path[1]] = args
+                return "true"
+            else:
+                return "false"
+        elif path[0] == "nozzle":
+            if len(path[0]) == 1:
+                return "nil"
+            elif len(path) == 2 and path[1] in nozzle_option_table.keys():
+                nozzle_options[path[1]] = args
+                return "true"
+            else:
+                return "false"
+        else:
+            return "false"
 
-		return "false"
+        return "false"
+
 
 class SCR_Agent(object):
-	def __init__(self):
-		self.command = ""
-		self.path = ""
-		self.args = ""
+    def __init__(self):
+        self.command = ""
+        self.path = ""
+        self.args = ""
 
-	def SCR_Command (self):
-		# clean up old data before actually started
-		self.command = ""
-		self.args = ""
-		self.path = ""
+    def SCR_Command(self):
+        # clean up old data before actually started
+        self.command = ""
+        self.args = ""
+        self.path = ""
 
-		#y2debug ("waiting for a command")
-		scr_command = sys.stdin.readline().strip()
+        # y2debug ("waiting for a command")
+        scr_command = sys.stdin.readline().strip()
 
-		#y2debug ("newline: %s" % scr_command)
+        # y2debug ("newline: %s" % scr_command)
 
-		# eg. Read(.totem.interface.0.binnetaddr,"args")  Write(.)
-		p = re.compile('^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$')
-		r = p.match(scr_command)
-		if (r):
-			try:
-				self.command = r.group(1)
-			except IndexError:
-				#y2error("No command in %s " % scr_command)
-				return
+        # eg. Read(.totem.interface.0.binnetaddr,"args")  Write(.)
+        p = re.compile("^`?(\w+)\s*(\(([^,]*)(,\s*(.*))?\s*\))?\s*$")
+        r = p.match(scr_command)
+        if r:
+            try:
+                self.command = r.group(1)
+            except IndexError:
+                # y2error("No command in %s " % scr_command)
+                return
 
-			try:
-				path = r.group(3)
-				if path[0] == '.':
-					path = path[1:]
-				self.path = path.split('.')
+            try:
+                path = r.group(3)
+                if path[0] == ".":
+                    path = path[1:]
+                self.path = path.split(".")
 
-			except IndexError:
-				#y2debug("No path in %s " % scr_command)
-				return
-			try:
-				self.args = r.group(5).strip()
-				if self.args[0] == '"':
-					self.args = self.args[1:]
-				if self.args[-1] == '"':
-					self.args = self.args[:-1]
-			except (IndexError, AttributeError):
-				#y2debug("No args in %s " % scr_command)
-				return
-		else:
-			#y2error ("No command in '%s'" % scr_command)
-			return
+            except IndexError:
+                # y2debug("No path in %s " % scr_command)
+                return
+            try:
+                self.args = r.group(5).strip()
+                if self.args[0] == '"':
+                    self.args = self.args[1:]
+                if self.args[-1] == '"':
+                    self.args = self.args[:-1]
+            except (IndexError, AttributeError):
+                # y2debug("No args in %s " % scr_command)
+                return
+        else:
+            # y2error ("No command in '%s'" % scr_command)
+            return
 
-    # <-- SCR_Command
+            # <-- SCR_Command
+
+
 # <-- class SCR_Agent
 
+
 def main_entry():
-	scr_agent = SCR_Agent ()
-	corosync_agent = CorosyncConf_Parser()
+    scr_agent = SCR_Agent()
+    corosync_agent = CorosyncConf_Parser()
+
+    while True:
+        scr_agent.SCR_Command()
+
+        # y2debug("Command %s %s: %s" % (scr_agent.command,scr_agent.path,scr_agent.args))
+        if debug:
+            print(
+                "Command %s %s: %s"
+                % (scr_agent.command, scr_agent.path, scr_agent.args)
+            )
+
+        if scr_agent.command == "Dir":
+            print(corosync_agent.doList(scr_agent.path))
+
+        elif scr_agent.command == "Read":
+            print(corosync_agent.doRead(scr_agent.path))
+
+        elif scr_agent.command == "Write":
+            print(corosync_agent.doWrite(scr_agent.path, scr_agent.args))
+
+        elif scr_agent.command == "result":
+            break
+
+        else:
+            # y2error ("Unknown command: %s" % scr_agent.command)
+            print("nil\n")
+        try:
+            sys.stdout.flush()
+        except:
+            break
 
 
-	while True:
-		scr_agent.SCR_Command ()
-
-		#y2debug("Command %s %s: %s" % (scr_agent.command,scr_agent.path,scr_agent.args))
-		if debug:
-			print("Command %s %s: %s" % (scr_agent.command,
-				scr_agent.path,scr_agent.args))
-
-		if (scr_agent.command == 'Dir' ):
-			print(corosync_agent.doList(scr_agent.path))
-
-		elif (scr_agent.command == 'Read'):
-			print(corosync_agent.doRead(scr_agent.path))
-
-		elif (scr_agent.command == 'Write'):
-			print(corosync_agent.doWrite(scr_agent.path, scr_agent.args))
-
-		elif (scr_agent.command == 'result'):
-			break
-
-		else:
-			#y2error ("Unknown command: %s" % scr_agent.command)
-			print("nil\n")
-		try:
-			sys.stdout.flush()
-		except:
-			break
 # <-- main
 
 if __name__ == "__main__":
-	main_entry()
+    main_entry()
