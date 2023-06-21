@@ -5,7 +5,7 @@
 # Authors:	Xinwei Hu <xwhu@suse.de>
 #		Lukas Ocilka <locilka@suse.cz>
 #
-# File:		ag_openais
+# File:		ag_corosync
 #
 # License:
 #
@@ -27,7 +27,7 @@
 
 import gettext, os, re
 from gettext import textdomain
-textdomain("openais")
+textdomain("corosync")
 
 # python bindings will be droped
 # delete all python bindings
@@ -649,7 +649,7 @@ def check_conf_format():
 
 	for x in range(len(totem_options["interface"])):
 		if "oldlist" in totem_options["interface"][x]:
-			return "openais"
+			return "corosync"
 	return "latest"
 
 def load_ais_conf(filename):
@@ -687,7 +687,7 @@ def _return_str_list(obj):
 	dummy = list(map(_add_wrapper, lobj))
 	return '[' + ",".join(dummy) + ']'
 
-class OpenAISConf_Parser(object):
+class CorosyncConf_Parser(object):
 	def __init__(self):
 		load_ais_conf("/etc/corosync/corosync.conf")
 
@@ -1144,7 +1144,7 @@ class SCR_Agent(object):
 
 def main_entry():
 	scr_agent = SCR_Agent ()
-	openais_agent = OpenAISConf_Parser()
+	corosync_agent = CorosyncConf_Parser()
 
 
 	while True:
@@ -1156,13 +1156,13 @@ def main_entry():
 				scr_agent.path,scr_agent.args))
 
 		if (scr_agent.command == 'Dir' ):
-			print(openais_agent.doList(scr_agent.path))
+			print(corosync_agent.doList(scr_agent.path))
 
 		elif (scr_agent.command == 'Read'):
-			print(openais_agent.doRead(scr_agent.path))
+			print(corosync_agent.doRead(scr_agent.path))
 
 		elif (scr_agent.command == 'Write'):
-			print(openais_agent.doWrite(scr_agent.path, scr_agent.args))
+			print(corosync_agent.doWrite(scr_agent.path, scr_agent.args))
 
 		elif (scr_agent.command == 'result'):
 			break
