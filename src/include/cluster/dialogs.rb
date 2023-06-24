@@ -193,20 +193,6 @@ module Yast
       nil
     end
 
-    def switch_iplist_button(iplist=[])
-      haveip = true
-
-      if iplist.empty?
-        haveip = false
-      end
-
-      UI.ChangeWidget(Id(:ip_add), :Enabled, true)
-      UI.ChangeWidget(Id(:ip_edit), :Enabled, haveip)
-      UI.ChangeWidget(Id(:ip_del), :Enabled, haveip)
-
-      nil
-    end
-
     def get_free_nodeid()
       exist_id_list = []
       Cluster.node_list.each do |node|
@@ -220,6 +206,48 @@ module Yast
         free_nodeid += 1
       end
       free_nodeid
+    end
+
+    def enable_widgets(enabled, *widget_ids)
+      widget_ids.each do |widget_id|
+        UI.ChangeWidget(Id(widget_id), :Enabled, enabled)
+      end
+    end
+
+    def switch_iplist_button(iplist=[])
+      haveip = !iplist.empty?
+
+      UI.ChangeWidget(Id(:ip_add), :Enabled, true)
+      enable_widgets(haveip, :ip_edit, :ip_del)
+
+      nil
+    end
+
+    def switch_interface_button(transport)
+      knet = transport == "knet"
+
+      enable_widgets(knet, :knet_link_priority, :knet_transport)
+      enable_widgets(!knet, :bindnetaddr, :mcastaddr, :mcastport)
+
+      nil
+    end
+
+    def switch_nodelist_button(nodelist=[])
+      has_node = !nodelist.empty?
+
+      UI.ChangeWidget(Id(:nodelist_add), :Enabled, true)
+      enable_widgets(has_node, :nodelist_edit, :nodelist_del)
+
+      nil
+    end
+
+    def switch_interface_list_button(interface_list=[])
+      has_interface = !interface_list.empty?
+
+      UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
+      enable_widgets(has_interface, :ifacelist_edit, :ifacelist_del)
+
+      nil
     end
 
     def nodelist_input_dialog(value={}, transport = "knet", ip_version="ipv6-4")
@@ -402,23 +430,6 @@ module Yast
         end
       end
       !error_occurred
-    end
-
-    def switch_interface_button(transport)
-      # transport "udpu" should not reach here
-      knet = true
-      if transport != "knet"
-        knet = false
-      end
-
-      UI.ChangeWidget(Id(:knet_link_priority), :Enabled, knet)
-      UI.ChangeWidget(Id(:knet_transport), :Enabled, knet)
-
-      UI.ChangeWidget(Id(:bindnetaddr), :Enabled, !knet)
-      UI.ChangeWidget(Id(:mcastaddr), :Enabled, !knet)
-      UI.ChangeWidget(Id(:mcastport), :Enabled, !knet)
-
-      nil
     end
 
     def interface_input_dialog(value, transport="knet")
@@ -1075,6 +1086,8 @@ module Yast
         fill_nodelist_entries()
         fill_interface_entries()
         switch_totem_button(UI.QueryWidget(Id(:transport), :Value))
+        switch_nodelist_button(Cluster.node_list)
+        switch_interface_list_button(Cluster.interface_list)
 
         transport = UI.QueryWidget(Id(:transport), :Value).to_s
         ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
