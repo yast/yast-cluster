@@ -1187,24 +1187,23 @@ module Yast
       deep_copy(ret)
     end
 
-    def ValidateSecurity
+    def ValidateSecurity(authkey_created=false)
       if Cluster.transport == "knet"
-        if UI.QueryWidget(Id(:crypto_cipher), :Value) != "none" &&
-            UI.QueryWidget(Id(:crypto_hash), :Value) == "none"
-          Popup.Message(_("Crypto cipher requires crypto hash with value other than none"))
-          UI.SetFocus(:crypto_hash)
-          return false
-        end
-
         if UI.QueryWidget(Id(:secauth), :Value)
+          if !authkey_created
+            Popup.Message(_("Need to press \"Generate Auth Key File\""))
+            UI.SetFocus(:genf)
+            return false
+          end
+
           if UI.QueryWidget(Id(:crypto_hash), :Value) == "none"
-            Popup.Message(_("Should use valid value of crypto hash to encrypt"))
+            Popup.Message(_("Should use valid value of Crypto Hash to encrypt"))
             UI.SetFocus(:crypto_hash)
             return false
           end
 
           if UI.QueryWidget(Id(:crypto_cipher), :Value) == "none"
-            Popup.Message(_("Should use valid value of crypto cipher to encrypt"))
+            Popup.Message(_("Should use valid value of Crypto Cipher to encrypt"))
             UI.SetFocus(:crypto_cipher)
             return false
           end
@@ -1222,18 +1221,10 @@ module Yast
     end
 
     def SaveSecurity
-      if Cluster.transport == "knet"
-        Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
-        Cluster.crypto_model = UI.QueryWidget(Id(:crypto_model), :Value).to_s
-        Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
-        Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
-      else
-        Cluster.secauth = false
-        Cluster.crypto_model = "nss"
-        Cluster.crypto_hash = "none"
-        Cluster.crypto_cipher = "none"
-      end
-
+      Cluster.secauth = Convert.to_boolean(UI.QueryWidget(Id(:secauth), :Value))
+      Cluster.crypto_model = UI.QueryWidget(Id(:crypto_model), :Value).to_s
+      Cluster.crypto_hash = UI.QueryWidget(Id(:crypto_hash), :Value).to_s
+      Cluster.crypto_cipher = UI.QueryWidget(Id(:crypto_cipher), :Value).to_s
       nil
     end
 
@@ -1615,18 +1606,28 @@ module Yast
 
       my_SetContents("security", contents)
 
-      UI.ChangeWidget(Id(:secauth), :Value, Cluster.secauth)
+      if Cluster.firstrun
+        secauth_value = (Cluster.transport == "knet") ? true : false
+      else
+        secauth_value = Cluster.secauth
+      end
+      UI.ChangeWidget(Id(:secauth), :Value, secauth_value)
       UI.ChangeWidget(Id(:crypto_model), :Value, Cluster.crypto_model)
       UI.ChangeWidget(Id(:crypto_hash), :Value, Cluster.crypto_hash)
       UI.ChangeWidget(Id(:crypto_cipher), :Value, Cluster.crypto_cipher)
+      authkey_path = "/etc/corosync/authkey"
 
       if UI.QueryWidget(Id(:secauth), :Value) == true
-	if UI.QueryWidget(Id(:crypto_cipher), :Value) != "none" or UI.QueryWidget(Id(:crypto_hash), :Value) != "none"
+        if (UI.QueryWidget(Id(:crypto_cipher), :Value) != "none" or UI.QueryWidget(Id(:crypto_hash), :Value) != "none") && !File.exist?(authkey_path)
 	  UI.SetFocus(:genf)
 	end
       end
 
-      authkey_created = false
+      if File.exist?(authkey_path)
+        authkey_created = true
+      else
+        authkey_created = false
+      end
       while true
         ret = UI.UserInput
 
@@ -1639,16 +1640,22 @@ module Yast
             )
           )
           if Ops.get_integer(result, "exit", -1) != 0
-            Popup.Message(_("Failed to create /etc/corosync/authkey"))
+            Popup.Message(_(format("Failed to create %s", authkey_path)))
           else
-            Popup.Message(_("Create /etc/corosync/authkey succeeded"))
+            Popup.Message(_(format("Create %s succeeded", authkey_path)))
 	    authkey_created = true
+            UI.SetFocus(:next)
           end
           next
         end
 
         if ret ==:secauth
           if UI.QueryWidget(Id(:secauth), :Value) == true
+            if Cluster.transport != "knet"
+              Popup.Message(_("Encrypted transmission is only supported for the knet transport"))
+              UI.ChangeWidget(Id(:secauth), :Value, false)
+              next
+            end
             if UI.QueryWidget(Id(:crypto_hash), :Value) == "none"
               UI.ChangeWidget(Id(:crypto_hash), :Value, "sha256")
             end
