@@ -1224,12 +1224,6 @@ class CorosyncConf_Parser(object):
                     return '"%s"' % totem_options.get("crypto_hash", "sha1")
                 elif path[1] == "crypto_cipher":
                     return '"%s"' % totem_options.get("crypto_cipher", "aes256")
-                elif path[1] == "autoid":
-                    # FIXME, check nodelist has nodeid
-                    for i in nodelist_options.get("node"):
-                        if "nodeid" in i:
-                            return '"no"'
-                    return '"%s"' % totem_options.get("clear_node_high_bit", "yes")
                 elif path[1] in totem_option_table.keys():
                     return '"%s"' % totem_options.get(
                         path[1], totem_option_table[path[1]]["default_value"]
@@ -1427,10 +1421,7 @@ class CorosyncConf_Parser(object):
                 return "false"
         elif path[0] == "totem":
             if len(path) == 2:
-                if path[1] == "autoid":
-                    totem_options["clear_node_high_bit"] = args
-                    return "true"
-                elif path[1] in totem_option_table.keys():
+                if path[1] in totem_option_table.keys():
                     totem_options[path[1]] = args
                     return "true"
                 # (.totem.interface, "") to delete all interfaces

@@ -556,13 +556,6 @@ module Yast
           return false
         end
 
-        # IPv6 should add node ID manually
-        if UI.QueryWidget(Id(:autoid), :Value)
-          Popup.Message(_("Auto generate Node ID must be disabled when IPv6 address assigned"))
-          UI.SetFocus(:autoid)
-          return false
-        end
-
         # All nodes on the same link have the same IP family
         ipverlist = []
         Cluster.node_list[0]["IPs"].each do |ip|
@@ -683,12 +676,6 @@ module Yast
       end
 
       if UI.QueryWidget(Id(:transport), :Value) == "knet"
-        # Kronosnet must assign node ID
-        if UI.QueryWidget(Id(:autoid), :Value)
-          Popup.Message(_("Should not use auto generate Node ID when Kronosnet"))
-          UI.SetFocus(:autoid)
-          return false
-        end
 
         # Kronosnet transport should be udp/sctp
         if not Cluster.interface_list.empty?
@@ -798,7 +785,6 @@ module Yast
         Cluster.link_mode = UI.QueryWidget(Id(:linkmode), :Value).to_s
       end
 
-      Cluster.autoid = Convert.to_boolean(UI.QueryWidget(Id(:autoid), :Value))
       Cluster.cluster_name = UI.QueryWidget(Id(:cluster_name), :Value)
       Cluster.transport = Convert.to_string(
         UI.QueryWidget(Id(:transport), :Value)
@@ -977,9 +963,6 @@ module Yast
             ["passive", "active", "rr"]
           )
         ),
-        Left(
-          CheckBox(Id(:autoid), Opt(:notify), _("Auto Generate Node ID"), true)
-        )
       )
 
       contents = VBox(
@@ -991,7 +974,6 @@ module Yast
 
       my_SetContents("communication", contents)
 
-      UI.ChangeWidget(Id(:autoid), :Value, Cluster.autoid)
       UI.ChangeWidget(Id(:cluster_name), :Value, Cluster.cluster_name)
 
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
@@ -1044,14 +1026,9 @@ module Yast
     def switch_totem_button(transport)
       if transport == "knet"
         UI.ChangeWidget(Id(:linkmode), :Enabled, true)
-
-        UI.ChangeWidget(Id(:autoid), :Value, false)
-        UI.ChangeWidget(Id(:autoid), :Enabled, false)
       else
         UI.ChangeWidget(Id(:linkmode), :Value, "passive")
         UI.ChangeWidget(Id(:linkmode), :Enabled, false)
-
-        UI.ChangeWidget(Id(:autoid), :Enabled, true)
       end
 
       # For UDPU an interface section is not needed
@@ -1065,11 +1042,6 @@ module Yast
         UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
         UI.ChangeWidget(Id(:ifacelist_edit), :Enabled, true)
         UI.ChangeWidget(Id(:ifacelist_del), :Enabled, true)
-      end
-
-      if _has_ipfamily_addr("ipv6")
-        UI.ChangeWidget(Id(:autoid), :Value, false)
-        UI.ChangeWidget(Id(:autoid), :Enabled, false)
       end
 
       nil

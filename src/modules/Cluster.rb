@@ -69,7 +69,6 @@ module Yast
       @cluster_name = ""
       @link_mode = "passive"
       @ip_version = "ipv6-4"
-      @autoid = true
       @transport = "knet"
 
       # example:
@@ -265,14 +264,6 @@ module Yast
         @node_list.push(node)
       end
 
-      ai = Convert.to_string(SCR.Read(path(".corosync.totem.autoid")))
-
-      if ai == "yes"
-        @autoid = true
-      else
-        @autoid = false
-      end
-
       LoadCorosyncQdeviceConfig()
 
       nil
@@ -403,12 +394,6 @@ module Yast
         @two_node = "0"
       end
       SCR.Write(path(".corosync.quorum.two_node"), @two_node)
-
-      if @autoid == true
-        SCR.Write(path(".corosync.totem.autoid"), "yes")
-      else
-        SCR.Write(path(".corosync.totem.autoid"), "no")
-      end
 
       if @corosync_qdevice
         SaveCorosyncQdeviceConfig()
@@ -697,7 +682,6 @@ module Yast
       @ip_version  = settings["ip_version"] || "ipv4"
       @expected_votes = settings["expected_votes"] || ""
       @two_node = settings["two_node"] || ""
-      @autoid = Ops.get_boolean(settings, "autoid", true)
       @interface_list = settings["interface_list"] || []
       @node_list = settings["node_list"] || []
 
@@ -743,7 +727,6 @@ module Yast
       result["ip_version"] = @ip_version
       result["expected_votes"] = @expected_votes
       result["two_node"] = @two_node
-      Ops.set(result, "autoid", true)
       result["interface_list"] = @interface_list
       result["node_list"] = @node_list
 
@@ -851,7 +834,6 @@ module Yast
     publish :variable => :heuristics_executables, :type => "map <string, string>"
     publish :variable => :two_node, :type => "string"
     publish :variable => :config_format, :type => "string"
-    publish :variable => :autoid, :type => "boolean"
     publish :variable => :corokey, :type => "string"
     publish :variable => :csync2key, :type => "string"
     publish :variable => :global_startcorosync, :type => "boolean"
