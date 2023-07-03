@@ -1080,6 +1080,13 @@ module Yast
 
         transport = UI.QueryWidget(Id(:transport), :Value).to_s
         ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
+        if Cluster.firstrun
+          if transport == "udp"
+            UI.ChangeWidget(Id(:ip_version), :Value, "ipv4")
+          else
+            UI.ChangeWidget(Id(:ip_version), :Value, "ipv6-4")
+          end
+        end
 
         ret = UI.UserInput
 
