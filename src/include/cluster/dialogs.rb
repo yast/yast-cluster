@@ -996,7 +996,12 @@ module Yast
       UI.ChangeWidget(Id(:transport), :Value, Cluster.transport)
       UI.ChangeWidget(Id(:ip_version), :Value, Cluster.ip_version)
 
-      UI.ChangeWidget(Id(:linkmode), :Value, Cluster.link_mode)
+      if Cluster.firstrun
+        UI.ChangeWidget(Id(:linkmode), :Value, "passive")
+        UI.ChangeWidget(Id(:linkmode), :Enabled, false)
+      else
+        UI.ChangeWidget(Id(:linkmode), :Value, Cluster.link_mode)
+      end
 
       nil
     end
@@ -1032,13 +1037,6 @@ module Yast
     end
 
     def switch_totem_button(transport)
-      if transport == "knet"
-        UI.ChangeWidget(Id(:linkmode), :Enabled, true)
-      else
-        UI.ChangeWidget(Id(:linkmode), :Value, "passive")
-        UI.ChangeWidget(Id(:linkmode), :Enabled, false)
-      end
-
       # For UDPU an interface section is not needed
       if transport == "udpu"
         UI.ChangeWidget(Id(:ifacelist), :Enabled, false)
@@ -1055,6 +1053,19 @@ module Yast
       nil
     end
 
+    def switch_linkmode_button
+      if Cluster.node_list.size > 0
+        ringnum = Cluster.node_list[0]["IPs"].size
+        if ringnum > 1 && Cluster.transport == "knet"
+          UI.ChangeWidget(Id(:linkmode), :Enabled, true)
+        else
+          UI.ChangeWidget(Id(:linkmode), :Enabled, false)
+        end
+      else
+        UI.ChangeWidget(Id(:linkmode), :Enabled, false)
+      end
+    end
+
     def CommunicationDialog
       ret = nil
 
@@ -1066,6 +1077,7 @@ module Yast
         fill_nodelist_entries()
         fill_interface_entries()
         switch_totem_button(UI.QueryWidget(Id(:transport), :Value))
+        switch_linkmode_button()
         switch_nodelist_button(Cluster.node_list)
         switch_interface_list_button(Cluster.interface_list)
 
