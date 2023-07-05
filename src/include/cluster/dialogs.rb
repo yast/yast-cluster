@@ -998,15 +998,6 @@ module Yast
 
       UI.ChangeWidget(Id(:linkmode), :Value, Cluster.link_mode)
 
-      # BNC#879596, check the corosync.conf format
-      if Cluster.config_format == "corosync2"
-        Popup.Message(_(" NOTICE: Detected old corosync2 configuration.\n Please reconfigure the node/interface list and confirm all other settings."))
-        Cluster.config_format = "showed"
-      elsif Cluster.config_format == "openais"
-        Popup.Message(_(" NOTICE: Detected old(SLE11) openais/corosync configuration.\n Please reconfigure the node list and confirm all other settings."))
-        Cluster.config_format = "showed"
-      end
-
       nil
     end
 

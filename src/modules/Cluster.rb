@@ -86,8 +86,6 @@ module Yast
       @expected_votes = ""
       @two_node = "0"
 
-      @config_format = ""
-
       @corokey = ""
       @csync2key = ""
       @global_startcorosync = false
@@ -226,8 +224,6 @@ module Yast
       @ip_version = SCR.Read(path(".corosync.totem.ip_version"))
 
       @expected_votes = SCR.Read(path(".corosync.quorum.expected_votes")).to_s
-
-      @config_format = SCR.Read(path(".corosync.totem.interface.member.memberaddr")).to_s
 
       @transport = SCR.Read(path(".corosync.totem.transport"))
       @transport = "knet" if @transport == nil
@@ -833,7 +829,6 @@ module Yast
     publish :variable => :heuristics_interval, :type => "string"
     publish :variable => :heuristics_executables, :type => "map <string, string>"
     publish :variable => :two_node, :type => "string"
-    publish :variable => :config_format, :type => "string"
     publish :variable => :corokey, :type => "string"
     publish :variable => :csync2key, :type => "string"
     publish :variable => :global_startcorosync, :type => "boolean"

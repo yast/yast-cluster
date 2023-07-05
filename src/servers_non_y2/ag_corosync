@@ -330,14 +330,6 @@ node_option_table = {
     },
 }
 
-# BNC-879596. Obsolete, just use to detect the file format is SLE11SP3 or SLE12
-old_memberlist_table = {
-    "memberaddr": {
-        "doc": "obsolete! Only use to detect old(SLE11SP3) format.",
-        "type": "string",
-        "default_value": "0",
-    },
-}
 
 logging_option_table = {
     "debug": {
@@ -941,11 +933,6 @@ def opt_parser(file, options, parent):
                 result["heuristics"] = opt_parser(
                     file, quorum_qdevice_heuristics_option_table, "heuristics"
                 )
-            # member of interface is removed in the latest version
-            elif i.lstrip().split(" ")[0] == "member" and parent == "interface":
-                oldmembers = result.get("oldlist", [])
-                oldmembers.append(opt_parser(file, old_memberlist_table, "oldlist"))
-                result["oldlist"] = oldmembers
             else:
                 # y2warning("Unknown sub-directive %s found. Ignore it" % (i.lstrip().split(" ")[0]))
                 while i[-1] != "}":
@@ -1020,18 +1007,7 @@ def generateMemberString(node):
     return '"%s"' % member_str.strip()
 
 
-# obsolete setting. BNC-879596, pop up a message if config file is in old format.
-def check_conf_format():
-    if "rrp_mode" in totem_options:
-        return "corosync2"
-
-    for x in range(len(totem_options["interface"])):
-        if "oldlist" in totem_options["interface"][x]:
-            return "corosync"
-    return "latest"
-
-
-def load_ais_conf(filename):
+def load_corosync_conf(filename):
     try:
         f = open(filename, "r")
         file_parser(f)
@@ -1071,7 +1047,7 @@ def _return_str_list(obj):
 
 class CorosyncConf_Parser(object):
     def __init__(self):
-        load_ais_conf("/etc/corosync/corosync.conf")
+        load_corosync_conf("/etc/corosync/corosync.conf")
 
     def doList(self, path_arr):
         if len(path_arr) == 0:
@@ -1232,10 +1208,7 @@ class CorosyncConf_Parser(object):
                     return "nil"
             elif len(path) == 4:
                 if path[1] == "interface":
-                    # bsc#879596, "member" only exist in old format.
-                    if path[2] == "member":
-                        return '"%s"' % check_conf_format()
-                    elif path[2].isdigit():
+                    if path[2].isdigit():
                         if len(totem_options["interface"]) > int(path[2]):
                             i = totem_options["interface"][int(path[2])]
 
