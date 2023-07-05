@@ -223,11 +223,11 @@ module Yast
       nil
     end
 
-    def switch_interface_button(transport)
+    def switch_interface_button(transport, link_mode="passive")
       knet = transport == "knet"
-
-      enable_widgets(knet, :knet_link_priority, :knet_transport)
-      enable_widgets(!knet, :bindnetaddr, :mcastaddr, :mcastport)
+      enable_widgets(knet, :linknumber, :knet_transport)
+      enable_widgets(link_mode == "passive", :knet_link_priority)
+      enable_widgets(!knet, :bindnetaddr, :mcastaddr, :udp_mcastport)
 
       nil
     end
@@ -390,7 +390,7 @@ module Yast
       deep_copy(ret)
     end
 
-    def interface_input_dialog(value, transport="knet")
+    def interface_input_dialog(value, transport="knet", link_mode="passive")
       existing_ips = _get_bind_address()
       if value.has_key?("bindnetaddr")
         tmp = [value["bindnetaddr"], ""]
@@ -404,14 +404,14 @@ module Yast
       bindaddr = tmp + existing_ips
 
       if value.has_key?("linknumber")
-        links = [value["linknumber"], ""]
+        links = [value["linknumber"]]
       else
-        links = [""]
+        links = []
       end
       if !Cluster.node_list.empty?
         tmp = Cluster.node_list[0]["IPs"].size
         tmp.times do |index|
-          if !links.include?(index)
+          if !links.include?(index) && Cluster.interface_list.size <= index
             links.push(index.to_s)
           end
         end
@@ -436,7 +436,6 @@ module Yast
               ComboBox(
                 Id(:knet_transport), Opt(:hstretch), _("Knet Transport"),
                 [
-                Item(Id(""), ""),
                 Item(Id("udp"), "udp"),
                 Item(Id("sctp"), "sctp"),
                 ]
@@ -444,8 +443,6 @@ module Yast
               HSpacing(1),
               MinWidth(20, InputField(Id(:knet_link_priority), _("Knet Link Priority"),
                                       value["knet_link_priority"])),
-              HSpacing(1),
-              MinWidth(20, InputField(Id(:knet_mcastport), _("Multicast Port") , value["mcastport"])),
             ),
             VSpacing(1),
             Left(Label(_("Multicast:"))),
@@ -473,12 +470,11 @@ module Yast
       )
 
       UI.ChangeWidget(:linknumber, :ValidChars, "0123456789")
-      UI.ChangeWidget(:knet_mcastport, :ValidChars, "0123456789")
       UI.ChangeWidget(:udp_mcastport, :ValidChars, "0123456789")
       UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
       UI.ChangeWidget(Id(:knet_transport), :Value, value["knet_transport"])
 
-      switch_interface_button(transport)
+      switch_interface_button(transport, link_mode)
 
       ret = UI.UserInput
       if ret == :ok
@@ -1036,23 +1032,6 @@ module Yast
       nil
     end
 
-    def switch_totem_button(transport)
-      # For UDPU an interface section is not needed
-      if transport == "udpu"
-        UI.ChangeWidget(Id(:ifacelist), :Enabled, false)
-        UI.ChangeWidget(Id(:ifacelist_add), :Enabled, false)
-        UI.ChangeWidget(Id(:ifacelist_edit), :Enabled, false)
-        UI.ChangeWidget(Id(:ifacelist_del), :Enabled, false)
-      else
-        UI.ChangeWidget(Id(:ifacelist), :Enabled, true)
-        UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
-        UI.ChangeWidget(Id(:ifacelist_edit), :Enabled, true)
-        UI.ChangeWidget(Id(:ifacelist_del), :Enabled, true)
-      end
-
-      nil
-    end
-
     def switch_linkmode_button
       if Cluster.node_list.size > 0
         ringnum = Cluster.node_list[0]["IPs"].size
@@ -1076,12 +1055,12 @@ module Yast
       while true
         fill_nodelist_entries()
         fill_interface_entries()
-        switch_totem_button(UI.QueryWidget(Id(:transport), :Value))
         switch_linkmode_button()
         switch_nodelist_button(Cluster.node_list)
         switch_interface_list_button(Cluster.interface_list)
 
         transport = UI.QueryWidget(Id(:transport), :Value).to_s
+        link_mode = UI.QueryWidget(Id(:linkmode), :Value).to_s
         ip_version = UI.QueryWidget(Id(:ip_version), :Value).to_s
         if Cluster.firstrun
           if transport == "udp"
@@ -1089,6 +1068,12 @@ module Yast
           else
             UI.ChangeWidget(Id(:ip_version), :Value, "ipv6-4")
           end
+        end
+
+        if transport != "udpu" && Cluster.node_list.size > 0 && Cluster.node_list[0]["IPs"].size > Cluster.interface_list.size
+          UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
+        else
+          UI.ChangeWidget(Id(:ifacelist_add), :Enabled, false)
         end
 
         ret = UI.UserInput
@@ -1116,7 +1101,7 @@ module Yast
         end
 
         if ret == :ifacelist_add
-          ret = interface_input_dialog({}, transport)
+          ret = interface_input_dialog({}, transport, link_mode)
 
           next if ret == :cancel || ret.empty?
           Cluster.interface_list.push(ret)
@@ -1125,7 +1110,7 @@ module Yast
         if ret == :ifacelist_edit
           current = 0
           current = UI.QueryWidget(:ifacelist, :CurrentItem).to_i
-          ret = interface_input_dialog(Cluster.interface_list[current] || {}, transport)
+          ret = interface_input_dialog(Cluster.interface_list[current] || {}, transport, link_mode)
 
           next if ret == :cancel
           # Clear the interface_input_dialog support key in case not configured
@@ -1456,11 +1441,7 @@ module Yast
       else
         disable = true
       end
-
-      UI.ChangeWidget(Id(:heuristics_timeout), :Enabled, disable)
-      UI.ChangeWidget(Id(:heuristics_sync_timeout), :Enabled, disable)
-      UI.ChangeWidget(Id(:heuristics_interval), :Enabled, disable)
-      UI.ChangeWidget(Id(:heuristics_executables), :Enabled, disable)
+      enable_widgets(disable, :heuristics_timeout, :heuristics_sync_timeout, :heuristics_interval, :heuristics_executables)
 
       nil
     end
