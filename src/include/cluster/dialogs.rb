@@ -614,10 +614,7 @@ module Yast
       if nodeid.empty?
         Popup.Message(_("A Node ID is required"))
         return false
-      elsif nodeid.to_i.to_s != nodeid
-        Popup.Message(_("Invalid Node ID: ") + nodeid)
-        return false
-      elsif nodeid.to_i <= 0
+      elsif !valid_nodeid?(nodeid)
         Popup.Message(_("Node ID is required with a positive integer"))
         return false
       else
@@ -1225,9 +1222,9 @@ module Yast
           1,
           VBox(
             HBox(
-            MinWidth(40, InputField(Id(:exec_name), _("Execute Name"), name)),
+            MinWidth(20, InputField(Id(:exec_name), _("Execute Name"), name)),
             HSpacing(1),
-            MinWidth(100, InputField(Id(:exec_script), _("Execute Script"), script))
+            MinWidth(55, InputField(Id(:exec_script), _("Execute Script"), script))
             ),
             VSpacing(1),
             Right(
@@ -1250,7 +1247,7 @@ module Yast
     end
 
     def ValidateCorosyncQdevice
-      if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
+      if !UI.QueryWidget(Id(:configure_qdevice), :Value)
         return true
       end
 
@@ -1266,20 +1263,20 @@ module Yast
         return false
       end
 
-      if UI.QueryWidget(Id(:qdevice_port), :Value).to_i <= 0
-        Popup.Message(_("The corosync qdevice port must be a positive integer"))
+      if !valid_port_number?(UI.QueryWidget(Id(:qdevice_port), :Value))
+        Popup.Message(_("Invalid port number for qnetd server"))
         UI.SetFocus(Id(:qdevice_port))
         return false
       end
 
       if !["lowest", "highest"].include?(UI.QueryWidget(Id(:qdevice_tie_breaker), :Value)) &&
-        (UI.QueryWidget(Id(:qdevice_tie_breaker), :Value).to_i <= 0)
+          !valid_nodeid?(UI.QueryWidget(Id(:qdevice_tie_breaker), :Value))
         Popup.Message(_("The tie breaker can be one of lowest, highest or a valid node id (number)"))
         UI.SetFocus(Id(:qdevice_tie_breaker))
         return false
       end
 
-      if UI.QueryWidget(Id(:corosync_qdevice), :Value) && Cluster.node_list.size <= 0
+      if UI.QueryWidget(Id(:configure_qdevice), :Value) && Cluster.node_list.size <= 0
         # Intent not return false since address is in another dialog.
         Popup.Message(_("Node addresses is required when enable corosync qdevice"))
       end
@@ -1304,7 +1301,7 @@ module Yast
         end
 
         if Cluster.heuristics_executables.size <= 0
-          Popup.Message(_("The heuristics executable script must config"))
+          Popup.Message(_("The Heuristics Executables script must config if enable Heuristics Mode"))
           return false
         end
       end
@@ -1313,7 +1310,7 @@ module Yast
     end
 
     def SaveCorosyncQdevice
-      Cluster.corosync_qdevice = Convert.to_boolean(UI.QueryWidget(Id(:corosync_qdevice), :Value))
+      Cluster.configure_qdevice = Convert.to_boolean(UI.QueryWidget(Id(:configure_qdevice), :Value))
 
       Cluster.qdevice_model = UI.QueryWidget(Id(:qdevice_model), :Value)
       Cluster.qdevice_host = UI.QueryWidget(Id(:qdevice_host), :Value)
@@ -1331,46 +1328,52 @@ module Yast
     end
 
     def CorosyncQdeviceLayout
-      qdevice_section = VBox(
-        Left(ComboBox(
-          Id(:qdevice_model),
-          Opt(:hstretch),
-          _("Qdevice model:"),
-          ["net"]
-        ))
+      ask_config = CheckBox(
+        Id(:configure_qdevice), 
+        Opt(:notify), 
+        "Qnetd Server Host:", 
+        Cluster.configure_qdevice
       )
 
-      qdevice_net_section = VBox(
+      qdevice_config_base =
         HBox(
-          Left(InputField(Id(:qdevice_host),Opt(:hstretch), _("Qnetd server host:"),"")),
+          VBox(
+            Left(ask_config),
+            Left(InputField(Id(:qdevice_host),Opt(:hstretch), _(""),"")),
+          ),
           HSpacing(1),
-          Left(InputField(Id(:qdevice_port),Opt(:hstretch), _("Qnetd server TCP port:"),"5403"))
-        ),
-        HBox(
-          Left(ComboBox(
-            Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),
-            ["off", "on", "required"]
-          )),
-          Left(ComboBox(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),["ffsplit"])),
-          HSpacing(1),
-          Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie breaker:"),"lowest"))
+          Left(InputField(Id(:qdevice_port),Opt(:hstretch), _("Qnetd Server TCP port:"),"5403")),
         )
-      )
 
-      qdevice_heuristics_section = VBox(
+      qdevice_config_advance =
         HBox(
-          Left(ComboBox(
-            Id(:heuristics_mode), Opt(:hstretch, :notify), _("Heuristics Mode:"),
-            ["off", "on", "sync"]
-          ))
-        ),
-        HBox(
-          Left(InputField(Id(:heuristics_timeout),Opt(:hstretch), _("Heuristics Timeout(milliseconds):"),"5000")),
+          Left(ComboBox(Id(:qdevice_model),Opt(:hstretch),_("Qdevice Model:"),["net"])),
           HSpacing(1),
-          Left(InputField(Id(:heuristics_sync_timeout),Opt(:hstretch), _("Heuristics Sync_timeout(milliseconds):"),"15000")),
+          Left(ComboBox(Id(:qdevice_tls), Opt(:hstretch), _("TLS:"),["on", "required", "off"])),
           HSpacing(1),
-          Left(InputField(Id(:heuristics_interval),Opt(:hstretch), _("Heuristics Interval(milliseconds):"),"30000")),
-        ),
+          Left(ComboBox(Id(:qdevice_algorithm),Opt(:hstretch, :notify), _("Algorithm:"),["ffsplit", "lms"])),
+          HSpacing(1),
+          Left(InputField(Id(:qdevice_tie_breaker),Opt(:hstretch), _("Tie Breaker:"),"lowest"))
+        )
+
+      heuristics_conifg =
+        VBox(
+          HBox(
+            Left(ComboBox(
+              Id(:heuristics_mode), Opt(:hstretch, :notify), _("Heuristics Mode:"),
+              ["off", "on", "sync"]
+            )),
+            HSpacing(1),
+            Left(InputField(Id(:heuristics_timeout),Opt(:hstretch), _("Heuristics Timeout(ms):"),"5000")),
+          ),
+          HBox(
+            Left(InputField(Id(:heuristics_sync_timeout),Opt(:hstretch), _("Heuristics Sync Timeout(ms):"),"15000")),
+            HSpacing(1),
+            Left(InputField(Id(:heuristics_interval),Opt(:hstretch), _("Heuristics Interval(ms):"),"30000")),
+          )
+        )
+
+      heuristics_table =
         VBox(
           Left(Label(_("Heuristics Executables:"))),
           Table(Id(:heuristics_executables), Header(_("Name"), _("Value")), []),
@@ -1380,30 +1383,21 @@ module Yast
             PushButton(Id(:executable_edit), "Edit"))
           )
         )
-      )
 
-      contents = VBox(
-        VSpacing(1),
-        CheckBoxFrame(
-          Id(:corosync_qdevice),
-          Opt(:hstretch, :notify),
-          _("En&able Corosync Qdevice"),
-          false,
+      contents =
+        Frame(
+          _(""),
           VBox(
-            qdevice_section,
-            qdevice_net_section,
-            qdevice_heuristics_section,
+            qdevice_config_base,
+            qdevice_config_advance,
+            heuristics_conifg,
+            heuristics_table
           )
-        ),
-        VStretch()
-      )
+        )
 
       my_SetContents("corosyncqdevice", contents)
 
-      UI.ChangeWidget(Id(:corosync_qdevice), :Value, Cluster.corosync_qdevice)
-
       UI.ChangeWidget(Id(:qdevice_model), :Value, Cluster.qdevice_model)
-
       UI.ChangeWidget(Id(:qdevice_host), :Value, Cluster.qdevice_host)
       UI.ChangeWidget(Id(:qdevice_port), :Value, Cluster.qdevice_port)
       UI.ChangeWidget(Id(:qdevice_tls), :Value, Cluster.qdevice_tls)
@@ -1434,14 +1428,34 @@ module Yast
       nil
     end
 
+    def qdevice_switch
+      enable_widgets(UI.QueryWidget(Id(:configure_qdevice), :Value),
+                     :qdevice_host,
+                     :qdevice_port, 
+                     :qdevice_model, 
+                     :qdevice_tls, 
+                     :qdevice_tie_breaker, 
+                     :qdevice_algorithm, 
+                     :heuristics_mode)
+      nil
+    end
+
     def heuristics_switch
       if !UI.QueryWidget(Id(:heuristics_mode), :Value) ||
-          UI.QueryWidget(Id(:heuristics_mode), :Value) == "off"
+          UI.QueryWidget(Id(:heuristics_mode), :Value) == "off" ||
+          !UI.QueryWidget(Id(:configure_qdevice), :Value)
         disable = false
       else
         disable = true
       end
-      enable_widgets(disable, :heuristics_timeout, :heuristics_sync_timeout, :heuristics_interval, :heuristics_executables)
+      enable_widgets(disable, 
+                     :heuristics_timeout, 
+                     :heuristics_sync_timeout, 
+                     :heuristics_interval, 
+                     :heuristics_executables, 
+                     :executable_add, 
+                     :executable_edit, 
+                     :executable_del)
 
       nil
     end
@@ -1466,18 +1480,9 @@ module Yast
       while true
         fill_qdevice_heuristics_executables
         heuristics_switch
+        qdevice_switch
 
         ret = UI.UserInput
-
-        if ret == :corosync_qdevice
-          if UI.QueryWidget(Id(:corosync_qdevice), :Value) == false
-            next
-          end
-        end
-
-        if ret == :heuristics_mode
-          next
-        end
 
         if ret == :executable_add
           ret = heuristics_executables_input_dialog()
@@ -1710,7 +1715,7 @@ module Yast
       ret_pacemaker = 0
       ret_qdevice = 0
       ret_pacemaker = Service.Status("pacemaker")
-      if Cluster.corosync_qdevice && ret_pacemaker == 0
+      if Cluster.configure_qdevice && ret_pacemaker == 0
         ret_qdevice = Service.Status("corosync-qdevice")
         # corosync-qdevice stop/start
         if ret_qdevice == 0
@@ -1739,7 +1744,7 @@ module Yast
       end
 
       ret_qdevice_booting = true
-      if Cluster.corosync_qdevice
+      if Cluster.configure_qdevice
         ret_qdevice_booting = Service.Enabled("corosync-qdevice")
       end
       if Service.Enabled("pacemaker") && ret_qdevice_booting
@@ -1871,7 +1876,7 @@ module Yast
 
         if ret == "on"
           Service.Enable("pacemaker")
-          if Cluster.corosync_qdevice
+          if Cluster.configure_qdevice
             Service.Enable("corosync-qdevice")
           end
           next
@@ -1879,7 +1884,7 @@ module Yast
 
         if ret == "off"
           Service.Disable("pacemaker")
-          if Cluster.corosync_qdevice
+          if Cluster.configure_qdevice
             Service.Disable("corosync-qdevice")
           end
           next

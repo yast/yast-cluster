@@ -469,10 +469,10 @@ quorum_qdevice_net_option_table = {
         "suggested_value": 5403,
     },
     "tls": {
-        "doc": "Specifies if tls should be used, only off is supported by yast.",
-        "default_value": "off",
+        "doc": "Specifies if tls should be used, default is on",
+        "default_value": "on",
         "type": "string",
-        "suggested_value": "off",
+        "suggested_value": "on",
     },
     "algorithm": {
         "doc": "Decision algorithm. Can be one of the ffsplit or lms.",

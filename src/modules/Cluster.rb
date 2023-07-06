@@ -91,14 +91,14 @@ module Yast
       @global_startcorosync = false
       @global_startcsync2 = false
 
-      @corosync_qdevice = false
+      @configure_qdevice = false
 
       @qdevice_model = "net"
       @qdevice_votes = ""
 
       @qdevice_host = ""
       @qdevice_port = "5403"
-      @qdevice_tls = "off"
+      @qdevice_tls = "on"
       @qdevice_algorithm = "ffsplit"
       @qdevice_tie_breaker = "lowest"
 
@@ -183,10 +183,10 @@ module Yast
 
     def LoadCorosyncQdeviceConfig
       if SCR.Read(path(".corosync.quorum.device"))
-        @corosync_qdevice = true
+        @configure_qdevice = true
       end
 
-      if @corosync_qdevice
+      if @configure_qdevice
         @qdevice_model = SCR.Read(path(".corosync.quorum.device.model"))
         @qdevice_votes = SCR.Read(path(".corosync.quorum.device.votes")).to_s
 
@@ -380,18 +380,18 @@ module Yast
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if ((@expected_votes == "2") or (@node_list.size == 2)) and (!@corosync_qdevice)
+      if ((@expected_votes == "2") or (@node_list.size == 2)) and (!@configure_qdevice)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end
 
-      if @corosync_qdevice
+      if @configure_qdevice
         # two_node can not be used with qdevice
         @two_node = "0"
       end
       SCR.Write(path(".corosync.quorum.two_node"), @two_node)
 
-      if @corosync_qdevice
+      if @configure_qdevice
         SaveCorosyncQdeviceConfig()
       else
         SCR.Write(path(".corosync.quorum.device"), "")
@@ -608,7 +608,7 @@ module Yast
       # 21064 for dlm
       # 5403 for corosync qdevice(default)
       tcp_ports = ["30865", "5560", "21064", "7630"]
-      tcp_ports << @qdevice_port if @corosync_qdevice
+      tcp_ports << @qdevice_port if @configure_qdevice
 
       begin
         Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports, udp_ports: udp_ports)
@@ -681,12 +681,12 @@ module Yast
       @interface_list = settings["interface_list"] || []
       @node_list = settings["node_list"] || []
 
-      @corosync_qdevice = settings["corosync_qdevice"] || false
+      @configure_qdevice = settings["configure_qdevice"] || false
       @qdevice_model = settings["qdevice_model"] || "net"
       @qdevice_votes = settings["qdevice_votes"] || ""
       @qdevice_host = settings["qdevice_host"] || ""
       @qdevice_port = settings["qdevice_port"] || "5403"
-      @qdevice_tls = settings["qdevice_tls"] || "off"
+      @qdevice_tls = settings["qdevice_tls"] || "on"
       @qdevice_algorithm= settings["qdevice_algorithm"] || "ffsplit"
       @qdevice_tie_breaker = settings["qdevice_tie_breaker"] || "lowest"
 
@@ -726,7 +726,7 @@ module Yast
       result["interface_list"] = @interface_list
       result["node_list"] = @node_list
 
-      result["corosync_qdevice"] = @corosync_qdevice
+      result["configure_qdevice"] = @configure_qdevice
       result["qdevice_model"] = @qdevice_model
       result["qdevice_votes"] = @qdevice_votes
       result["qdevice_host"] = @qdevice_host
@@ -815,7 +815,7 @@ module Yast
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :ip_version, :type => "string"
     publish :variable => :expected_votes, :type => "string"
-    publish :variable => :corosync_qdevice, :type => "boolean"
+    publish :variable => :configure_qdevice, :type => "boolean"
     publish :variable => :qdevice_model, :type => "string"
     publish :variable => :qdevice_votes, :type => "string"
     publish :variable => :qdevice_host, :type => "string"
