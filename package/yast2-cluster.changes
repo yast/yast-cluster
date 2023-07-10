@@ -1,5 +1,13 @@
 -------------------------------------------------------------------
-Thu Mar 23 08:20:54 UTC 2023 - Peter Varkoly <varkoly@suse.com>
+Mon Jul 10 17:05:52 UTC 2023 - xin liang <xliang@suse.com>
+- Support corosync3/kronosnet
+- Totem UI change for node list and interface list
+- Enhance validations for input
+- Use 'black' to re-format Python file ag_corosync
+- Bump version to 5.0.0
+
+-------------------------------------------------------------------
+Thu Mar 23 07:55:52 UTC 2023 - Peter Varkoly <varkoly@suse.com>
 
 - bsc#1209602 bugs in yast2-cluster Write funcion
 - Remove sensless call to sysconfig.openais

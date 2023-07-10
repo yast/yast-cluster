@@ -49,7 +49,6 @@ module Yast
       # Data was modified?
       @modified = false
 
-
       @proposal_valid = false
 
       @firstrun = false
@@ -62,52 +61,44 @@ module Yast
       # return boolean return true if abort
       @AbortFunction = fun_ref(method(:Modified), "boolean ()")
 
-
       # Settings: Define all variables needed for configuration of cluster
       @secauth = false
+      @crypto_model = "nss"
       @crypto_hash = "none"
       @crypto_cipher = "none"
       @cluster_name = ""
-      @ip_version = ""
+      @link_mode = "passive"
+      @ip_version = "ipv6-4"
+      @transport = "knet"
+
+      # example:
+      # [{"ttl"=>"190", "mcastport"=>"9999", "mcastaddr"=>"23.45.67.89", "linknumber"=>"9", "knet_link_priority"=>"1"},
+      # {"ttl"=>"180", "mcastport"=>"8888", "mcastaddr"=>"1.2.3.4", "linknumber"=>"8"}]
+      @interface_list = []
+
+      # example:
+      # [{"name"=>"node1", "nodeid"=>"1", "IPs"=>["1.2.3.4", "33:44:11::ff"]},
+      # {"name"=>"node2", "nodeid"=>"3", "IPs"=>["ff::11", "ff::11"]},
+      # {"name"=>"node3", "nodeid"=>"12", "IPs"=>["22::ee", "11::ff", "aa::44"]},
+      # {"name"=>"dummy", "IPs"=>["ff::ff"]}]
+      @node_list = []
+
       @expected_votes = ""
       @two_node = "0"
-      @config_format = ""
-
-      @bindnetaddr1 = ""
-      @mcastaddr1 = ""
-      @mcastport1 = ""
-      @enable2 = false
-      @bindnetaddr2 = ""
-      @mcastaddr2 = ""
-      @mcastport2 = ""
-
-      @autoid = true
-      @rrpmode = ""
 
       @corokey = ""
       @csync2key = ""
       @global_startcorosync = false
       @global_startcsync2 = false
 
-      @transport = ""
-
-      # example:
-      # [{:addr1=>"10.16.35.101",:addr2=>"192.168.0.1", :nodeid=>"1"}, 
-      # {:addr1=>"10.16.35.102",:addr2=>"192.168.0.2", :nodeid=>"2"},
-      # {:addr1=>"10.16.35.103",:addr2=>"192.168.0.3" },
-      # {:addr1=>"10.16.35.104",:nodeid=>"4" },
-      # {:addr1=>"10.16.35.105",:nodeid=>"5" }]
-      @memberaddr = []
-      @address = []
-
-      @corosync_qdevice = false
+      @configure_qdevice = false
 
       @qdevice_model = "net"
       @qdevice_votes = ""
 
       @qdevice_host = ""
       @qdevice_port = "5403"
-      @qdevice_tls = "off"
+      @qdevice_tls = "on"
       @qdevice_algorithm = "ffsplit"
       @qdevice_tie_breaker = "lowest"
 
@@ -192,10 +183,10 @@ module Yast
 
     def LoadCorosyncQdeviceConfig
       if SCR.Read(path(".corosync.quorum.device"))
-        @corosync_qdevice = true
+        @configure_qdevice = true
       end
 
-      if @corosync_qdevice
+      if @configure_qdevice
         @qdevice_model = SCR.Read(path(".corosync.quorum.device.model"))
         @qdevice_votes = SCR.Read(path(".corosync.quorum.device.votes")).to_s
 
@@ -221,139 +212,57 @@ module Yast
 
       if Convert.to_string(SCR.Read(path(".corosync.totem.secauth"))) == "on"
         @secauth = true
+        @crypto_model = SCR.Read(path(".corosync.totem.crypto_model"))
         @crypto_hash = SCR.Read(path(".corosync.totem.crypto_hash"))
         @crypto_cipher = SCR.Read(path(".corosync.totem.crypto_cipher"))
       else
         @secauth = false
       end
 
+      @link_mode = SCR.Read(path(".corosync.totem.link_mode"))
       @cluster_name = SCR.Read(path(".corosync.totem.cluster_name"))
-
       @ip_version = SCR.Read(path(".corosync.totem.ip_version"))
 
       @expected_votes = SCR.Read(path(".corosync.quorum.expected_votes")).to_s
 
-      @config_format = SCR.Read(path(".corosync.totem.interface.member.memberaddr")).to_s
-
       @transport = SCR.Read(path(".corosync.totem.transport"))
-      @transport = "udp" if @transport == nil
-      @address = SCR.Read(path(".corosync.nodelist.node")).split(" ")
+      @transport = "knet" if @transport == nil
 
       interfaces = SCR.Dir(path(".corosync.totem.interface"))
-      if interfaces.nil? or interfaces.empty?
-          @mcastaddr1 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface0.mcastaddr"))
-          )
-          @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface0.bindnetaddr"))
-          )
-          @mcastaddr2 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface1.mcastaddr"))
-          )
-          @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface1.bindnetaddr"))
-          )
-          @mcastport1 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface0.mcastport"))
-          )
-          @mcastport2 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface1.mcastport"))
-          )
-      end
-      Builtins.foreach(interfaces) do |interface|
-        if interface == "interface0"
-          if @address != []
-            # BNC#871970, change member addresses to nodelist structure
-            # memberaddr of udpu only read in interface0
-            # address is like "123.3.21.32;156.32.123.1:1 123.3.21.54;156.32.123.4:2 
-            # 123.3.21.44;156.32.123.9"
-            address = SCR.Read(path(".corosync.nodelist.node")).split(" ")
-            address.each do |addr|
-              p = addr.split("|")
-              if p[1] != nil
-                q = p[0].split(";")
-                if q[1] != nil
-                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1],:nodeid=>p[1]})
-                else
-                  @memberaddr.push({:addr1=>q[0],:nodeid=>p[1]})
-                end
-              else
-                q = p[0].split(";")
-                if q[1] != nil
-                  @memberaddr.push({:addr1=>q[0],:addr2=>q[1]})
-                else
-                  @memberaddr.push({:addr1=>q[0]})
-                end
-              end
-            end  # end address.each 
-          end
-
-          if @transport == "udp"
-            @mcastaddr1 = Convert.to_string(
-              SCR.Read(path(".corosync.totem.interface.interface0.mcastaddr"))
-            )
-          end
-          @bindnetaddr1 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface0.bindnetaddr"))
-          )
-          @mcastport1 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface0.mcastport"))
-          )
+      interfaces.each do |index|
+        ikeys = SCR.Dir(path(".corosync.totem.interface." + index))
+        interface = {}
+        ikeys.each do |key|
+          interface[key] = SCR.Read(path(".corosync.totem.interface." + index + "." + key))
         end
-        if interface == "interface1"
-          # member address only get in interface0
-          if @transport == "udp"
-            @mcastaddr2 = Convert.to_string(
-              SCR.Read(path(".corosync.totem.interface.interface1.mcastaddr"))
-            )
+        @interface_list.push(interface)
+      end
+
+      nodes = SCR.Dir(path(".corosync.nodelist.node"))
+      nodes.each do |index|
+        nkeys = SCR.Dir(path(".corosync.nodelist.node." + index))
+        node = {}
+        nkeys.each do |key|
+          # Ignore ring0_addr..ringX_addr. Use IPs as a list only
+          if key.match?("ring")
+            next
           end
-          @bindnetaddr2 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface1.bindnetaddr"))
-          )
-          @mcastport2 = Convert.to_string(
-            SCR.Read(path(".corosync.totem.interface.interface1.mcastport"))
-          )
 
-          @enable2 = true
+          # corosync3: addresses is like "123.3.21.32;156.32.123.1;123.3.21.54;156.32.123.4"
+          if key == "IPs"
+            address_list = SCR.Read(path(".corosync.nodelist.node." + index + "." + key)).split(";")
+            node[key] = address_list
+            next
+          end
+
+          node[key] = SCR.Read(path(".corosync.nodelist.node." + index + "." + key))
         end
-      end
-
-      ai = Convert.to_string(SCR.Read(path(".corosync.totem.autoid")))
-
-      if ai == "yes"
-        @autoid = true
-      else
-        @autoid = false
-      end
-
-      @rrpmode = Convert.to_string(SCR.Read(path(".corosync.totem.rrpmode")))
-      if @enable2 == false
-        @rrpmode = "none"
-      else
-        @rrpmode = "passive" if @rrpmode != "passive" && @rrpmode != "active"
+        @node_list.push(node)
       end
 
       LoadCorosyncQdeviceConfig()
 
       nil
-    end
-
-
-    # BNC#871970, generate string like "123.3.21.32;156.32.123.1|1"
-    def generateMemberString(memberaddr)
-      address_string = ""
-      memberaddr.each do |i|
-        address_string << i[:addr1]
-        if i[:addr2]
-          address_string << ";#{i[:addr2]}"
-          address_string << "|#{i[:nodeid]}" if i [:nodeid]
-        else 
-          address_string << "|#{i[:nodeid]}" if i[:nodeid]
-        end
-        address_string << " "
-      end
-
-      return address_string
     end
 
     def generateDictString(obj)
@@ -401,93 +310,88 @@ module Yast
 
     def SaveClusterConfig
 
-      if @secauth == true
+      if @secauth == true and @transport == "knet"
         SCR.Write(path(".corosync.totem.secauth"), "on")
+        SCR.Write(path(".corosync.totem.crypto_model"), @crypto_model)
         SCR.Write(path(".corosync.totem.crypto_hash"), @crypto_hash)
         SCR.Write(path(".corosync.totem.crypto_cipher"), @crypto_cipher)
       else
         SCR.Write(path(".corosync.totem.secauth"), "off")
-        SCR.Write(path(".corosync.totem.crypto_hash"), "none")
-        SCR.Write(path(".corosync.totem.crypto_cipher"), "none")
+        SCR.Write(path(".corosync.totem.crypto_model"), "")
+        SCR.Write(path(".corosync.totem.crypto_hash"), "")
+        SCR.Write(path(".corosync.totem.crypto_cipher"), "")
       end
 
       SCR.Write(path(".corosync.totem.transport"), @transport)
       SCR.Write(path(".corosync.totem.cluster_name"), @cluster_name)
       SCR.Write(path(".corosync.totem.ip_version"), @ip_version)
-      SCR.Write(path(".corosync.quorum.expected_votes"), @expected_votes)
-
-      # BNC#871970, only write member address when interface0  
-      if @memberaddr != []
-
-        SCR.Write(
-          path(".corosync.nodelist.node"),
-          generateMemberString(@memberaddr)
-        )
+      SCR.Write(path(".corosync.totem.link_mode"), @link_mode)
+      # FIXME: if support no nodelist in corosync3
+      # Only write expected_votes when no node list
+      if @node_list.empty?
+        SCR.Write(path(".corosync.quorum.expected_votes"), @expected_votes)
       else
-        SCR.Write(path(".corosync.nodelist.node"), "")
+        SCR.Write(path(".corosync.quorum.expected_votes"), "")
       end
-      if @transport == "udp"
-        SCR.Write(
-          path(".corosync.totem.interface.interface0.mcastaddr"),
-          @mcastaddr1
-        )
-        SCR.Write(
-          path(".corosync.totem.interface.interface0.bindnetaddr"),
-          @bindnetaddr1
-        )
-      else
-        SCR.Write(path(".corosync.totem.interface.interface0.mcastaddr"), "")
-        SCR.Write(path(".corosync.totem.interface.interface0.bindnetaddr"), "")
+
+      # Initialize totem.interface list
+      SCR.Write(path(".corosync.totem.interface"), "")
+      if @interface_list != []
+        for i in 0..(interface_list.length() - 1)
+          for k in interface_list[i].keys()
+            # Do not write knet_parameters when udp/udpe
+            if @transport != "knet"
+              ignore_list = ["knet_link_priority", "knet_ping_interval",
+                             "knet_ping_timeout", "knet_ping_precision",
+                             "knet_pong_count", "knet_transport"]
+
+              if ignore_list.include?(k)
+                next
+              end
+            end
+
+            SCR.Write(
+              path(".corosync.totem.interface." + i.to_s + "." + k),
+              interface_list[i][k]
+            )
+          end
+        end
+      end
+
+      # Initialize nodelist.node list
+      SCR.Write(path(".corosync.nodelist.node"), "")
+      if @node_list!= []
+        for i in 0..(node_list.length() - 1)
+          for k in node_list[i].keys()
+            if k == "IPs"
+              SCR.Write(
+                path(".corosync.nodelist.node." + i.to_s + ".IPs"),
+				node_list[i]["IPs"].join(";")
+              )
+              next
+            end
+
+            SCR.Write(
+              path(".corosync.nodelist.node." + i.to_s + "." + k),
+              node_list[i][k]
+            )
+          end
+        end
       end
 
       # BNC#883235. Enable "two_node" when using two node cluster
-      if ((@expected_votes == "2") or (@memberaddr.size == 2)) and (!@corosync_qdevice)
+      if ((@expected_votes == "2") or (@node_list.size == 2)) and (!@configure_qdevice)
         # Set "1" to enable two_node mode when two nodes, otherwise is "0".
         @two_node = "1"
       end
 
-      if @corosync_qdevice
+      if @configure_qdevice
         # two_node can not be used with qdevice
         @two_node = "0"
       end
       SCR.Write(path(".corosync.quorum.two_node"), @two_node)
 
-      SCR.Write(
-        path(".corosync.totem.interface.interface0.mcastport"),
-        @mcastport1
-      )
-
-      if @enable2 == false
-        SCR.Write(path(".corosync.totem.interface.interface1"), "")
-      else
-        if @transport == "udpu"
-          SCR.Write(path(".corosync.totem.interface.interface1.mcastaddr"), "")
-          SCR.Write(path(".corosync.totem.interface.interface1.bindnetaddr"), "")
-        else
-          SCR.Write(
-            path(".corosync.totem.interface.interface1.mcastaddr"),
-            @mcastaddr2
-          )
-          SCR.Write(
-            path(".corosync.totem.interface.interface1.bindnetaddr"),
-            @bindnetaddr2
-          )
-        end
-        SCR.Write(
-          path(".corosync.totem.interface.interface1.mcastport"),
-          @mcastport2
-        )
-      end
-
-      #FIXME TODO
-      if @autoid == true
-        SCR.Write(path(".corosync.totem.autoid"), "yes")
-      else
-        SCR.Write(path(".corosync.totem.autoid"), "no")
-      end
-      SCR.Write(path(".corosync.totem.rrpmode"), @rrpmode)
-
-      if @corosync_qdevice
+      if @configure_qdevice
         SaveCorosyncQdeviceConfig()
       else
         SCR.Write(path(".corosync.quorum.device"), "")
@@ -544,13 +448,12 @@ module Yast
       # Cluster read dialog caption
       caption = _("Initializing cluster Configuration")
 
-      # TODO FIXME Set the right number of stages
-      steps = 4
+      # Set the right number of stages
+      steps = 3
 
       sl = 500
       Builtins.sleep(sl)
 
-      # TODO FIXME Names of real stages
       # We do not set help text here, because it was set outside
       Progress.New(
         caption,
@@ -584,7 +487,10 @@ module Yast
         "conntrack-tools",
         "hawk2",
         "crmsh",
-        "corosync-qdevice"
+        "corosync",
+        "corosync-qdevice",
+        "libknet1",
+        "libknet1-plugins-all",
       ]
       ret = PackageSystem.CheckAndInstallPackagesInteractive(required_pack_list)
       if ret == false
@@ -652,12 +558,12 @@ module Yast
       # Cluster read dialog caption
       caption = _("Saving cluster Configuration")
 
-      # TODO FIXME And set the right number of stages
+      # Set the right number of stages
       steps = 2
 
       sl = 500
 
-      # TODO FIXME Names of real stages
+      # Names of real stages
       # We do not set help text here, because it was set outside
       Progress.New(
         caption,
@@ -690,8 +596,11 @@ module Yast
 
       # Work with firewalld
       udp_ports = []
-      udp_ports << @mcastport1 if @mcastport1 != ""
-      udp_ports << @mcastport2 if @enable2 && @mcastport2 != ""
+      for interface in interface_list
+        if interface.has_key?("mcastport") and not udp_ports.include?(interface["mcastport"])
+          udp_ports << interface["mcastport"]
+        end
+      end
 
       # 30865 for csync2
       # 5560 for mgmtd
@@ -699,7 +608,7 @@ module Yast
       # 21064 for dlm
       # 5403 for corosync qdevice(default)
       tcp_ports = ["30865", "5560", "21064", "7630"]
-      tcp_ports << @qdevice_port if @corosync_qdevice
+      tcp_ports << @qdevice_port if @configure_qdevice
 
       begin
         Y2Firewall::Firewalld::Service.modify_ports(name: "cluster", tcp_ports: tcp_ports, udp_ports: udp_ports)
@@ -760,30 +669,24 @@ module Yast
     def Import(settings)
       settings = deep_copy(settings)
       @secauth = Ops.get_boolean(settings, "secauth", false)
+      @crypto_model = settings["crypto_model"] || "nss"
       @crypto_hash = settings["crypto_hash"] || "none"
       @crypto_cipher = settings["crypto_cipher"] || "none"
+      @link_mode = settings["link_mode"] || "passive"
       @transport = Ops.get_string(settings, "transport", "udp")
-      @bindnetaddr1 = Ops.get_string(settings, "bindnetaddr1", "")
-      @memberaddr = Ops.get_list(settings, "memberaddr", [])
-      @mcastaddr1 = Ops.get_string(settings, "mcastaddr1", "")
       @cluster_name  = settings["cluster_name"] || ""
       @ip_version  = settings["ip_version"] || "ipv4"
       @expected_votes = settings["expected_votes"] || ""
       @two_node = settings["two_node"] || ""
-      @mcastport2 = Ops.get_string(settings, "mcastport1", "")
-      @enable2 = Ops.get_boolean(settings, "enable2", false)
-      @bindnetaddr2 = Ops.get_string(settings, "bindnetaddr2", "")
-      @mcastaddr2 = Ops.get_string(settings, "mcastaddr2", "")
-      @mcastport2 = Ops.get_string(settings, "mcastport2", "")
-      @autoid = Ops.get_boolean(settings, "autoid", true)
-      @rrpmode = Ops.get_string(settings, "rrpmode", "")
+      @interface_list = settings["interface_list"] || []
+      @node_list = settings["node_list"] || []
 
-      @corosync_qdevice = settings["corosync_qdevice"] || false
+      @configure_qdevice = settings["configure_qdevice"] || false
       @qdevice_model = settings["qdevice_model"] || "net"
       @qdevice_votes = settings["qdevice_votes"] || ""
       @qdevice_host = settings["qdevice_host"] || ""
       @qdevice_port = settings["qdevice_port"] || "5403"
-      @qdevice_tls = settings["qdevice_tls"] || "off"
+      @qdevice_tls = settings["qdevice_tls"] || "on"
       @qdevice_algorithm= settings["qdevice_algorithm"] || "ffsplit"
       @qdevice_tie_breaker = settings["qdevice_tie_breaker"] || "lowest"
 
@@ -811,25 +714,19 @@ module Yast
     def Export
       result = {}
       Ops.set(result, "secauth", @secauth)
+      result["crypto_model"] = @crypto_model
       Ops.set(result, "crypto_hash", @crypto_hash)
       Ops.set(result, "crypto_cipher", @crypto_cipher)
       Ops.set(result, "transport", @transport)
-      Ops.set(result, "bindnetaddr1", @bindnetaddr1)
-      Ops.set(result, "memberaddr", @memberaddr)
-      Ops.set(result, "mcastaddr1", @mcastaddr1)
+      result["link_mode"] = @link_mode
       result["cluster_name"] = @cluster_name
       result["ip_version"] = @ip_version
       result["expected_votes"] = @expected_votes
       result["two_node"] = @two_node
-      Ops.set(result, "mcastport1", @mcastport1)
-      Ops.set(result, "enable2", @enable2)
-      Ops.set(result, "bindnetaddr2", @bindnetaddr2)
-      Ops.set(result, "mcastaddr2", @mcastaddr2)
-      Ops.set(result, "mcastport2", @mcastport2)
-      Ops.set(result, "autoid", true)
-      Ops.set(result, "rrpmode", @rrpmode)
+      result["interface_list"] = @interface_list
+      result["node_list"] = @node_list
 
-      result["corosync_qdevice"] = @corosync_qdevice
+      result["configure_qdevice"] = @configure_qdevice
       result["qdevice_model"] = @qdevice_model
       result["qdevice_votes"] = @qdevice_votes
       result["qdevice_host"] = @qdevice_host
@@ -873,24 +770,9 @@ module Yast
     def Summary
       # Configuration summary text for autoyast
       configured = ""
-      if @bindnetaddr1 != ""
+      if @transport != ""
         configured = "Corosync is configured<br/>\n"
-        configured = Ops.add(
-          Ops.add(
-            Ops.add(configured, "Ring 1 is configued to use "),
-            @bindnetaddr1
-          ),
-          "<br/>\n"
-        )
-      end
-      if @bindnetaddr2 != ""
-        configured = Ops.add(
-          Ops.add(
-            Ops.add(configured, "Ring 2 is configured to use "),
-            @bindnetaddr2
-          ),
-          "<br/>\n"
-        )
+        configured += "Corosync is configued to use " + @transport + "<br/>\n"
       end
 
       configured = "Change the configuration of HAE here..." if configured == ""
@@ -909,7 +791,8 @@ module Yast
     # installed.
     # @return [Hash] with 2 lists.
     def AutoPackages
-      { "install" => ["csync2", "pacemaker"], "remove" => [] }
+      { "install" => ["csync2", "pacemaker", "corosync", "corosync-qdevice",
+					  "hawk2", "libknet1"], "remove" => [] }
     end
 
     publish :variable => :csync2_key_file, :type => "string"
@@ -925,14 +808,14 @@ module Yast
     publish :function => :SetWriteOnly, :type => "void (boolean)"
     publish :function => :SetAbortFunction, :type => "void (boolean ())"
     publish :variable => :secauth, :type => "boolean"
+    publish :variable => :crypto_model, :type => "string"
     publish :variable => :crypto_hash, :type => "string"
     publish :variable => :crypto_cipher, :type => "string"
-    publish :variable => :bindnetaddr1, :type => "string"
-    publish :variable => :mcastaddr1, :type => "string"
+    publish :variable => :link_mode, :type => "string"
     publish :variable => :cluster_name, :type => "string"
     publish :variable => :ip_version, :type => "string"
     publish :variable => :expected_votes, :type => "string"
-    publish :variable => :corosync_qdevice, :type => "boolean"
+    publish :variable => :configure_qdevice, :type => "boolean"
     publish :variable => :qdevice_model, :type => "string"
     publish :variable => :qdevice_votes, :type => "string"
     publish :variable => :qdevice_host, :type => "string"
@@ -946,21 +829,13 @@ module Yast
     publish :variable => :heuristics_interval, :type => "string"
     publish :variable => :heuristics_executables, :type => "map <string, string>"
     publish :variable => :two_node, :type => "string"
-    publish :variable => :config_format, :type => "string"
-    publish :variable => :mcastport1, :type => "string"
-    publish :variable => :enable2, :type => "boolean"
-    publish :variable => :bindnetaddr2, :type => "string"
-    publish :variable => :mcastaddr2, :type => "string"
-    publish :variable => :mcastport2, :type => "string"
-    publish :variable => :autoid, :type => "boolean"
-    publish :variable => :nodeid, :type => "string"
-    publish :variable => :rrpmode, :type => "string"
     publish :variable => :corokey, :type => "string"
     publish :variable => :csync2key, :type => "string"
     publish :variable => :global_startcorosync, :type => "boolean"
     publish :variable => :global_startcsync2, :type => "boolean"
     publish :variable => :transport, :type => "string"
-    publish :variable => :memberaddr, :type => "list <string>"
+    publish :variable => :interface_list, :type => "list <string>"
+    publish :variable => :node_list, :type => "list <string>"
     publish :function => :SaveClusterConfig, :type => "void ()"
     publish :function => :SaveCorosyncQdeviceConfig, :type => "void ()"
     publish :variable => :csync2_host, :type => "list <string>"

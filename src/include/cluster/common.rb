@@ -87,5 +87,17 @@ module Yast
 
       nil
     end
+
+    def valid_number?(num)
+      /^\d+$/.match?(num)
+    end
+
+    def valid_port_number?(port)
+      valid_number?(port) && port.to_i.between?(0, 65535)
+    end
+
+    def valid_nodeid?(nodeid)
+      valid_number?(nodeid) && nodeid.to_i > 0
+    end
   end
 end
