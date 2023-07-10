@@ -225,9 +225,12 @@ module Yast
 
     def switch_interface_button(transport, link_mode="passive")
       knet = transport == "knet"
+      udp = transport == "udp"
+      udpu = transport == "udpu"
       enable_widgets(knet, :linknumber, :knet_transport)
-      enable_widgets(link_mode == "passive", :knet_link_priority)
-      enable_widgets(!knet, :bindnetaddr, :mcastaddr, :udp_mcastport)
+      enable_widgets(knet && link_mode == "passive", :knet_link_priority)
+      enable_widgets(udp, :bindnetaddr, :mcastaddr, :mcastport)
+      enable_widgets(udpu, :mcastport)
 
       nil
     end
@@ -456,7 +459,7 @@ module Yast
               HSpacing(1),
               MinWidth(20, InputField(Id(:mcastaddr), _("Multicast Address"), value["mcastaddr"])),
               HSpacing(1),
-              MinWidth(20, InputField(Id(:udp_mcastport), _("Multicast Port") , value["mcastport"])),
+              MinWidth(20, InputField(Id(:mcastport), _("Multicast Port") , value["mcastport"])),
             ),
             VSpacing(1),
             Right(
@@ -470,7 +473,7 @@ module Yast
       )
 
       UI.ChangeWidget(:linknumber, :ValidChars, "0123456789")
-      UI.ChangeWidget(:udp_mcastport, :ValidChars, "0123456789")
+      UI.ChangeWidget(:mcastport, :ValidChars, "0123456789")
       UI.ChangeWidget(:knet_link_priority, :ValidChars, "0123456789")
       UI.ChangeWidget(Id(:knet_transport), :Value, value["knet_transport"])
 
@@ -1067,7 +1070,7 @@ module Yast
           end
         end
 
-        if transport != "udpu" && Cluster.node_list.size > 0 && Cluster.node_list[0]["IPs"].size > Cluster.interface_list.size
+        if Cluster.node_list.size > 0 && Cluster.node_list[0]["IPs"].size > Cluster.interface_list.size
           UI.ChangeWidget(Id(:ifacelist_add), :Enabled, true)
         else
           UI.ChangeWidget(Id(:ifacelist_add), :Enabled, false)
