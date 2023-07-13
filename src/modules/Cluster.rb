@@ -694,11 +694,10 @@ module Yast
       udp_ports << @mcastport2 if @enable2 && @mcastport2 != ""
 
       # 30865 for csync2
-      # 5560 for mgmtd
       # 7630 for hawk or hawk2
       # 21064 for dlm
       # 5403 for corosync qdevice(default)
-      tcp_ports = ["30865", "5560", "21064", "7630"]
+      tcp_ports = ["30865", "21064", "7630"]
       tcp_ports << @qdevice_port if @corosync_qdevice
 
       begin
