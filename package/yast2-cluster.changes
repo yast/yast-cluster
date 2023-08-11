@@ -1,4 +1,14 @@
 -------------------------------------------------------------------
+Thu Mar 23 07:55:52 UTC 2023 - Peter Varkoly <varkoly@suse.com>
+
+- bsc#1209602 bugs in yast2-cluster Write funcion
+- Remove sensless call to sysconfig.openais
+- Remove sensless sysconfig.openais agent
+- Enable csync2.socket
+- Add SCR.Write(PATH,nil) to save the configuration inmediately
+- Version 4.3.8
+
+-------------------------------------------------------------------
 Thu Nov  3 06:08:28 UTC 2022 - XinLiang <XLiang@suse.com>
 
 - bsc#1204530, set crypto_hash as "sha1" and set crypto_cipher as "aes256",
