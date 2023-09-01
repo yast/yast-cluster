@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Sep 01 19:57:03 UTC 2023 - Josef Reidinger <jreidinger@suse.com>
+
+- Branch package for SP6 (bsc#1208913)
+
+-------------------------------------------------------------------
 Thu Mar 23 07:55:52 UTC 2023 - Peter Varkoly <varkoly@suse.com>
 
 - bsc#1209602 bugs in yast2-cluster Write funcion
