@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Jan 17 16:45:52 UTC 2025 - xin liang <xliang@suse.com>
+
+- Update HA related ports (bsc#1219773)
+- Version 4.6.3
+
+-------------------------------------------------------------------
 Fri Sep 01 19:57:03 UTC 2023 - Josef Reidinger <jreidinger@suse.com>
 
 - Branch package for SP6 (bsc#1208913)
