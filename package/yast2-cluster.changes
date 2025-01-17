@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Jan 17 16:45:52 UTC 2025 - xin liang <xliang@suse.com>
+
+- Update HA related ports (bsc#1219773)
+- Version 4.5.3
+
+-------------------------------------------------------------------
 Thu Mar 23 07:55:52 UTC 2023 - Peter Varkoly <varkoly@suse.com>
 
 - bsc#1209602 bugs in yast2-cluster Write funcion
