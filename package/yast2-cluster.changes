@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Fri Jan 17 16:45:52 UTC 2025 - xin liang <xliang@suse.com>
+
+- Update HA related ports (bsc#1219773)
+- Version 4.7.1
+
+-------------------------------------------------------------------
 Fri Sep 06 07:14:32 UTC 2024 - Ladislav Slezák <lslezak@suse.com>
 
 - Branch package for SP7 (bsc#1230201)
