@@ -10,7 +10,7 @@
   <port protocol="tcp" port="9929"/> <!-- booth -->
   <port protocol="udp" port="9929"/>
   <port protocol="tcp" port="21064"/> <!-- dlm -->
-  <port protocol="stcp" port="21064"/>
+  <port protocol="sctp" port="21064"/>
   <port protocol="tcp" port="30865"/> <!-- csync2 -->
 </service>
 
