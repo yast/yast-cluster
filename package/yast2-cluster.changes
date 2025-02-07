@@ -1,8 +1,8 @@
 -------------------------------------------------------------------
-Fri Feb  7 20:13:52 UTC 2025 - xin liang <xliang@suse.com>
+Fri Feb  7 20:23:52 UTC 2025 - xin liang <xliang@suse.com>
 
 - Fix: fix a typo for sctp in cluster.firewalld.xml (bsc#1236903)
-- Version 4.5.4
+- Version 4.6.4
 
 -------------------------------------------------------------------
 Fri Jan 17 16:45:52 UTC 2025 - xin liang <xliang@suse.com>
