@@ -18,7 +18,7 @@
 %define _fwdefdir %{_prefix}/lib/firewalld/services
 
 Name:           yast2-cluster
-Version:        5.0.1
+Version:        5.0.2
 Release:        0
 Summary:        Configuration of cluster
 License:        GPL-2.0-only
@@ -30,7 +30,6 @@ Source1:        cluster.firewalld.xml
 
 BuildRequires:  firewall-macros
 BuildRequires:  rubygem(%{rb_default_ruby_abi}:yast-rake)
-BuildRequires:  update-desktop-files
 BuildRequires:  yast2-devtools >= 4.2.2
 
 Requires:       yast2-ruby-bindings >= 1.0.0
